@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwimCoach — Your Personal Swim Coach</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- ─── Navigation ─── -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="nav-logo">🏊</span>
+      <span class="nav-title">SwimCoach</span>
+    </div>
+    <div class="nav-links">
+      <div class="nav-profile-select" id="nav-profile-select">
+        <select id="profile-dropdown" class="profile-dropdown">
+          <option value="">Loading profiles…</option>
+        </select>
+        <button id="btn-switch-profile" class="btn btn-sm btn-secondary" disabled>Switch</button>
+      </div>
+      <a href="#profile" class="nav-link" data-nav="profile">Profile</a>
+      <a href="#generate" class="nav-link" data-nav="generate">Generate</a>
+    </div>
+  </nav>
+
+  <!-- ─── Main Content ─── -->
+  <main class="container">
+
+    <!-- ─── Profile Page ─── -->
+    <section id="page-profile" class="page hidden">
+      <div class="page-header">
+        <h1>Your Profile</h1>
+        <p class="subtitle">Tell us about yourself so we can personalize your workouts.</p>
+      </div>
+
+      <!-- Profile selector (shown when profiles exist) -->
+      <div id="profile-list-section" class="form-section hidden">
+        <h2 class="section-title">Existing Profiles</h2>
+        <div id="profile-list" class="profile-list">
+          <!-- Populated dynamically -->
+        </div>
+        <div class="form-actions" style="margin-top: var(--space-md);">
+          <button type="button" id="btn-new-profile" class="btn btn-secondary">+ Create New Profile</button>
+        </div>
+      </div>
+
+      <form id="profile-form" class="form">
+        <!-- Step 1: Essential Info -->
+        <div class="form-section">
+          <h2 class="section-title">Basic Info</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="firstName">First Name *</label>
+              <input type="text" id="firstName" name="firstName" required placeholder="Jane">
+            </div>
+            <div class="form-group">
+              <label for="lastName">Last Name *</label>
+              <input type="text" id="lastName" name="lastName" required placeholder="Smith">
+            </div>
+            <div class="form-group">
+              <label for="email">Email *</label>
+              <input type="email" id="email" name="email" required placeholder="jane@example.com">
+            </div>
+            <div class="form-group">
+              <label for="dateOfBirth">Date of Birth *</label>
+              <input type="date" id="dateOfBirth" name="dateOfBirth" required>
+            </div>
+            <div class="form-group">
+              <label for="gender">Gender *</label>
+              <select id="gender" name="gender" required>
+                <option value="">Select...</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non-binary">Non-binary</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="experienceLevel">Experience Level</label>
+              <select id="experienceLevel" name="experienceLevel">
+                <option value="beginner">Beginner</option>
+                <option value="intermediate" selected>Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="elite">Elite</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: Goals -->
+        <div class="form-section">
+          <h2 class="section-title">Goals</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="primaryStroke">Primary Stroke *</label>
+              <select id="primaryStroke" name="primaryStroke" required>
+                <option value="">Select...</option>
+                <option value="freestyle">Freestyle</option>
+                <option value="backstroke">Backstroke</option>
+                <option value="breaststroke">Breaststroke</option>
+                <option value="butterfly">Butterfly</option>
+                <option value="individual-medley">Individual Medley</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="primaryDistance">Primary Distance *</label>
+              <select id="primaryDistance" name="primaryDistance" required>
+                <option value="">Select...</option>
+                <option value="50">50m</option>
+                <option value="100">100m</option>
+                <option value="200">200m</option>
+                <option value="400">400m</option>
+                <option value="800">800m</option>
+                <option value="1500">1500m</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="trainingFocus">Training Focus</label>
+              <select id="trainingFocus" name="trainingFocus">
+                <option value="maintenance">Maintenance</option>
+                <option value="sprint">Sprint</option>
+                <option value="distance">Distance</option>
+                <option value="technique">Technique</option>
+                <option value="endurance">Endurance</option>
+                <option value="speed">Speed</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="targetImprovement">Target Improvement</label>
+              <input type="text" id="targetImprovement" name="targetImprovement" placeholder="e.g., Drop 5s in 100m free">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Expandable Details -->
+        <div class="form-section form-section-expandable">
+          <button type="button" class="section-toggle" data-toggle="details">
+            <h2 class="section-title">Schedule & Equipment <span class="toggle-hint">(optional)</span></h2>
+            <span class="toggle-icon">▸</span>
+          </button>
+          <div class="expandable-content hidden">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="weeklyPoolSessions">Pool Sessions / Week</label>
+                <input type="number" id="weeklyPoolSessions" name="weeklyPoolSessions" min="0" max="10" value="3">
+              </div>
+              <div class="form-group">
+                <label for="weeklyGymSessions">Gym Sessions / Week</label>
+                <input type="number" id="weeklyGymSessions" name="weeklyGymSessions" min="0" max="10" value="2">
+              </div>
+              <div class="form-group">
+                <label for="sessionDuration">Session Duration (min)</label>
+                <input type="number" id="sessionDuration" name="sessionDuration" min="15" max="180" value="60">
+              </div>
+              <div class="form-group">
+                <label for="poolLength">Pool Length</label>
+                <select id="poolLength" name="poolLength">
+                  <option value="25">25m</option>
+                  <option value="50">50m</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="checkbox-group">
+              <h3>Pool Equipment</h3>
+              <div class="checkbox-grid">
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="fins"> Fins</label>
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="paddles"> Paddles</label>
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="pullBuoy"> Pull Buoy</label>
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="snorkel"> Snorkel</label>
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="parachute"> Parachute</label>
+                <label class="checkbox-label"><input type="checkbox" name="poolEquipment" value="resistanceBands"> Resistance Bands</label>
+              </div>
+            </div>
+
+            <div class="checkbox-group">
+              <h3>Gym Equipment</h3>
+              <div class="checkbox-grid">
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="weights" checked> Weights</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="resistanceMachine"> Machines</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="pullUpBar"> Pull-up Bar</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="plyometricBox"> Plyo Box</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="medicineBall"> Medicine Ball</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="yogaMat" checked> Yoga Mat</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg">Save Profile & Start Training →</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ─── Generate Page ─── -->
+    <section id="page-generate" class="page hidden">
+      <div class="page-header">
+        <h1>Generate Workout</h1>
+        <p class="subtitle">Quick generate with your profile settings, or customize below.</p>
+      </div>
+
+      <!-- Quick Generate -->
+      <div class="quick-generate">
+        <button id="btn-quick-generate" class="btn btn-primary btn-xl">
+          ⚡ Quick Generate
+        </button>
+        <p class="hint">Uses your profile defaults — fastest way to get a great workout.</p>
+      </div>
+
+      <div class="divider"><span>or customize</span></div>
+
+      <!-- Customize Form -->
+      <form id="generate-form" class="form">
+        <div class="form-section">
+          <h2 class="section-title">Workout Preferences</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="workoutType">Workout Type</label>
+              <select id="workoutType" name="workoutType">
+                <option value="">Profile default</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="duration">Duration (min)</label>
+              <input type="number" id="duration" name="duration" min="10" max="180" placeholder="From profile">
+            </div>
+            <div class="form-group">
+              <label for="intensity">Intensity</label>
+              <select id="intensity" name="intensity">
+                <option value="">Profile default</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="programPeriod">Program Period</label>
+              <select id="programPeriod" name="programPeriod">
+                <option value="single">Single Session</option>
+                <option value="weekly">Weekly Block</option>
+                <option value="monthly">Monthly Plan</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="poolLength-pool">Pool Length</label>
+              <select id="poolLength-pool" name="poolLength">
+                <option value="">Profile default</option>
+                <option value="25">25m</option>
+                <option value="50">50m</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="section-title">Available Equipment</h2>
+          <div class="checkbox-group">
+            <h3>Pool Equipment</h3>
+            <div class="checkbox-grid" id="pool-equipment-checkboxes">
+              <!-- Populated from API -->
+            </div>
+          </div>
+          <div class="checkbox-group">
+            <h3>Gym Equipment</h3>
+            <div class="checkbox-grid" id="gym-equipment-checkboxes">
+              <!-- Populated from API -->
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-lg">Generate Custom Workout →</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ─── Workout Page ─── -->
+    <section id="page-workout" class="page hidden">
+      <div id="workout-content">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ─── Loading Overlay ─── -->
+  <div id="loading-overlay" class="overlay hidden">
+    <div class="spinner"></div>
+    <p id="loading-text">Generating your workout…</p>
+  </div>
+
+  <!-- ─── Toast Notifications ─── -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script type="module" src="/js/app.js?v=3"></script>
+</body>
+</html>

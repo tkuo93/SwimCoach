@@ -1,0 +1,73 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/swimcoach
+      - OPEN_NOTEBOOK_URL=http://open-notebook:8502
+      - OPEN_NOTEBOOK_MODEL=${OPEN_NOTEBOOK_MODEL:-model:cpommq6fi21btio7l5ru}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - PORT=3000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      open-notebook:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    command: start --log info --user root --pass root rocksdb:/mydata/mydatabase.db
+    user: root
+    ports:
+      - "8000:8000"
+    volumes:
+      - surrealdb_data:/mydata
+    restart: unless-stopped
+
+  open-notebook:
+    image: lfnovo/open_notebook:v1-latest
+    ports:
+      - "8502:8502"
+      - "5055:5055"
+    environment:
+      - OPEN_NOTEBOOK_ENCRYPTION_KEY=${OPEN_NOTEBOOK_ENCRYPTION_KEY:-swimcoach-dev-secret-key-change-me}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=root
+      - SURREAL_NAMESPACE=swimcoach
+      - SURREAL_DATABASE=knowledge
+    volumes:
+      - open_notebook_data:/app/data
+    depends_on:
+      surrealdb:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  surrealdb_data:
+  open_notebook_data:
