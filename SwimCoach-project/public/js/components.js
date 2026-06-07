@@ -229,10 +229,10 @@ function buildChatPanel(workoutId) {
     <div class="chat-panel" id="chat-panel-${workoutId}">
       <h3>💬 Chat with your coach</h3>
       <div class="chat-messages" id="chat-messages-${workoutId}">
-        <div class="chat-message coach">Need a change? Ask for a harder/easier version, swap exercises, or adjust the duration.</div>
+        <!-- Populated dynamically by conversation handler -->
       </div>
       <form class="chat-input-form" id="chat-form-${workoutId}">
-        <input type="text" placeholder="e.g., Make it harder, swap freestyle for backstroke…" id="chat-input-${workoutId}" autocomplete="off">
+        <input type="text" placeholder="Ask about your workout or request changes…" id="chat-input-${workoutId}" autocomplete="off">
         <button type="submit" class="btn btn-primary btn-sm">Send</button>
       </form>
     </div>`;

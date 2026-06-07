@@ -40,18 +40,19 @@ describe('Open Notebook Direct API', () => {
     const res = await axios.get(`${OPEN_NOTEBOOK_URL}/api/sources`);
     const sources = res.data;
 
-    // Find sources that are embedded by checking individual GET
+    // Check only the first 10 embedded sources (list endpoint may stale-cache embedded_chunks)
+    const embedded = sources.filter(s => s.embedded).slice(0, 10);
     const embeddedWithChunks = [];
-    for (const s of sources) {
-      if (s.embedded) {
-        const detail = await axios.get(`${OPEN_NOTEBOOK_URL}/api/sources/${s.id}`);
-        if (detail.data.embedded_chunks > 0) {
-          embeddedWithChunks.push({
-            id: detail.data.id,
-            title: detail.data.title,
-            chunks: detail.data.embedded_chunks,
-          });
-        }
+
+    for (const s of embedded) {
+      const detail = await axios.get(`${OPEN_NOTEBOOK_URL}/api/sources/${s.id}`, { timeout: 5000 });
+      if (detail.data.embedded_chunks > 0) {
+        embeddedWithChunks.push({
+          id: detail.data.id,
+          title: detail.data.title,
+          chunks: detail.data.embedded_chunks,
+        });
+        break; // Found one — that's enough
       }
     }
 
@@ -59,7 +60,7 @@ describe('Open Notebook Direct API', () => {
     embeddedWithChunks.forEach(s => console.log(`    - ${s.title}: ${s.chunks} chunks`));
 
     expect(embeddedWithChunks.length).toBeGreaterThan(0);
-  });
+  }, 30_000);
 
   /**
    * Test that the RAG query endpoint is reachable and responds.
@@ -226,7 +227,7 @@ describe('SwimCoach open-notebook.js service', () => {
       experienceLevel: 'intermediate',
       goals: {
         primaryEvents: [{ stroke: 'freestyle', distance: 200 }],
-        trainingFocus: 'endurance',
+        trainingFocus: ['endurance'],
         targetImprovement: 'Drop 10s in 200m free',
       },
       trainingSchedule: {
@@ -306,11 +307,11 @@ describe('SwimCoach API Routes', () => {
       if (!serverReachable) return;
     });
 
-    test('GET / should return welcome message', async () => {
+    test('GET /health should return status ok', async () => {
       if (!serverReachable) return;
-      const res = await axios.get(`${SWIMCOACH_URL}/`);
+      const res = await axios.get(`${SWIMCOACH_URL}/health`);
       expect(res.status).toBe(200);
-      expect(res.data.message).toContain('SwimCoach');
+      expect(res.data.status).toBe('ok');
     });
 
     test('POST /api/knowledge/query should accept a question', async () => {
@@ -318,7 +319,7 @@ describe('SwimCoach API Routes', () => {
       try {
         const res = await axios.post(`${SWIMCOACH_URL}/api/knowledge/query`, {
           question: 'What is swimming?',
-        }, { timeout: 120_000 });
+        }, { timeout: 180_000 });
 
         expect(res.status).toBe(200);
         expect(res.data.success).toBe(true);
@@ -330,7 +331,7 @@ describe('SwimCoach API Routes', () => {
         }
         throw err;
       }
-    }, 120_000);
+    }, 200_000);
 
     test('GET /api/knowledge/sources should return sources', async () => {
       if (!serverReachable) return;

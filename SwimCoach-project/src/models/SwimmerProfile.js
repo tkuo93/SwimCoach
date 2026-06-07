@@ -56,23 +56,24 @@ const swimmerProfileSchema = new mongoose.Schema({
         required: true
       },
       distance: {
-        type: Number, // in meters
-        enum: [50, 100, 200, 400, 800, 1500],
+        type: Number, // in meters (or yards equivalent)
+        enum: [50, 100, 200, 400, 500, 800, 1500, 1650],
         required: true
       }
+    }],
+    // Multi-select desired outcomes
+    outcomes: [{
+      type: String,
+      enum: ['drop-time', 'build-muscle', 'lose-weight', 'maintain', 'technique']
     }],
     targetImprovement: {
       type: String, // e.g., "drop 5 seconds in 100m freestyle"
       trim: true
     },
-    trainingFocus: {
+    trainingFocus: [{
       type: String,
-      enum: ['sprint', 'distance', 'technique', 'endurance', 'speed', 'maintenance'],
-      default: 'maintenance'
-    },
-    competitionTimeline: {
-      type: Date // Target competition date
-    }
+      enum: ['sprint', 'distance', 'technique', 'endurance', 'speed', 'maintenance', 'lactate', 'resistance-power', 'mobility', 'recovery']
+    }],
   },
 
   // Training Schedule
@@ -95,6 +96,15 @@ const swimmerProfileSchema = new mongoose.Schema({
       max: 180,
       default: 60
     },
+    // Days of the week for pool and gym
+    poolDays: [{
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    }],
+    gymDays: [{
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    }],
     preferredTimes: [{
       dayOfWeek: {
         type: String,
@@ -106,7 +116,13 @@ const swimmerProfileSchema = new mongoose.Schema({
     availabilityNotes: {
       type: String,
       trim: true
-    }
+    },
+    // Competition date ranges (multiple blocks)
+    competitionDates: [{
+      start: { type: Date, required: true },
+      end: { type: Date, required: true },
+      label: { type: String, trim: true }
+    }]
   },
 
   // Performance Metrics
@@ -117,8 +133,13 @@ const swimmerProfileSchema = new mongoose.Schema({
       required: true
     },
     distance: {
-      type: Number, // in meters
-      enum: [50, 100, 200, 400, 800, 1500],
+      type: Number,
+      enum: [50, 100, 200, 400, 500, 800, 1500, 1650],
+      required: true
+    },
+    poolLength: {
+      type: String,
+      enum: ['scy', 'scm', 'lcm'],
       required: true
     },
     time: {
@@ -146,9 +167,8 @@ const swimmerProfileSchema = new mongoose.Schema({
   // Equipment Availability
   equipment: {
     poolLength: {
-      type: Number, // in meters
-      enum: [25, 50],
-      default: 25
+      value: { type: Number, default: 25 },
+      unit: { type: String, enum: ['meters', 'yards'], default: 'meters' }
     },
     poolEquipment: {
       fins: { type: Boolean, default: false },
@@ -164,7 +184,9 @@ const swimmerProfileSchema = new mongoose.Schema({
       pullUpBar: { type: Boolean, default: false },
       plyometricBox: { type: Boolean, default: false },
       medicineBall: { type: Boolean, default: false },
-      yogaMat: { type: Boolean, default: true }
+      yogaMat: { type: Boolean, default: true },
+      bands: { type: Boolean, default: false },
+      sliders: { type: Boolean, default: false }
     }
   },
 

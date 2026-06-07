@@ -15,9 +15,16 @@ const workoutSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+
+  // Program grouping — links workouts that belong to the same program
+  programId: {
+    type: String,
+    index: true,
+    default: null,
+  },
   workoutType: {
     type: String,
-    enum: ['lactate', 'resistance-power', 'speed', 'technique', 'endurance', 'recovery'],
+    enum: ['lactate', 'resistance-power', 'speed', 'technique', 'endurance', 'recovery', 'mobility'],
     required: true
   },
 
@@ -101,6 +108,14 @@ const workoutSchema = new mongoose.Schema({
       },
       muscleGroup: {
         type: String,
+        enum: [
+          'arms', 'legs', 'core', 'full-body',
+          'chest', 'back', 'shoulders',
+          'biceps', 'triceps', 'forearms',
+          'quadriceps', 'hamstrings', 'glutes', 'calves',
+          'hip-flexors', 'adductors', 'abductors',
+          'rotator-cuff', 'lower-back', 'obliques',
+        ],
         default: 'full-body',
         trim: true
       },
@@ -176,13 +191,13 @@ const workoutSchema = new mongoose.Schema({
     }],
     generationParameters: {
       equipmentUsed: {
-        poolLength: Number,
+        poolLength: { type: String, default: '25m' },
         poolEquipment: mongoose.Schema.Types.Mixed,
         gymEquipment: mongoose.Schema.Types.Mixed
       },
       workoutPreferences: {
         type: String,
-        enum: ['lactate', 'resistance-power', 'speed', 'technique', 'endurance', 'recovery']
+        enum: ['lactate', 'resistance-power', 'speed', 'technique', 'endurance', 'recovery', 'mobility']
       },
       durationPreference: Number,
       intensityPreference: String

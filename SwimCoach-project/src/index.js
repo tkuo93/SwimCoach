@@ -9,6 +9,8 @@ const profileRoutes = require('./routes/api/profiles');
 const workoutRoutes = require('./routes/api/workouts');
 const knowledgeRoutes = require('./routes/api/knowledge');
 const customizationRoutes = require('./routes/api/customization');
+const memoryRoutes = require('./routes/api/memory');
+const debugRoutes = require('./routes/api/debug');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +24,8 @@ app.use('/api/profiles', profileRoutes);
 app.use('/api/workouts', workoutRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/workouts/customize', customizationRoutes);
+app.use('/api/memory', memoryRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Health endpoint
 app.get('/health', (req, res) => {

@@ -13,7 +13,7 @@ const axios = require('axios');
  */
 
 const BASE_URL = process.env.OPEN_NOTEBOOK_URL || 'http://localhost:8502';
-const TIMEOUT_MS = 120_000;
+const TIMEOUT_MS = 30_000;
 
 const client = axios.create({
   baseURL: BASE_URL,
@@ -97,7 +97,7 @@ async function query(question, opts = {}) {
   }
 
   // Retry up to N times on transient Open Notebook errors (strategy parse failures, etc.)
-  const maxRetries = opts.retries ?? 3;
+  const maxRetries = opts.retries ?? 1;
   let lastErr;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -262,7 +262,8 @@ function buildPrompt(profile, customization) {
 function formatGoals(goals) {
   if (!goals) return 'General fitness';
   const events = goals.primaryEvents?.map(e => `${e.distance}m ${e.stroke}`).join(', ') || '';
-  const focus = goals.trainingFocus ? `, focus: ${goals.trainingFocus}` : '';
+  const tf = goals.trainingFocus;
+  const focus = tf ? `, focus: ${Array.isArray(tf) ? tf.join(', ') : tf}` : '';
   const target = goals.targetImprovement ? `, target: ${goals.targetImprovement}` : '';
   return `${events}${focus}${target}` || 'General fitness';
 }
@@ -274,7 +275,17 @@ function formatBestTimes(times) {
 
 function formatEquipment(equipment) {
   if (!equipment) return 'Standard pool access';
-  const pool = equipment.poolLength ? `${equipment.poolLength}m pool` : '';
+  // Handle poolLength as { value, unit } object or legacy string
+  let pool = '';
+  const pl = equipment.poolLength;
+  if (pl) {
+    if (typeof pl === 'object' && pl.value) {
+      const unitAbbr = pl.unit === 'yards' ? 'yd' : 'm';
+      pool = `${pl.value}${unitAbbr} pool`;
+    } else if (typeof pl === 'string') {
+      pool = `${pl} pool`;
+    }
+  }
   const poolGear = equipment.poolEquipment
     ? Object.entries(equipment.poolEquipment).filter(([, v]) => v).map(([k]) => k).join(', ')
     : '';

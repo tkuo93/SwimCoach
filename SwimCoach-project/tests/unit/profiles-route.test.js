@@ -70,7 +70,7 @@ const validProfile = {
   experienceLevel: 'intermediate',
   goals: {
     primaryEvents: [{ stroke: 'freestyle', distance: 100 }],
-    trainingFocus: 'sprint',
+    trainingFocus: ['sprint'],
   },
   trainingSchedule: {
     weeklyPoolSessions: 3,
@@ -78,7 +78,7 @@ const validProfile = {
     sessionDuration: 60,
   },
   equipment: {
-    poolLength: 25,
+    poolLength: { value: 25, unit: 'meters' },
     poolEquipment: { fins: true, paddles: false },
     gymEquipment: { weights: true, yogaMat: true },
   },

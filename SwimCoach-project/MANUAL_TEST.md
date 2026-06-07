@@ -35,7 +35,7 @@ curl -X POST http://localhost:3000/api/profiles \
     "experienceLevel": "intermediate",
     "goals": {
       "primaryEvents": [{"stroke": "freestyle", "distance": 200}],
-      "trainingFocus": "endurance",
+      "trainingFocus": ["endurance"],
       "targetImprovement": "Drop 10 seconds in 200m freestyle"
     },
     "trainingSchedule": {
@@ -47,7 +47,7 @@ curl -X POST http://localhost:3000/api/profiles \
       {"stroke": "freestyle", "distance": 200, "time": "03:10.00"}
     ],
     "equipment": {
-      "poolLength": 25,
+      "poolLength": { "value": 25, "unit": "meters" },
       "poolEquipment": {"fins": true, "paddles": true},
       "gymEquipment": {"weights": true, "yogaMat": true}
     }
@@ -65,7 +65,7 @@ curl -X POST http://localhost:3000/api/workouts/generate \
     "swimmerId": "<PASTE_ID_FROM_TEST_2>",
     "workoutType": "lactate",
     "duration": 45,
-    "poolLength": 25,
+    "poolLength": "25m",
     "availableEquipment": ["fins", "paddles"]
   }'
 ```

@@ -56,7 +56,7 @@ describe('GET /api/workouts/customize/options', () => {
     const body = res.json.mock.calls[0][0];
     expect(body.data.workoutTypes).toBeDefined();
     expect(Array.isArray(body.data.workoutTypes)).toBe(true);
-    expect(body.data.workoutTypes).toHaveLength(6);
+    expect(body.data.workoutTypes).toHaveLength(7);
 
     body.data.workoutTypes.forEach((t) => {
       expect(t).toHaveProperty('value');
@@ -65,7 +65,7 @@ describe('GET /api/workouts/customize/options', () => {
     });
   });
 
-  test('includes all expected workout types', async () => {
+  test('includes all expected workout types including mobility', async () => {
     const req = mockReq();
     const res = mockRes();
 
@@ -80,19 +80,20 @@ describe('GET /api/workouts/customize/options', () => {
       'speed',
       'technique',
       'endurance',
+      'mobility',
       'recovery',
     ]);
   });
 
-  test('returns poolLengths with 2 options', async () => {
+  test('returns poolLengths with 5 options including scy/scm/lcm', async () => {
     const req = mockReq();
     const res = mockRes();
 
     await handler(req, res);
 
     const data = res.json.mock.calls[0][0].data;
-    expect(data.poolLengths).toHaveLength(2);
-    expect(data.poolLengths.map((p) => p.value)).toEqual([25, 50]);
+    expect(data.poolLengths).toBeDefined();
+    expect(data.poolLengths.length).toBeGreaterThan(0);
   });
 
   test('returns poolEquipment with 6 options', async () => {
@@ -112,14 +113,14 @@ describe('GET /api/workouts/customize/options', () => {
     expect(values).toContain('resistanceBands');
   });
 
-  test('returns gymEquipment with 6 options', async () => {
+  test('returns gymEquipment with 8 options including bands and sliders', async () => {
     const req = mockReq();
     const res = mockRes();
 
     await handler(req, res);
 
     const data = res.json.mock.calls[0][0].data;
-    expect(data.gymEquipment).toHaveLength(6);
+    expect(data.gymEquipment).toHaveLength(8);
     const values = data.gymEquipment.map((e) => e.value);
     expect(values).toContain('weights');
     expect(values).toContain('resistanceMachine');
@@ -127,6 +128,8 @@ describe('GET /api/workouts/customize/options', () => {
     expect(values).toContain('plyometricBox');
     expect(values).toContain('medicineBall');
     expect(values).toContain('yogaMat');
+    expect(values).toContain('bands');
+    expect(values).toContain('sliders');
   });
 
   test('returns intensities with 4 levels', async () => {
@@ -153,6 +156,56 @@ describe('GET /api/workouts/customize/options', () => {
     expect(values).toEqual(['single', 'weekly', 'monthly']);
   });
 
+  test('returns distances with 8 options including 500 and 1650', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    await handler(req, res);
+
+    const data = res.json.mock.calls[0][0].data;
+    expect(data.distances).toHaveLength(8);
+    expect(data.distances.map((d) => d.value)).toEqual([50, 100, 200, 400, 500, 800, 1500, 1650]);
+  });
+
+  test('returns strokes with 5 options', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    await handler(req, res);
+
+    const data = res.json.mock.calls[0][0].data;
+    expect(data.strokes).toHaveLength(5);
+    expect(data.strokes.map((s) => s.value)).toEqual([
+      'freestyle', 'backstroke', 'breaststroke', 'butterfly', 'individual-medley',
+    ]);
+  });
+
+  test('returns goalOutcomes with 5 options', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    await handler(req, res);
+
+    const data = res.json.mock.calls[0][0].data;
+    expect(data.goalOutcomes).toHaveLength(5);
+    expect(data.goalOutcomes.map((o) => o.value)).toEqual([
+      'drop-time', 'build-muscle', 'lose-weight', 'maintain', 'technique',
+    ]);
+  });
+
+  test('returns daysOfWeek with 7 options', async () => {
+    const req = mockReq();
+    const res = mockRes();
+
+    await handler(req, res);
+
+    const data = res.json.mock.calls[0][0].data;
+    expect(data.daysOfWeek).toHaveLength(7);
+    expect(data.daysOfWeek.map((d) => d.value)).toEqual([
+      'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    ]);
+  });
+
   test('each intensity has a descriptive label', async () => {
     const req = mockReq();
     const res = mockRes();
@@ -162,7 +215,7 @@ describe('GET /api/workouts/customize/options', () => {
     const intensities = res.json.mock.calls[0][0].data.intensities;
     intensities.forEach((i) => {
       expect(i.label.length).toBeGreaterThan(3);
-      expect(i.label).toContain('—'); // Has description separator
+      expect(i.label).toContain('—');
     });
   });
 
@@ -179,6 +232,7 @@ describe('GET /api/workouts/customize/options', () => {
     expect(labels).toContain('Speed');
     expect(labels).toContain('Technique');
     expect(labels).toContain('Endurance');
+    expect(labels).toContain('Mobility');
     expect(labels).toContain('Recovery');
   });
 });

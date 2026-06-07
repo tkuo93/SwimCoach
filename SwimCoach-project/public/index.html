@@ -22,6 +22,8 @@
       </div>
       <a href="#profile" class="nav-link" data-nav="profile">Profile</a>
       <a href="#generate" class="nav-link" data-nav="generate">Generate</a>
+      <a href="#history" class="nav-link" data-nav="history">History</a>
+      <a href="#debug" class="nav-link" data-nav="debug">Debug</a>
     </div>
   </nav>
 
@@ -32,7 +34,13 @@
     <section id="page-profile" class="page hidden">
       <div class="page-header">
         <h1>Your Profile</h1>
-        <p class="subtitle">Tell us about yourself so we can personalize your workouts.</p>
+        <p class="subtitle" id="profile-form-subtitle">Tell us about yourself so we can personalize your workouts.</p>
+      </div>
+
+      <!-- Edit mode banner -->
+      <div id="edit-mode-banner" class="edit-mode-banner hidden">
+        <span>✏️ Editing profile</span>
+        <button type="button" id="btn-cancel-edit" class="btn btn-sm btn-secondary">Cancel</button>
       </div>
 
       <!-- Profile selector (shown when profiles exist) -->
@@ -47,7 +55,7 @@
       </div>
 
       <form id="profile-form" class="form">
-        <!-- Step 1: Essential Info -->
+        <!-- ─── Basic Info ─── -->
         <div class="form-section">
           <h2 class="section-title">Basic Info</h2>
           <div class="form-grid">
@@ -87,54 +95,51 @@
               </select>
             </div>
           </div>
-        </div>
 
-        <!-- Step 1: Goals -->
-        <div class="form-section">
-          <h2 class="section-title">Goals</h2>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="primaryStroke">Primary Stroke *</label>
-              <select id="primaryStroke" name="primaryStroke" required>
-                <option value="">Select...</option>
-                <option value="freestyle">Freestyle</option>
-                <option value="backstroke">Backstroke</option>
-                <option value="breaststroke">Breaststroke</option>
-                <option value="butterfly">Butterfly</option>
-                <option value="individual-medley">Individual Medley</option>
-              </select>
+          <!-- Best Times (moved to basic info) -->
+          <div class="form-group" style="margin-top: var(--space-lg);">
+            <label>Best Times</label>
+            <div id="best-times-list" class="best-times-list">
+              <!-- Populated dynamically -->
             </div>
-            <div class="form-group">
-              <label for="primaryDistance">Primary Distance *</label>
-              <select id="primaryDistance" name="primaryDistance" required>
-                <option value="">Select...</option>
-                <option value="50">50m</option>
-                <option value="100">100m</option>
-                <option value="200">200m</option>
-                <option value="400">400m</option>
-                <option value="800">800m</option>
-                <option value="1500">1500m</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="trainingFocus">Training Focus</label>
-              <select id="trainingFocus" name="trainingFocus">
-                <option value="maintenance">Maintenance</option>
-                <option value="sprint">Sprint</option>
-                <option value="distance">Distance</option>
-                <option value="technique">Technique</option>
-                <option value="endurance">Endurance</option>
-                <option value="speed">Speed</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="targetImprovement">Target Improvement</label>
-              <input type="text" id="targetImprovement" name="targetImprovement" placeholder="e.g., Drop 5s in 100m free">
-            </div>
+            <button type="button" id="btn-add-best-time" class="btn btn-sm btn-secondary" style="margin-top: var(--space-sm);">+ Add Best Time</button>
           </div>
         </div>
 
-        <!-- Step 2: Expandable Details -->
+        <!-- ─── Goals ─── -->
+        <div class="form-section">
+          <h2 class="section-title">Goals</h2>
+
+          <!-- Desired outcomes first -->
+          <div class="form-group">
+            <label>Desired outcomes <span class="toggle-hint">(select all that apply)</span></label>
+            <div class="checkbox-grid" id="goal-outcomes-container">
+              <!-- Populated from API -->
+            </div>
+          </div>
+
+          <!-- Multi-select events -->
+          <div class="form-group" style="margin-top: var(--space-lg);">
+            <label>Events you train for <span class="toggle-hint">(select all that apply)</span></label>
+            <div id="events-container" class="events-container">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: var(--space-lg);">
+            <label>Training Focus <span class="toggle-hint">(select all that apply)</span></label>
+            <div class="checkbox-grid" id="training-focus-container">
+              <!-- Populated from API -->
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: var(--space-lg);">
+            <label for="targetImprovement">Target Improvement</label>
+            <input type="text" id="targetImprovement" name="targetImprovement" placeholder="e.g., Drop 5s in 100m free">
+          </div>
+        </div>
+
+        <!-- ─── Schedule & Equipment ─── -->
         <div class="form-section form-section-expandable">
           <button type="button" class="section-toggle" data-toggle="details">
             <h2 class="section-title">Schedule & Equipment <span class="toggle-hint">(optional)</span></h2>
@@ -154,11 +159,39 @@
                 <label for="sessionDuration">Session Duration (min)</label>
                 <input type="number" id="sessionDuration" name="sessionDuration" min="15" max="180" value="60">
               </div>
-              <div class="form-group">
-                <label for="poolLength">Pool Length</label>
-                <select id="poolLength" name="poolLength">
-                  <option value="25">25m</option>
-                  <option value="50">50m</option>
+            </div>
+
+            <!-- Competition date ranges -->
+            <div class="form-group">
+              <label>Competition Dates</label>
+              <div id="competition-dates-list" class="competition-dates-list">
+                <!-- Populated dynamically -->
+              </div>
+              <button type="button" id="btn-add-competition-range" class="btn btn-sm btn-secondary" style="margin-top: var(--space-sm);">+ Add Competition Block</button>
+            </div>
+
+            <!-- Days of week -->
+            <div class="form-group">
+              <label>Pool days</label>
+              <div class="day-toggles" id="pool-days-toggles">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Gym days</label>
+              <div class="day-toggles" id="gym-days-toggles">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Pool Length: open fields -->
+            <div class="form-group">
+              <label>Pool Length</label>
+              <div class="pool-length-inputs">
+                <input type="number" id="poolLengthValue" name="poolLengthValue" min="1" max="200" placeholder="25" style="width: 100px;">
+                <select id="poolLengthUnit" name="poolLengthUnit" style="width: 140px;">
+                  <option value="meters">Meters</option>
+                  <option value="yards">Yards</option>
                 </select>
               </div>
             </div>
@@ -184,6 +217,8 @@
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="plyometricBox"> Plyo Box</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="medicineBall"> Medicine Ball</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="yogaMat" checked> Yoga Mat</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="bands"> Bands</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="sliders"> Sliders</label>
               </div>
             </div>
           </div>
@@ -191,6 +226,7 @@
 
         <div class="form-actions">
           <button type="submit" class="btn btn-primary btn-lg">Save Profile & Start Training →</button>
+          <button type="button" id="btn-delete-profile" class="btn btn-danger btn-lg hidden">Delete Profile</button>
         </div>
       </form>
     </section>
@@ -204,9 +240,18 @@
 
       <!-- Quick Generate -->
       <div class="quick-generate">
-        <button id="btn-quick-generate" class="btn btn-primary btn-xl">
-          ⚡ Quick Generate
-        </button>
+        <p class="quick-generate-label">Quick Generate — pick your session:</p>
+        <div class="quick-buttons">
+          <button id="btn-quick-pool" class="btn btn-primary btn-xl" data-session-type="pool">
+            🏊 Pool Only
+          </button>
+          <button id="btn-quick-gym" class="btn btn-primary btn-xl" data-session-type="gym">
+            💪 Gym Only
+          </button>
+          <button id="btn-quick-both" class="btn btn-accent btn-xl" data-session-type="both">
+            ⚡ Pool + Gym
+          </button>
+        </div>
         <p class="hint">Uses your profile defaults — fastest way to get a great workout.</p>
       </div>
 
@@ -217,6 +262,14 @@
         <div class="form-section">
           <h2 class="section-title">Workout Preferences</h2>
           <div class="form-grid">
+            <div class="form-group">
+              <label for="sessionType">Session Type</label>
+              <select id="sessionType" name="sessionType">
+                <option value="both">Pool + Gym</option>
+                <option value="pool">Pool Only</option>
+                <option value="gym">Gym Only</option>
+              </select>
+            </div>
             <div class="form-group">
               <label for="workoutType">Workout Type</label>
               <select id="workoutType" name="workoutType">
@@ -242,12 +295,14 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="poolLength-pool">Pool Length</label>
-              <select id="poolLength-pool" name="poolLength">
-                <option value="">Profile default</option>
-                <option value="25">25m</option>
-                <option value="50">50m</option>
-              </select>
+              <label>Pool Length</label>
+              <div class="pool-length-inputs">
+                <input type="number" id="poolLengthValue" name="poolLengthValue" min="1" max="200" placeholder="25" style="width: 100px;">
+                <select id="poolLengthUnit" name="poolLengthUnit" style="width: 140px;">
+                  <option value="meters">Meters</option>
+                  <option value="yards">Yards</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -278,6 +333,112 @@
     <section id="page-workout" class="page hidden">
       <div id="workout-content">
         <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- ─── History Page ─── -->
+    <section id="page-history" class="page hidden">
+      <div class="page-header">
+        <h1>Workout History</h1>
+        <p class="subtitle">Track your completed workouts and progress.</p>
+      </div>
+      <div id="history-filters" class="history-filters">
+        <select id="history-filter-type" class="filter-select">
+          <option value="">All Types</option>
+        </select>
+        <select id="history-filter-period" class="filter-select">
+          <option value="all">All Time</option>
+          <option value="7">Last 7 Days</option>
+          <option value="30">Last 30 Days</option>
+          <option value="90">Last 90 Days</option>
+        </select>
+      </div>
+      <div id="history-list" class="history-list">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- ─── Program Page ─── -->
+    <section id="page-program" class="page hidden">
+      <div id="program-content">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- ─── Debug Page ─── -->
+    <section id="page-debug" class="page hidden">
+      <div class="page-header">
+        <h1>Test & Debug</h1>
+        <p class="subtitle">Test workout generation, switch LLMs, and inspect prompts.</p>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Profile</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="debug-profile-select">Select Profile</label>
+            <select id="debug-profile-select" class="filter-select">
+              <option value="">Loading profiles…</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">LLM Model</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="debug-llm-preset">Preset Models</label>
+            <select id="debug-llm-preset" class="filter-select">
+              <option value="openrouter/auto">OpenRouter Auto</option>
+              <option value="openrouter/nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super 120B (free)</option>
+              <option value="openrouter/anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+              <option value="openrouter/openai/gpt-4o">GPT-4o</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="form-group" id="debug-llm-custom-group" style="display:none;">
+            <label for="debug-llm-custom">Custom Model ID</label>
+            <input type="text" id="debug-llm-custom" placeholder="e.g., openrouter/mistralai/mixtral-8x7b">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-debug-set-llm" class="btn btn-secondary">Set Active LLM</button>
+        </div>
+        <p id="debug-llm-current" class="hint" style="margin-top: var(--space-sm);">Current: default</p>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Test Generation</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="debug-workout-type">Workout Type</label>
+            <select id="debug-workout-type" class="filter-select">
+              <option value="endurance">Endurance</option>
+              <option value="speed">Speed</option>
+              <option value="lactate">Lactate Threshold</option>
+              <option value="technique">Technique</option>
+              <option value="resistance-power">Resistance / Power</option>
+              <option value="mobility">Mobility</option>
+              <option value="recovery">Recovery</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="debug-duration">Duration (min)</label>
+            <input type="number" id="debug-duration" value="60" min="10" max="180">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-debug-prompts" class="btn btn-secondary">View Prompts</button>
+          <button type="button" id="btn-debug-generate" class="btn btn-primary">Test Generate</button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Prompts</h2>
+        <div id="debug-prompts-viewer" class="debug-prompts-viewer">
+          <p class="hint">Run a test generation to see the prompts used.</p>
+        </div>
       </div>
     </section>
 
