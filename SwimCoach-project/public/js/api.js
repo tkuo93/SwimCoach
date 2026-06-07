@@ -5,10 +5,10 @@
 
 const BASE = '/api';
 
-async function request(path, { method = 'GET', body } = {}) {
+async function request(path, { method = 'GET', body, headers: extraHeaders } = {}) {
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   };
   if (body) opts.body = JSON.stringify(body);
 
@@ -43,16 +43,19 @@ const api = {
     delete: (id) => request(`/profiles/${id}`, { method: 'DELETE' }),
   },
 
-  // ─── Workouts ───
+  // ─── Workouts ─ pass swimmerId for ownership verification ───
+  _workoutHeaders(swimmerId) {
+    return swimmerId ? { 'X-Swimmer-Id': swimmerId } : {};
+  },
   workouts: {
     list: (swimmerId) => request(`/workouts${swimmerId ? `?swimmerId=${swimmerId}` : ''}`),
-    get: (id) => request(`/workouts/${id}`),
-    generate: (data) => request('/workouts/generate', { method: 'POST', body: data }),
-    feedback: (id, data) => request(`/workouts/${id}/feedback`, { method: 'POST', body: data }),
-    chat: (id, data) => request(`/workouts/${id}/chat`, { method: 'POST', body: data }),
-    regenerate: (id, data) => request(`/workouts/${id}/regenerate`, { method: 'POST', body: data }),
-    generateProgram: (data) => request('/workouts/generate/program', { method: 'POST', body: data }),
-    getProgram: (programId) => request(`/workouts/program/${programId}`),
+    get: (id, swimmerId) => request(`/workouts/${id}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    generate: (data, swimmerId) => request('/workouts/generate', { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    feedback: (id, data, swimmerId) => request(`/workouts/${id}/feedback`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    chat: (id, data, swimmerId) => request(`/workouts/${id}/chat`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    regenerate: (id, data, swimmerId) => request(`/workouts/${id}/regenerate`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    generateProgram: (data, swimmerId) => request('/workouts/generate/program', { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    getProgram: (programId, swimmerId) => request(`/workouts/program/${programId}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
   },
 
   // ─── Customization Options ───

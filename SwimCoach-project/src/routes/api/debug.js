@@ -3,12 +3,22 @@ const router = express.Router();
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { buildInsightsPrompt, buildWorkoutPrompt } = require('../../services/workout-ai');
 const { getFeedbackSummary } = require('../../services/memory');
+const { requireApiKey } = require('../../middleware/auth');
+
+// All debug endpoints require API key auth
+router.use(requireApiKey);
 
 // GET /api/debug/profiles — List all profiles (for debug selector)
 router.get('/profiles', async (req, res) => {
   try {
     const profiles = await SwimmerProfile.find().sort({ createdAt: -1 });
-    res.json({ success: true, count: profiles.length, data: profiles });
+    // Strip PII — only return what the debug UI needs
+    const safe = profiles.map(p => ({
+      _id: p._id,
+      name: `${p.firstName} ${p.lastName}`,
+      experienceLevel: p.experienceLevel,
+    }));
+    res.json({ success: true, count: safe.length, data: safe });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -33,7 +43,6 @@ router.get('/prompts', async (req, res) => {
       duration: parseInt(duration, 10) || 60,
     };
 
-    // Use the same prompt builders as the actual generation pipeline
     const insightsPrompt = buildInsightsPrompt(profile, customization);
     const feedbackSummary = getFeedbackSummary(10);
     const generationPrompt = buildWorkoutPrompt(profile, customization, '[Insights from OpenNotebook would appear here]', feedbackSummary);
@@ -44,7 +53,8 @@ router.get('/prompts', async (req, res) => {
         insightsPrompt,
         generationPrompt,
         feedbackSummary: feedbackSummary || 'No past feedback',
-        modelUsed: llmModel || process.env.OPENROUTER_MODEL || 'openrouter/owl-alpha (default)',
+        modelUsed: llmModel || process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha (default)',
+        // Minimal profile summary — no PII like email, DOB, etc.
         profile: {
           name: `${profile.firstName} ${profile.lastName}`,
           level: profile.experienceLevel,

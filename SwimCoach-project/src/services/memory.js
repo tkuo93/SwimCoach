@@ -8,7 +8,21 @@
 const fs = require('fs');
 const path = require('path');
 
-const MEMORY_PATH = process.env.MEMORY_PATH || path.join(__dirname, '..', '..', 'MEMORY.md');
+// Resolve MEMORY_PATH — allow env override for tests, but validate it's safe
+function resolveMemoryPath() {
+  const envPath = process.env.MEMORY_PATH;
+  if (envPath) {
+    // Validate: reject paths with traversal attempts or absolute paths outside project
+    if (envPath.includes('..') || envPath.includes('//')) {
+      console.warn('MEMORY_PATH contains unsafe patterns, using default');
+    } else {
+      return envPath;
+    }
+  }
+  return path.join(__dirname, '..', '..', 'MEMORY.md');
+}
+
+let MEMORY_PATH = resolveMemoryPath();
 
 /**
  * Read the full contents of MEMORY.md.

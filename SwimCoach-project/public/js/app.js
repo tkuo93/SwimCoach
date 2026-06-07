@@ -1016,7 +1016,7 @@ function collectGenerateFormData(form) {
 async function loadWorkoutPage(workoutId) {
   showLoading('Loading workout…');
   try {
-    const result = await api.workouts.get(workoutId);
+    const result = await api.workouts.get(workoutId, state.currentProfile?._id);
     const workout = result.data;
 
     const container = document.getElementById('workout-content');
@@ -1086,7 +1086,7 @@ function initChatHandler(workoutId) {
       const result = await api.workouts.chat(workoutId, {
         message: text,
         messages: conv.map(m => ({ role: m.role, text: m.text })),
-      });
+      }, state.currentProfile?._id);
 
       removeTypingIndicator(typingId);
 
@@ -1207,7 +1207,7 @@ function initFeedbackHandler(workoutId, existingFeedback) {
         comments: fd.get('comments') || undefined,
       };
 
-      await api.workouts.feedback(workoutId, feedback);
+      await api.workouts.feedback(workoutId, feedback, state.currentProfile?._id);
       showToast('Feedback saved. Thanks!', 'success');
       showAdaptiveResponse(workoutId, feedback);
       form.classList.add('hidden');
@@ -1330,7 +1330,7 @@ async function loadProgramPage(programId) {
 
   showLoading('Loading program…');
   try {
-    const result = await api.workouts.getProgram(programId);
+    const result = await api.workouts.getProgram(programId, state.currentProfile?._id);
     const program = result.data;
 
     // Build program header

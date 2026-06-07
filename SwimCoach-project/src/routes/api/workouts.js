@@ -5,6 +5,23 @@ const SwimmerProfile = require('../../models/SwimmerProfile');
 const { generateWorkout, regenerateWorkout } = require('../../services/workout-generator');
 const { appendFeedback, deriveLearning } = require('../../services/memory');
 const { chat } = require('../../services/chat-with-coach');
+const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
+
+/**
+ * Verify the requesting user owns the workout.
+ * Returns an error response if not, or null if OK.
+ */
+async function verifyWorkoutOwnership(req, res) {
+  const workout = await Workout.findById(req.params.id);
+  if (!workout) {
+    res.status(404).json({ success: false, error: 'Workout not found' });
+    return null;
+  }
+  const swimmerId = resolveSwimmerId(req);
+  const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
+  if (err) return null;
+  return workout;
+}
 
 // POST /api/workouts — Direct create (for PoC, bypasses NotebookLM bridge)
 router.post('/', async (req, res) => {
@@ -67,6 +84,12 @@ router.get('/:id', async (req, res) => {
     if (!workout) {
       return res.status(404).json({ success: false, error: 'Workout not found' });
     }
+    // Verify ownership
+    const swimmerId = resolveSwimmerId(req);
+    if (swimmerId) {
+      const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
+      if (err) return err;
+    }
     res.json({ success: true, data: workout });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -76,7 +99,13 @@ router.get('/:id', async (req, res) => {
 // GET /api/workouts/program/:programId
 router.get('/program/:programId', async (req, res) => {
   try {
-    const workouts = await Workout.find({ programId: req.params.programId })
+    const query = { programId: req.params.programId };
+
+    // If swimmerId provided, scope to that user's programs
+    const swimmerId = resolveSwimmerId(req);
+    if (swimmerId) query.swimmerId = swimmerId;
+
+    const workouts = await Workout.find(query)
       .populate('swimmerId', 'firstName lastName')
       .sort({ 'generationInfo.generationParameters.programIndex': 1 });
     if (!workouts.length) {
@@ -103,6 +132,11 @@ router.get('/program/:programId', async (req, res) => {
 router.post('/:id/feedback', async (req, res) => {
   try {
     const { rating, difficultyPerception, enjoyment, comments } = req.body;
+
+    // Verify ownership
+    const existing = await verifyWorkoutOwnership(req, res);
+    if (!existing) return;
+
     const workout = await Workout.findByIdAndUpdate(
       req.params.id,
       {
@@ -157,10 +191,8 @@ router.post('/:id/chat', async (req, res) => {
       return res.status(400).json({ success: false, error: 'message is required' });
     }
 
-    const workout = await Workout.findById(req.params.id);
-    if (!workout) {
-      return res.status(404).json({ success: false, error: 'Workout not found' });
-    }
+    const workout = await verifyWorkoutOwnership(req, res);
+    if (!workout) return;
 
     const profile = await SwimmerProfile.findById(workout.swimmerId);
     if (!profile) {
@@ -204,10 +236,8 @@ router.post('/:id/chat', async (req, res) => {
 // POST /api/workouts/:id/regenerate
 router.post('/:id/regenerate', async (req, res) => {
   try {
-    const existing = await Workout.findById(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ success: false, error: 'Workout not found' });
-    }
+    const existing = await verifyWorkoutOwnership(req, res);
+    if (!existing) return;
 
     const profile = await SwimmerProfile.findById(existing.swimmerId);
     if (!profile) {
@@ -232,6 +262,10 @@ router.post('/:id/regenerate', async (req, res) => {
 // PUT /api/workouts/:id — Direct edit
 router.put('/:id', async (req, res) => {
   try {
+    // Verify ownership before allowing edits
+    const existing = await verifyWorkoutOwnership(req, res);
+    if (!existing) return;
+
     const workout = await Workout.findByIdAndUpdate(
       req.params.id,
       req.body,
