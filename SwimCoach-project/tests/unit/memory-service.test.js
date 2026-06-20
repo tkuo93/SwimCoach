@@ -248,5 +248,57 @@ describe('memory service', () => {
       });
       expect(learning).toContain('3/5');
     });
+
+    test('flags poor quality workouts', () => {
+      const learning = memory.deriveLearning({
+        rating: 3,
+        difficultyPerception: 'just-right',
+        enjoyment: 'enjoyed',
+        quality: 'poor',
+        accuracy: 'mostly-accurate',
+        workoutType: 'speed',
+      });
+      expect(learning).toContain('poor');
+      expect(learning).toContain('Review set structure');
+    });
+
+    test('flags excellent quality workouts', () => {
+      const learning = memory.deriveLearning({
+        rating: 5,
+        difficultyPerception: 'just-right',
+        enjoyment: 'loved',
+        quality: 'excellent',
+        accuracy: 'spot-on',
+        workoutType: 'endurance',
+      });
+      expect(learning).toContain('excellent');
+      expect(learning).toContain('working well');
+    });
+
+    test('recalibrates when accuracy is way-off', () => {
+      const learning = memory.deriveLearning({
+        rating: 3,
+        difficultyPerception: 'just-right',
+        enjoyment: 'neutral',
+        quality: 'average',
+        accuracy: 'way-off',
+        workoutType: 'technique',
+      });
+      expect(learning).toContain('way-off');
+      expect(learning).toContain('Recalibrate');
+    });
+
+    test('keeps similar paces when accuracy is spot-on', () => {
+      const learning = memory.deriveLearning({
+        rating: 4,
+        difficultyPerception: 'just-right',
+        enjoyment: 'enjoyed',
+        quality: 'good',
+        accuracy: 'spot-on',
+        workoutType: 'lactate',
+      });
+      expect(learning).toContain('spot-on');
+      expect(learning).toContain('Keep similar pace');
+    });
   });
 });

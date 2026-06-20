@@ -99,7 +99,8 @@ const workoutSchema = new mongoose.Schema({
       exercise: { type: String, required: true, trim: true },
       sets: { type: Number, required: true, min: 1 },
       repetitions: { type: Number, required: true, min: 1 },
-      weight: { type: Number, default: 0 }, // in kg or lbs
+      weight: { type: Number, default: 0 }, // numeric value in the unit specified by weightUnit
+      weightUnit: { type: String, enum: ['lbs', 'kg', null], default: null },
       restTime: { type: Number, default: 0 }, // in seconds
       equipment: {
         type: String,
@@ -163,6 +164,14 @@ const workoutSchema = new mongoose.Schema({
     enjoyment: {
       type: String,
       enum: ['did-not-enjoy', 'neutral', 'enjoyed', 'loved']
+    },
+    quality: {
+      type: String,
+      enum: ['poor', 'below-average', 'average', 'good', 'excellent']
+    },
+    accuracy: {
+      type: String,
+      enum: ['way-off', 'close-but-off', 'mostly-accurate', 'spot-on']
     },
     comments: {
       type: String,

@@ -80,7 +80,7 @@ const validProfile = {
   equipment: {
     poolLength: { value: 25, unit: 'meters' },
     poolEquipment: { fins: true, paddles: false },
-    gymEquipment: { weights: true, yogaMat: true },
+    gymEquipment: { dumbbell: true, yogaMat: true },
   },
 };
 

@@ -101,6 +101,8 @@ function appendFeedback({
   rating,
   difficultyPerception,
   enjoyment,
+  quality,
+  accuracy,
   comments,
   learning,
 }) {
@@ -115,6 +117,8 @@ function appendFeedback({
 
   if (difficultyPerception) entry.push(`- **Difficulty**: ${difficultyPerception}`);
   if (enjoyment) entry.push(`- **Enjoyment**: ${enjoyment}`);
+  if (quality) entry.push(`- **Quality**: ${quality}`);
+  if (accuracy) entry.push(`- **Accuracy**: ${accuracy}`);
   if (comments) entry.push(`- **Comments**: ${comments}`);
   if (learning) entry.push(`- **Learning**: ${learning}`);
 
@@ -159,7 +163,7 @@ function appendFeedback({
  * Derive a learning insight from feedback data.
  * Simple heuristic based on difficulty and enjoyment.
  */
-function deriveLearning({ rating, difficultyPerception, enjoyment, workoutType }) {
+function deriveLearning({ rating, difficultyPerception, enjoyment, quality, accuracy, workoutType }) {
   const insights = [];
 
   if (difficultyPerception === 'too-hard' || rating <= 2) {
@@ -176,6 +180,18 @@ function deriveLearning({ rating, difficultyPerception, enjoyment, workoutType }
 
   if (difficultyPerception === 'just-right') {
     insights.push(`Difficulty was well-calibrated for this user. Maintain similar structure.`);
+  }
+
+  if (quality === 'poor' || quality === 'below-average') {
+    insights.push(`Workout quality was rated ${quality}. Review set structure, rest periods, and exercise selection for ${workoutType} workouts.`);
+  } else if (quality === 'excellent' || quality === 'good') {
+    insights.push(`Workout quality was rated ${quality}. This structure is working well for ${workoutType}.`);
+  }
+
+  if (accuracy === 'way-off' || accuracy === 'close-but-off') {
+    insights.push(`Prescribed paces/effort were ${accuracy}. Recalibrate intensity targets for this swimmer's ${workoutType} workouts.`);
+  } else if (accuracy === 'spot-on') {
+    insights.push(`Intensity targets were spot-on. Keep similar pace prescriptions for ${workoutType}.`);
   }
 
   return insights.join(' ') || `User rated ${workoutType} workout ${rating}/5.`;

@@ -239,7 +239,7 @@ describe('SwimCoach open-notebook.js service', () => {
       equipment: {
         poolLength: 25,
         poolEquipment: { fins: true, paddles: true },
-        gymEquipment: { weights: true, yogaMat: true },
+        gymEquipment: { dumbbell: true, yogaMat: true },
       },
     };
 

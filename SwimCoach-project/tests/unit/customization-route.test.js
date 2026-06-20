@@ -120,9 +120,11 @@ describe('GET /api/workouts/customize/options', () => {
     await handler(req, res);
 
     const data = res.json.mock.calls[0][0].data;
-    expect(data.gymEquipment).toHaveLength(8);
+    expect(data.gymEquipment).toHaveLength(10);
     const values = data.gymEquipment.map((e) => e.value);
-    expect(values).toContain('weights');
+    expect(values).toContain('barbell');
+    expect(values).toContain('dumbbell');
+    expect(values).toContain('kettlebell');
     expect(values).toContain('resistanceMachine');
     expect(values).toContain('pullUpBar');
     expect(values).toContain('plyometricBox');

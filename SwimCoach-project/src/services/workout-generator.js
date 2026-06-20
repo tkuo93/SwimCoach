@@ -1,5 +1,5 @@
 const Workout = require('../models/Workout');
-const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards } = require('./workout-ai');
+const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
 
 /**
  * Generates a personalized workout for a swimmer.
@@ -23,12 +23,20 @@ async function generateWorkout(profile, customization = {}) {
   const includePool = sessionType === 'both' || sessionType === 'pool';
   const includeGym = sessionType === 'both' || sessionType === 'gym';
 
+  // Available weights for clamping prescribed weights to what the user actually owns
+  const availableWeights = (customization.weightInventory || profile.weightInventory || []).map(w => ({
+    weight: w.weight,
+    unit: w.unit || 'lbs',
+    type: w.type,
+  }));
+
   const mappedWorkoutType = mapWorkoutType(workoutType);
 
   const workout = new Workout({
     swimmerId: profile._id,
-    workoutName: generateWorkoutName(mappedWorkoutType, sessionType, aiWorkout, profile),
+    workoutName: generateWorkoutName(mappedWorkoutType, sessionType, aiWorkout, profile, customization.date),
     workoutType: mappedWorkoutType,
+    date: customization.date || new Date(),
     duration,
     intensity: deriveIntensity(customization.intensity, workoutType),
     poolWorkout: includePool ? {
@@ -58,7 +66,19 @@ async function generateWorkout(profile, customization = {}) {
         exercise: ex.exercise || '',
         sets: ex.sets || 3,
         repetitions: ex.reps || 10,
-        weight: ex.weight || 0,
+        weight: (() => {
+          if (!ex.weight) return 0;
+          if (typeof ex.weight === 'number') return ex.weight;
+          const match = String(ex.weight).match(/^(\d+(?:\.\d+)?)/);
+          return match ? parseFloat(match[1]) : 0;
+        })(),
+        weightUnit: (() => {
+          if (!ex.weight || typeof ex.weight === 'number') return null;
+          const str = String(ex.weight);
+          if (/kg/i.test(str)) return 'kg';
+          if (/lbs?/i.test(str) || /#/.test(str)) return 'lbs';
+          return null;
+        })(),
         restTime: ex.restSeconds || 60,
         equipment: ex.equipment || 'bodyweight',
         muscleGroup: normalizeMuscleGroup(ex.muscleGroup),
@@ -66,17 +86,21 @@ async function generateWorkout(profile, customization = {}) {
         description: ex.notes || '',
       }));
       // Filter out exercises requiring equipment the user doesn't have
-      const availableGymGear = Object.entries(profile.equipment?.gymEquipment || {}).filter(([, v]) => v).map(([k]) => k);
+      // Use customization equipment override if provided, otherwise profile defaults
+      const { gymEquipment: resolvedGymEquip } = resolveEquipment(customization, profile);
+      const availableGymGear = Object.entries(resolvedGymEquip).filter(([, v]) => v).map(([k]) => k);
       const filteredExercises = filterGymExercises(rawExercises, availableGymGear);
       if (rawExercises.length !== filteredExercises.length) {
         console.log(`Filtered gym exercises: ${rawExercises.length} -> ${filteredExercises.length} (removed exercises requiring unavailable equipment)`);
       }
+      // Clamp prescribed weights to what the user actually owns
+      const clampedExercises = clampWeightsToInventory(filteredExercises, availableWeights);
       return {
         warmUp: {
           description: aiWorkout.gymWorkout.warmUp?.description || '',
           duration: aiWorkout.gymWorkout.warmUp?.duration || 5,
         },
-        mainSet: filteredExercises,
+        mainSet: clampedExercises,
         coolDown: {
           description: aiWorkout.gymWorkout.coolDown?.description || '',
           duration: aiWorkout.gymWorkout.coolDown?.duration || 5,
@@ -90,12 +114,13 @@ async function generateWorkout(profile, customization = {}) {
       generationParameters: {
         equipmentUsed: {
           poolLength: resolvePoolLength(customization, profile),
-          poolEquipment: profile.equipment?.poolEquipment || {},
-          gymEquipment: profile.equipment?.gymEquipment || {},
+          ...resolveEquipment(customization, profile),
         },
-        workoutPreferences: workoutType,
+        workoutPreferences: mappedWorkoutType,
         durationPreference: duration,
         intensityPreference: customization.intensity || null,
+        strokePreference: customization.stroke || null,
+        weightInventory: customization.weightInventory || profile.weightInventory || [],
       },
     },
   });
@@ -167,7 +192,9 @@ const EXERCISE_EQUIPMENT_MAP = [
   { keywords: ['band', 'resistance band'], equipment: 'bands' },
   { keywords: ['slider', 'ab wheel'], equipment: 'sliders' },
   { keywords: ['lat pulldown', 'cable', 'leg press', 'machine', 'seated row'], equipment: 'resistanceMachine' },
-  { keywords: ['barbell', 'dumbbell', 'kb ', 'kettlebell', 'squat', 'deadlift', 'bench press', 'overhead press', 'bicep curl', 'tricep extension', 'shoulder press', 'row', 'lunge', 'hip thrust'], equipment: 'weights' },
+  { keywords: ['barbell', 'squat', 'deadlift', 'bench press', 'overhead press', 'hip thrust', 'barbell row', 'barbell curl'], equipment: 'barbell' },
+  { keywords: ['dumbbell', 'db ', 'bicep curl', 'tricep extension', 'shoulder press', 'lunge', 'row', 'chest fly', 'lateral raise', 'dumbbell press'], equipment: 'dumbbell' },
+  { keywords: ['kettlebell', 'kb ', 'kettlebell swing', 'kettlebell clean', 'turkish get-up', 'get up'], equipment: 'kettlebell' },
 ];
 
 /**
@@ -198,8 +225,87 @@ function filterGymExercises(exercises, availableGymGear) {
   });
 }
 
-function generateWorkoutName(mappedType, sessionType, aiWorkout, profile) {
-  const date = new Date().toLocaleDateString();
+/**
+ * Clamp exercise weights to the user's available inventory.
+ * When the weight changes, reps and sets are adjusted to match:
+ *   - Heavy (≥70% of prescribed): keep original reps/sets
+ *   - Moderate (40-70% of prescribed): increase reps by ~50%
+ *   - Light (<40% of prescribed): increase reps by ~100% and add a set
+ * If no matching weight exists for the unit, remove the weight (bodyweight fallback).
+ */
+function clampWeightsToInventory(exercises, availableWeights) {
+  if (!exercises || !exercises.length) return [];
+  if (!availableWeights || !availableWeights.length) {
+    // No weights available — strip all weights, keep exercises as bodyweight
+    return exercises.map(ex => ({ ...ex, weight: 0, weightUnit: null }));
+  }
+
+  // Group available weights by unit for quick lookup
+  const weightsByUnit = {};
+  for (const w of availableWeights) {
+    const unit = w.unit || 'lbs';
+    if (!weightsByUnit[unit]) weightsByUnit[unit] = [];
+    weightsByUnit[unit].push(w.weight);
+  }
+  // Sort each unit group ascending for binary-ish lookup
+  for (const unit of Object.keys(weightsByUnit)) {
+    weightsByUnit[unit].sort((a, b) => a - b);
+  }
+
+  return exercises.map(ex => {
+    if (!ex.weight || ex.weight === 0) return ex;
+
+    const unit = ex.weightUnit || 'lbs';
+    const prescribed = ex.weight;
+    const available = weightsByUnit[unit];
+
+    if (!available || available.length === 0) {
+      // No weights in this unit — strip weight, make it bodyweight
+      return { ...ex, weight: 0, weightUnit: null, description: `${ex.description} (no ${unit} weights available — bodyweight)` };
+    }
+
+    // Find the closest available weight that doesn't exceed the prescribed amount
+    let closest = available[0];
+    for (const w of available) {
+      if (w <= prescribed) closest = w;
+      else break;
+    }
+
+    if (closest === prescribed) return ex;
+
+    // Adjust reps and sets based on how the weight changed
+    const ratio = closest / prescribed;
+    let adjustedReps = ex.repetitions;
+    let adjustedSets = ex.sets;
+    let note = '';
+
+    if (ratio < 0.4) {
+      // Much lighter — increase reps significantly and add a set
+      adjustedReps = Math.round(ex.repetitions * 2);
+      adjustedSets = Math.min(ex.sets + 1, 5);
+      note = ` (adjusted from ${prescribed}${unit} — light weight, higher reps)`;
+    } else if (ratio < 0.7) {
+      // Moderately lighter — increase reps
+      adjustedReps = Math.round(ex.repetitions * 1.5);
+      note = ` (adjusted from ${prescribed}${unit} — moderate weight)`;
+    } else {
+      // Close to prescribed — small adjustment, keep reps
+      note = ` (adjusted from ${prescribed}${unit})`;
+    }
+
+    console.log(`Weight clamped: ${ex.exercise} ${prescribed}${unit} → ${closest}${unit} (${ex.reps}×${ex.sets} → ${adjustedReps}×${adjustedSets})`);
+    return {
+      ...ex,
+      weight: closest,
+      repetitions: adjustedReps,
+      sets: adjustedSets,
+      description: `${ex.description}${note}`,
+    };
+  });
+}
+
+function generateWorkoutName(mappedType, sessionType, aiWorkout, profile, date) {
+  const dateStr = (date ? new Date(date) : new Date()).toLocaleDateString();
   const type = mapWorkoutTypeLabel(mappedType);
 
   // Derive the primary stroke from the actual generated workout content
@@ -215,17 +321,17 @@ function generateWorkoutName(mappedType, sessionType, aiWorkout, profile) {
       }
     }
   }
-  // Fallback to profile event stroke if AI didn't generate content
+  // Fallback to profile event strokes if AI didn't generate content
   if (mainStrokes.length === 0) {
-    const profileEvent = profile.goals?.primaryEvents?.[0];
-    if (profileEvent) mainStrokes.push(profileEvent.stroke);
+    const profileEvents = resolvePrimaryEvents(profile, {});
+    if (profileEvents.length > 0) mainStrokes.push(profileEvents[0].stroke);
   }
   const strokeStr = mainStrokes.length > 0 ? ` ${mainStrokes.join('/')}` : '';
 
   // Session type label
   const typeLabel = sessionType === 'pool' ? `${type} (pool)` : sessionType === 'gym' ? `${type} (gym)` : type;
 
-  return `${typeLabel}${strokeStr} — ${date}`;
+  return `${typeLabel}${strokeStr} — ${dateStr}`;
 }
 
 /**

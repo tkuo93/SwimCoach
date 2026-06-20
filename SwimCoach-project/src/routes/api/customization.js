@@ -55,7 +55,9 @@ router.get('/options', (req, res) => {
         { value: 'resistanceBands', label: 'Resistance Bands' },
       ],
       gymEquipment: [
-        { value: 'weights', label: 'Weights' },
+        { value: 'barbell', label: 'Barbell' },
+        { value: 'dumbbell', label: 'Dumbbells' },
+        { value: 'kettlebell', label: 'Kettlebells' },
         { value: 'resistanceMachine', label: 'Resistance Machines' },
         { value: 'pullUpBar', label: 'Pull-up Bar' },
         { value: 'plyometricBox', label: 'Plyometric Box' },

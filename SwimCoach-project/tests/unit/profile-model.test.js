@@ -190,7 +190,7 @@ describe('SwimmerProfile schema — new fields validation', () => {
         gymEquipment: {
           bands: true,
           sliders: true,
-          weights: true,
+          barbell: true,
         },
       },
     });

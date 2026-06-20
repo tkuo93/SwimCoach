@@ -10,7 +10,7 @@
  */
 
 const axios = require('axios');
-const { resolveTrainingFocus, resolvePoolLength, isPoolYards } = require('./workout-ai');
+const { resolveTrainingFocus, resolvePoolLength, isPoolYards, sanitizeModel } = require('./workout-ai');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -25,11 +25,12 @@ const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
  * @param {string} userMessage   - The latest user message
  * @returns {Promise<{reply: string, regenerate: boolean, customizationOverrides: Object}>}
  */
-async function chat(profile, workout, messages, userMessage) {
+async function chat(profile, workout, messages, userMessage, modelOverride) {
   const systemPrompt = buildChatSystemPrompt(profile, workout);
   const conversationHistory = buildConversationHistory(messages, userMessage, workout);
 
-  const model = DEFAULT_MODEL;
+  // Sanitize user-supplied model to prevent injection into outbound API calls
+  const model = sanitizeModel(modelOverride);
 
   const response = await axios.post(
     `${OPENROUTER_BASE}/chat/completions`,
@@ -74,6 +75,7 @@ function buildChatSystemPrompt(profile, workout) {
   const poolGear = Object.entries(equip.poolEquipment || {}).filter(([, v]) => v).map(([k]) => k);
   const gymGear = Object.entries(equip.gymEquipment || {}).filter(([, v]) => v).map(([k]) => k);
   const gymGearNote = gymGear.length === 0 ? '  ⚠️ No gym equipment — only bodyweight exercises!' : '';
+  const weightInv = (profile.weightInventory || []).map(w => `${w.weight}${w.unit} ${w.type}`).join(', ');
   const poolUnitNote = `  ⚠️ This is a ${unit} pool — all distances must be in ${unit}, NOT ${isYards ? 'meters' : 'yards'}!`;
 
   const workoutSummary = buildWorkoutSummary(workout, isYards);
@@ -88,6 +90,7 @@ function buildChatSystemPrompt(profile, workout) {
 - Pool: ${poolLen} (${unit})${poolUnitNote}
 - Pool equipment: ${poolGear.length ? poolGear.join(', ') : 'None'}
 - Gym equipment: ${gymGear.length ? gymGear.join(', ') : 'None'}${gymGearNote}
+- Available weights: ${weightInv || 'None specified'}
 
 ## Current Workout
 ${workoutSummary}

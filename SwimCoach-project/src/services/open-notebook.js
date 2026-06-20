@@ -63,6 +63,41 @@ async function resolveModelId() {
 let _cachedModelId = undefined;
 
 /**
+ * Circuit breaker for Open Notebook backend.
+ * After consecutive failures, stop hammering the backend for a cooldown period.
+ */
+let _consecutiveFailures = 0;
+let _circuitOpenUntil = 0;
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+const CIRCUIT_BREAKER_COOLDOWN_MS = 30_000;
+
+/**
+ * Check if the circuit breaker allows a request.
+ * Returns true if the request should proceed, false if the backend is considered down.
+ */
+function circuitAllowsRequest() {
+  if (_consecutiveFailures < CIRCUIT_BREAKER_THRESHOLD) return true;
+  if (Date.now() >= _circuitOpenUntil) {
+    // Cooldown expired — allow one request to test if backend is back
+    console.log('Open Notebook circuit breaker: testing backend after cooldown');
+    return true;
+  }
+  return false;
+}
+
+function recordSuccess() {
+  _consecutiveFailures = 0;
+}
+
+function recordFailure() {
+  _consecutiveFailures++;
+  if (_consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    _circuitOpenUntil = Date.now() + CIRCUIT_BREAKER_COOLDOWN_MS;
+    console.log(`Open Notebook circuit breaker OPEN — ${CIRCUIT_BREAKER_THRESHOLD} consecutive failures, cooldown for ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s`);
+  }
+}
+
+/**
  * Get the cached model ID, resolving it on first call.
  */
 async function getModelId() {
@@ -87,6 +122,11 @@ async function getModelId() {
  *   POST /api/chat/execute       — session-based chat
  */
 async function query(question, opts = {}) {
+  // Circuit breaker: if the backend is down, fail fast instead of hammering it
+  if (!circuitAllowsRequest()) {
+    throw new Error('Open Notebook backend unavailable (circuit breaker open)');
+  }
+
   const modelId = await getModelId();
 
   if (!modelId) {
@@ -96,22 +136,40 @@ async function query(question, opts = {}) {
     );
   }
 
-  // Retry up to N times on transient Open Notebook errors (strategy parse failures, etc.)
-  const maxRetries = opts.retries ?? 1;
+  // Retry up to N times on transient Open Notebook errors
+  const maxRetries = opts.retries ?? 2;
   let lastErr;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const answer = await _streamQuery(question, modelId);
-      if (answer && answer !== 'No answer generated') return answer;
+      if (answer && answer !== 'No answer generated') {
+        recordSuccess();
+        return answer;
+      }
       lastErr = new Error('No answer generated');
     } catch (err) {
       lastErr = err;
-      // Only retry on transient Open Notebook errors, not on timeout or connection errors
-      if (err.message?.includes('timed out') || err.message?.includes('ECONNREFUSED')) break;
+      // If the model is not found, invalidate the cache so we re-resolve on next call
+      if (err.message?.includes('not found') && _cachedModelId !== undefined) {
+        console.log(`Open Notebook model ${_cachedModelId} not found — invalidating cache`);
+        _cachedModelId = undefined;
+      }
+      // Retry on connection errors with backoff — backend may be restarting
+      if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.message?.includes('socket hang up') || err.message?.includes('timed out')) {
+        recordFailure();
+        if (attempt < maxRetries) {
+          const backoffMs = 2000 * attempt;
+          console.log(`Open Notebook connection error on attempt ${attempt}/${maxRetries} — retrying in ${backoffMs / 1000}s`);
+          await new Promise(r => setTimeout(r, backoffMs));
+          continue;
+        }
+        break;
+      }
     }
   }
 
+  recordFailure();
   throw lastErr;
 }
 
@@ -292,7 +350,10 @@ function formatEquipment(equipment) {
   const gymGear = equipment.gymEquipment
     ? Object.entries(equipment.gymEquipment).filter(([, v]) => v).map(([k]) => k).join(', ')
     : '';
-  return [pool, poolGear, gymGear].filter(Boolean).join(' | ') || 'Standard pool access';
+  const weightInv = (equipment.weightInventory || []).map(w => `${w.weight}${w.unit} ${w.type}`).join(', ');
+  const parts = [pool, poolGear, gymGear].filter(Boolean);
+  if (weightInv) parts.push(`Weights: ${weightInv}`);
+  return parts.join(' | ') || 'Standard pool access';
 }
 
 module.exports = {
@@ -305,4 +366,6 @@ module.exports = {
   // Allow tests to reset the cached model ID
   set cachedModelId(val) { _cachedModelId = val; },
   get cachedModelId() { return _cachedModelId; },
+  // Allow tests to reset the circuit breaker
+  resetCircuitBreaker() { _consecutiveFailures = 0; _circuitOpenUntil = 0; },
 };

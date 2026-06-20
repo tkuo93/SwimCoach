@@ -179,7 +179,9 @@ const swimmerProfileSchema = new mongoose.Schema({
       resistanceBands: { type: Boolean, default: false }
     },
     gymEquipment: {
-      weights: { type: Boolean, default: true },
+      barbell: { type: Boolean, default: false },
+      dumbbell: { type: Boolean, default: false },
+      kettlebell: { type: Boolean, default: false },
       resistanceMachine: { type: Boolean, default: false },
       pullUpBar: { type: Boolean, default: false },
       plyometricBox: { type: Boolean, default: false },
@@ -187,7 +189,13 @@ const swimmerProfileSchema = new mongoose.Schema({
       yogaMat: { type: Boolean, default: true },
       bands: { type: Boolean, default: false },
       sliders: { type: Boolean, default: false }
-    }
+    },
+    // Specific weight inventory — e.g. [{ type: 'dumbbell', weight: 25, unit: 'lbs' }, { type: 'plate', weight: 45, unit: 'lbs' }]
+    weightInventory: [{
+      type: { type: String, enum: ['dumbbell', 'barbell', 'plate', 'kettlebell'], required: true },
+      weight: { type: Number, required: true },
+      unit: { type: String, enum: ['lbs', 'kg'], default: 'lbs' }
+    }]
   },
 
   // Experience Level

@@ -16,6 +16,20 @@ const OPEN_NOTEBOOK_URL = process.env.OPEN_NOTEBOOK_URL || 'http://localhost:850
 const OPEN_NOTEBOOK_MODEL = process.env.OPEN_NOTEBOOK_MODEL || '';
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/owl-alpha';
 
+// ─── Model Allowlist ────────────────────────────────────────────────
+// User-supplied model IDs must match this pattern to prevent injection
+// of arbitrary values into outbound OpenRouter API calls.
+const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
+
+/**
+ * Validate and sanitize a user-supplied model ID.
+ * Returns the model if valid, or the default model if not.
+ */
+function sanitizeModel(model) {
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  return MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+}
+
 // ─── RAG Cache ──────────────────────────────────────────────────────
 const ragCache = new Map();
 const RAG_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -41,13 +55,14 @@ function cacheSet(key, value) {
 
 function hashInsightsPrompt(profile, customization) {
   const type = resolveTrainingFocus(profile, customization);
-  const event = profile.goals?.primaryEvents?.[0];
-  const distance = event ? `${event.distance}m${event.stroke}` : 'general';
+  const events = resolvePrimaryEvents(profile, customization);
+  const distance = events.length > 0 ? events.map(e => `${e.distance}m ${e.stroke}`).join(', ') : 'general';
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const poolLen = resolvePoolLength(customization, profile);
   const poolUnit = isPoolYards(customization, profile) ? 'yd' : 'm';
-  const poolGear = Object.entries(profile.equipment?.poolEquipment || {}).filter(([, v]) => v).map(([k]) => k).sort().join(',');
-  const gymGear = Object.entries(profile.equipment?.gymEquipment || {}).filter(([, v]) => v).map(([k]) => k).sort().join(',');
+  const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
+  const poolGear = Object.entries(poolEquipment).filter(([, v]) => v).map(([k]) => k).sort().join(',');
+  const gymGear = Object.entries(gymEquipment).filter(([, v]) => v).map(([k]) => k).sort().join(',');
   return `${type}|${distance}|${duration}|${poolLen}|${poolUnit}|${poolGear}|${gymGear}`;
 }
 
@@ -210,24 +225,87 @@ function isPoolYards(customization, profile) {
   return false;
 }
 
+/**
+ * Known pool equipment values — used to split a flat equipment array into pool vs gym.
+ */
+const POOL_EQUIPMENT_VALUES = new Set(['fins', 'paddles', 'pullBuoy', 'snorkel', 'parachute', 'resistanceBands']);
+
+/**
+ * Split customization.availableEquipment into pool and gym equipment objects,
+ * falling back to profile equipment when customization is not provided.
+ */
+function resolveEquipment(customization, profile) {
+  const avail = customization.availableEquipment;
+  if (avail && Array.isArray(avail) && avail.length > 0) {
+    const poolEquip = {};
+    const gymEquip = {};
+    // Start with all profile equipment set to false, then enable only what's in the form
+    const profilePool = profile.equipment?.poolEquipment || {};
+    const profileGym = profile.equipment?.gymEquipment || {};
+    // Initialize all known keys to false
+    for (const key of Object.keys(profilePool)) poolEquip[key] = false;
+    for (const key of Object.keys(profileGym)) gymEquip[key] = false;
+    // Enable only what the user checked
+    for (const item of avail) {
+      if (POOL_EQUIPMENT_VALUES.has(item)) {
+        poolEquip[item] = true;
+      } else {
+        gymEquip[item] = true;
+      }
+    }
+    return { poolEquipment: poolEquip, gymEquipment: gymEquip };
+  }
+  return {
+    poolEquipment: profile.equipment?.poolEquipment || {},
+    gymEquipment: profile.equipment?.gymEquipment || {},
+  };
+}
+
+/**
+ * Resolve the primary events for workout focus.
+ * Returns an array of all events the swimmer trains for.
+ * If customization.stroke is set, returns a single synthetic event (stroke override).
+ */
+function resolvePrimaryEvents(profile, customization) {
+  if (customization.stroke && customization.stroke !== 'any') {
+    // Use the user's stroke preference — create a synthetic event
+    // Use the distance from the profile's primary event if available, otherwise default to 100
+    const profileEvent = profile.goals?.primaryEvents?.[0];
+    const distance = profileEvent?.distance || 100;
+    return [{ stroke: customization.stroke, distance }];
+  }
+  return profile.goals?.primaryEvents || [];
+}
+
 function buildInsightsPrompt(profile, customization) {
   const type = resolveTrainingFocus(profile, customization);
-  const event = profile.goals?.primaryEvents?.[0];
-  const distance = event ? `${event.distance}m ${event.stroke}` : 'general swimming';
+  const events = resolvePrimaryEvents(profile, customization);
+  const distance = events.length > 0
+    ? events.map(e => `${e.distance}m ${e.stroke}`).join(', ')
+    : 'general swimming';
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const poolLen = resolvePoolLengthDisplay(customization, profile);
   const poolUnit = isPoolYards(customization, profile) ? 'yards' : 'meters';
 
-  // Build equipment context
-  const poolGear = Object.entries(profile.equipment?.poolEquipment || {}).filter(([, v]) => v).map(([k]) => k);
-  const gymGear = Object.entries(profile.equipment?.gymEquipment || {}).filter(([, v]) => v).map(([k]) => k);
+  // Build equipment context — use customization override if provided
+  const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
+  const poolGear = Object.entries(poolEquipment).filter(([, v]) => v).map(([k]) => k);
+  const gymGear = Object.entries(gymEquipment).filter(([, v]) => v).map(([k]) => k);
   const equipmentParts = [];
   if (poolGear.length) equipmentParts.push(`Pool equipment: ${poolGear.join(', ')}`);
   if (gymGear.length) equipmentParts.push(`Gym equipment: ${gymGear.join(', ')}`);
   if (equipmentParts.length === 0) equipmentParts.push('No special equipment available');
   const equipmentStr = equipmentParts.join('; ');
 
-  return `Find scientific training principles and methodologies for:\n- ${type} training for ${distance}\n- ${duration} minute session\n- ${profile.experienceLevel || 'intermediate'} level swimmer\n- ${poolLen} pool (${poolUnit})\n- ${equipmentStr}\n\nReturn relevant training principles, set structures, interval recommendations, and any scientific findings from the knowledge base. Include source citations.`;
+  let prompt = `Find scientific training principles and methodologies for:\n- ${type} training for ${distance}\n- ${duration} minute session\n- ${profile.experienceLevel || 'intermediate'} level swimmer\n- ${poolLen} pool (${poolUnit})\n- ${equipmentStr}\n\nReturn relevant training principles, set structures, interval recommendations, and any scientific findings from the knowledge base. Include source citations.`;
+
+  // If taper mode, add a competition-prep query to pull notebook taper insights
+  if (customization.taper && events.length > 0) {
+    const taperEvent = events[0];
+    prompt += `\n\nAlso find competition taper/peaking principles for ${taperEvent.distance}m ${taperEvent.stroke}: volume reduction, intensity maintenance, race-pace work, and rest protocols during the final 14 days before competition.`;
+  }
+
+  return prompt;
 }
 
 // ─── Step 2: Generate structured workout via OpenRouter ───────────────
@@ -236,37 +314,30 @@ async function generateWorkout(profile, customization) {
   // Resolve training focus once for reuse
   const type = resolveTrainingFocus(profile, customization);
 
-  // Check RAG cache first
-  const cacheKey = hashInsightsPrompt(profile, customization);
-  let insights = cacheGet(cacheKey);
-
-  // Fire independent calls in parallel: RAG query (if not cached) + notebook notes
+  // Primary: fetch pre-generated notebook notes (fast, condensed insights).
+  // Fallback: RAG query on raw sources only when notes are missing or insufficient.
   const notesTopic = `${type} training for swimmers`;
-  const tasks = [];
+  const notebookNotes = await getAllNotebookNotes(notesTopic);
 
-  if (insights === null) {
-    tasks.push(
-      getTrainingInsights(profile, customization).then(result => {
-        cacheSet(cacheKey, result);
-        insights = result;
-      })
-    );
-  } else {
-    tasks.push(Promise.resolve()); // no-op, already cached
+  // Only run the expensive RAG query on sources if we have no notebook notes.
+  // This avoids sending 167K+ tokens to the LLM when pre-generated notes exist.
+  let insights = '';
+  if (!notebookNotes) {
+    const cacheKey = hashInsightsPrompt(profile, customization);
+    insights = cacheGet(cacheKey);
+
+    if (insights === null) {
+      insights = await getTrainingInsights(profile, customization);
+      cacheSet(cacheKey, insights);
+    }
   }
-
-  let notebookNotes = '';
-  tasks.push(
-    getAllNotebookNotes(notesTopic).then(result => { notebookNotes = result; })
-  );
-
-  await Promise.all(tasks);
 
   // Get past feedback summary from MEMORY.md
   const feedbackSummary = getFeedbackSummary(10);
 
   // Determine model — allow override via customization (for debug mode)
-  const model = customization.llmModel || DEFAULT_MODEL;
+  // Sanitize user-supplied model to prevent injection into outbound API calls
+  const model = sanitizeModel(customization.llmModel);
 
   const sessionType = customization.sessionType || 'both';
   const includePool = sessionType === 'both' || sessionType === 'pool';
@@ -274,7 +345,13 @@ async function generateWorkout(profile, customization) {
 
   const systemPrompt = buildSystemPrompt(includePool, includeGym);
 
-  const userPrompt = buildWorkoutPrompt(profile, customization, insights, feedbackSummary, notebookNotes);
+  // Build the prompt context — include taper insights if in taper mode
+  const promptCustomization = { ...customization };
+  if (customization.taper && insights) {
+    promptCustomization.taperInsights = insights;
+  }
+
+  const userPrompt = buildWorkoutPrompt(profile, promptCustomization, insights, feedbackSummary, notebookNotes);
 
   const response = await axios.post(
     `${OPENROUTER_BASE}/chat/completions`,
@@ -285,7 +362,7 @@ async function generateWorkout(profile, customization) {
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 8192,
       provider: { order: ['openai'], sort: 'throughput' },
     },
     {
@@ -298,7 +375,13 @@ async function generateWorkout(profile, customization) {
     },
   );
 
-  const content = response.data?.choices?.[0]?.message?.content;
+  const choice = response.data?.choices?.[0];
+  const finishReason = choice?.finish_reason;
+  if (finishReason === 'length') {
+    throw new Error(`LLM response truncated (finish_reason=length). The max_tokens limit was too low for this workout. Try reducing session duration or complexity.`);
+  }
+
+  const content = choice?.message?.content;
   if (!content) throw new Error('No response from OpenRouter');
 
   let jsonStr = content.trim();
@@ -323,8 +406,10 @@ async function generateWorkout(profile, customization) {
 
 function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, notebookNotes) {
   const type = resolveTrainingFocus(profile, customization);
-  const events = profile.goals?.primaryEvents || [];
-  const primaryEvent = events[0];
+  const trainingFoci = profile.goals?.trainingFocus || [];
+  const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
+  const weightInventory = customization.weightInventory || profile.weightInventory || [];
+  const events = resolvePrimaryEvents(profile, customization);
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const poolLength = resolvePoolLength(customization, profile);
   const poolLengthDisplay = resolvePoolLengthDisplay(customization, profile);
@@ -335,11 +420,9 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
   // Distance unit label for display in best times, events, etc.
   const distUnit = poolIsYards ? 'yd' : 'm';
 
-  // Build equipment lists
-  const poolEquip = profile.equipment?.poolEquipment || {};
-  const gymEquip = profile.equipment?.gymEquipment || {};
-  const availablePoolGear = Object.entries(poolEquip).filter(([, v]) => v).map(([k]) => k);
-  const availableGymGear = Object.entries(gymEquip).filter(([, v]) => v).map(([k]) => k);
+  // Build equipment lists — use customization override if provided
+  const availablePoolGear = Object.entries(poolEquipment).filter(([, v]) => v).map(([k]) => k);
+  const availableGymGear = Object.entries(gymEquipment).filter(([, v]) => v).map(([k]) => k);
 
   // Standard distances appropriate for this pool unit
   // Yards pools (SCY): 50, 100, 200, 400, 500, 1000, 1650 yd
@@ -363,7 +446,11 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
   if (events.length > 0) {
     parts.push(`- Events: ${events.map(e => `${e.distance}${distUnit} ${e.stroke}`).join(', ')}`);
   } else {
-    parts.push(`- Primary event: ${primaryEvent ? `${primaryEvent.distance}${distUnit} ${primaryEvent.stroke}` : 'general'}`);
+    parts.push('- Events: general');
+  }
+
+  if (trainingFoci.length > 0) {
+    parts.push(`- Training focus: ${trainingFoci.join(', ')}`);
   }
 
   if (profile.goals?.outcomes?.length) {
@@ -380,11 +467,56 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
 
   if (customization.intensity) parts.push(`- Intensity: ${customization.intensity}`);
 
+  // ── Stroke Distribution Guidelines ──
+  if (events.length > 1) {
+    parts.push('');
+    parts.push('## Stroke Distribution Guidelines');
+    parts.push(`This swimmer trains for multiple events: ${events.map(e => `${e.distance}${distUnit} ${e.stroke}`).join(', ')}.`);
+    parts.push('You MAY combine multiple events in a single workout when the training concept aligns (e.g., butterfly sprint + freestyle sprint in the same session).');
+    parts.push('You MAY dedicate a session to a single event when appropriate (e.g., a technique-focused session).');
+    parts.push('Use the training focus to guide decisions: speed/sprint workouts pair well across strokes; distance/endurance workouts should match the target event.');
+    parts.push('Aim to cover all events across the program — do not neglect any one event.');
+  }
+
+  // ── Program context — tell the AI where this session sits in the overall program ──
+  if (customization.programId && customization.totalSessions > 1) {
+    parts.push('');
+    parts.push('## Program Context');
+    parts.push(`This is session ${customization.programIndex + 1} of ${customization.totalSessions} in a ${customization.programPeriod} program.`);
+    parts.push('The other sessions in this program cover different training foci.');
+    parts.push('Design this workout to complement the others — avoid repeating the same sets or exercises from other sessions.');
+    if (customization.programIndex === 0) {
+      parts.push('This is the first session — start at moderate intensity to build a base.');
+    } else if (customization.programIndex === customization.totalSessions - 1) {
+      parts.push('This is the final session — close out the program with a strong finish.');
+    }
+  }
+
+  // ── Previous Sessions in this program — avoid repetition ──
+  if (customization.previousSessionSummaries && customization.previousSessionSummaries.length > 0) {
+    parts.push('');
+    parts.push('## Previous Sessions in This Program');
+    parts.push('The following sessions have already been generated for this program:');
+    parts.push('');
+    for (const summary of customization.previousSessionSummaries) {
+      parts.push(`- ${summary}`);
+    }
+    parts.push('');
+    parts.push('Design this workout to complement the previous sessions. Avoid repeating the same sets, strokes, or exercises. If a previous session focused on one event or training focus, prioritize different ones here.');
+  }
+
   parts.push('');
 
   // ── Pool constraints (CRITICAL — AI must follow these) ──
   parts.push('## Pool Workout Constraints — STRICT');
   parts.push(`THIS IS A ${poolUnit.toUpperCase()} POOL. ALL swim distances MUST be in ${poolUnit} (e.g. ${standardDistances.slice(0, 4).join(', ')} ${poolUnit}). NEVER use meter-based distances like 100m, 200m, 400m in a yards pool.`);
+
+  // Stroke preference override — if user selected a specific stroke, enforce it
+  if (customization.stroke && customization.stroke !== 'any') {
+    const strokeDisplay = customization.stroke === 'individual-medley' ? 'Individual Medley (IM)' : customization.stroke.charAt(0).toUpperCase() + customization.stroke.slice(1);
+    parts.push(`- STROKE: ${strokeDisplay} — ALL main set swims MUST use this stroke. Do NOT use other strokes in the main set.`);
+  }
+
   if (availablePoolGear.length > 0) {
     parts.push(`- Pool equipment available: ${availablePoolGear.join(', ')}`);
   } else {
@@ -401,20 +533,52 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
     parts.push('- NO gym equipment — bodyweight exercises ONLY');
   }
 
+  // Weight inventory — tell the AI exactly what weights are available
+  if (weightInventory && weightInventory.length > 0) {
+    const weightDesc = weightInventory.map(w => `${w.weight}${w.unit} ${w.type}`).join(', ');
+    parts.push(`- Available weights: ${weightDesc}`);
+    parts.push('- When prescribing weighted exercises, ONLY use the exact weights listed above. Do not invent weights.');
+    parts.push('- MATCH REPS TO WEIGHT: heavy weights → low reps (4-8), moderate weights → medium reps (8-12), light weights → high reps (12-20).');
+    parts.push('- For strength/power workouts (speed, resistance-power): use the HEAVIEST available weights with low reps (4-6), 3-5 sets, long rest (90-120s).');
+    parts.push('- For endurance/mobility workouts: use LIGHTER weights with higher reps (12-20), 2-3 sets, short rest (30-60s).');
+    parts.push('- If only one weight is available, adjust reps and sets to match the training focus — do not always prescribe the same 3x10 for everything.');
+  }
+
   parts.push('');
 
-  // Knowledge base insights
+  // Notebook notes (pre-generated insights — primary knowledge source)
+  if (notebookNotes) {
+    parts.push('## Training Insights');
+    parts.push('The following scientific training insights have been curated from swimming research sources. Use these to inform the workout design:');
+    parts.push('');
+    parts.push(notebookNotes);
+    parts.push('');
+  }
+
+  // Knowledge base insights (fallback — raw RAG on sources when notes are insufficient)
   if (insights && insights !== 'No answer generated') {
-    parts.push('## Knowledge Base Insights');
+    parts.push('## Knowledge Base Deep Dive');
+    parts.push('Additional context from the knowledge base for this specific workout:');
+    parts.push('');
     parts.push(insights);
     parts.push('');
   }
 
-  if (notebookNotes) {
-    parts.push('## Notebook Notes');
-    parts.push('The following notes have been generated by Open Notebook from ingested swimming research sources. Use these insights to inform the workout design:');
-    parts.push('');
-    parts.push(notebookNotes);
+  // ── Competition Taper: use notebook insights, not hardcoded rules ──
+  if (customization.taper) {
+    parts.push('## Competition Taper Context');
+    if (customization.taperInsights) {
+      parts.push('The following competition taper insights were retrieved from the knowledge base:');
+      parts.push('');
+      parts.push(customization.taperInsights);
+      parts.push('');
+    }
+    if (customization.competitionLabel) {
+      parts.push(`Competition: ${customization.competitionLabel} on ${customization.competitionDate}.`);
+    } else {
+      parts.push('A competition is approaching within 14 days.');
+    }
+    parts.push('Design this session following the taper principles above — do NOT apply a generic rule. The knowledge base insights should guide volume, intensity, and race-pace work.');
     parts.push('');
   }
 
@@ -441,6 +605,10 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
   if (includeGym) {
     parts.push('- Include a gym session with exercises, sets, reps, and rest periods');
     parts.push('- Every gym exercise MUST only use the available equipment listed above');
+    if (weightInventory && weightInventory.length > 0) {
+      parts.push('- EVERY exercise using weights MUST include the exact weight from the available weights list. Do NOT leave weight as 0 or omit the field. Choose the appropriate weight based on the exercise and training focus.');
+      parts.push('- Rep ranges must match the weight: heavy (4-6 reps), moderate (8-12 reps), light (12-20 reps). Adjust sets and rest accordingly.');
+    }
   }
   parts.push('- Provide 3-5 training notes with scientific rationale');
   parts.push('- Return ONLY valid JSON, no other text');
@@ -476,7 +644,7 @@ function buildSystemPrompt(includePool, includeGym) {
   "gymWorkout": {
     "warmUp": { "description": "Gym warm-up", "duration": number },
     "exercises": [
-      { "exercise": "name (bodyweight or using ONLY available equipment)", "sets": number, "reps": number, "restSeconds": number, "muscleGroup": "one of: arms, legs, core, chest, back, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, glutes, calves, hip-flexors, adductors, abductors, rotator-cuff, lower-back, obliques, full-body", "notes": "form cues — do not reference equipment not listed as available" }
+      { "exercise": "name", "sets": number, "reps": number, "weight": "REQUIRED — specify exact weight with unit (e.g. 25lbs, 10kg) from available weights, or 'bodyweight' if no weight used", "restSeconds": number, "muscleGroup": "one of: arms, legs, core, chest, back, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, glutes, calves, hip-flexors, adductors, abductors, rotator-cuff, lower-back, obliques, full-body", "notes": "form cues and weight selection rationale — do not reference equipment not listed as available" }
     ],
     "coolDown": { "description": "Stretching", "duration": number }
   },` : '';
@@ -512,4 +680,7 @@ module.exports = {
   resolveTrainingFocus,
   resolvePoolLength,
   isPoolYards,
+  resolveEquipment,
+  resolvePrimaryEvents,
+  sanitizeModel,
 };

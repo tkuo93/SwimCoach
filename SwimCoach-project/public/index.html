@@ -23,6 +23,7 @@
       <a href="#profile" class="nav-link" data-nav="profile">Profile</a>
       <a href="#generate" class="nav-link" data-nav="generate">Generate</a>
       <a href="#history" class="nav-link" data-nav="history">History</a>
+      <a href="#settings" class="nav-link" data-nav="settings">Settings</a>
       <a href="#debug" class="nav-link" data-nav="debug">Debug</a>
     </div>
   </nav>
@@ -190,8 +191,8 @@
               <div class="pool-length-inputs">
                 <input type="number" id="poolLengthValue" name="poolLengthValue" min="1" max="200" placeholder="25" style="width: 100px;">
                 <select id="poolLengthUnit" name="poolLengthUnit" style="width: 140px;">
-                  <option value="meters">Meters</option>
                   <option value="yards">Yards</option>
+                  <option value="meters">Meters</option>
                 </select>
               </div>
             </div>
@@ -211,7 +212,9 @@
             <div class="checkbox-group">
               <h3>Gym Equipment</h3>
               <div class="checkbox-grid">
-                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="weights" checked> Weights</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="barbell"> Barbell</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="dumbbell"> Dumbbells</label>
+                <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="kettlebell"> Kettlebells</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="resistanceMachine"> Machines</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="pullUpBar"> Pull-up Bar</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="plyometricBox"> Plyo Box</label>
@@ -220,6 +223,15 @@
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="bands"> Bands</label>
                 <label class="checkbox-label"><input type="checkbox" name="gymEquipment" value="sliders"> Sliders</label>
               </div>
+            </div>
+
+            <div class="form-group">
+              <h3>Weight Inventory</h3>
+              <p class="field-hint">Add the specific weights you have so we can prescribe exact loads.</p>
+              <div id="weight-inventory-list">
+                <!-- Populated dynamically -->
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-weight">+ Add Weight</button>
             </div>
           </div>
         </div>
@@ -299,10 +311,21 @@
               <div class="pool-length-inputs">
                 <input type="number" id="poolLengthValue" name="poolLengthValue" min="1" max="200" placeholder="25" style="width: 100px;">
                 <select id="poolLengthUnit" name="poolLengthUnit" style="width: 140px;">
-                  <option value="meters">Meters</option>
                   <option value="yards">Yards</option>
+                  <option value="meters">Meters</option>
                 </select>
               </div>
+            </div>
+            <div class="form-group">
+              <label for="stroke">Stroke</label>
+              <select id="stroke" name="stroke">
+                <option value="">Any / Profile default</option>
+                <option value="freestyle">Freestyle</option>
+                <option value="backstroke">Backstroke</option>
+                <option value="breaststroke">Breaststroke</option>
+                <option value="butterfly">Butterfly</option>
+                <option value="individual-medley">Individual Medley</option>
+              </select>
             </div>
           </div>
         </div>
@@ -320,6 +343,14 @@
             <div class="checkbox-grid" id="gym-equipment-checkboxes">
               <!-- Populated from API -->
             </div>
+          </div>
+          <div class="form-group">
+            <h3>Weight Inventory</h3>
+            <p class="field-hint">Add the specific weights you have so we can prescribe exact loads.</p>
+            <div id="gen-weight-inventory-list">
+              <!-- Populated dynamically -->
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-gen-add-weight">+ Add Weight</button>
           </div>
         </div>
 
@@ -362,6 +393,44 @@
     <section id="page-program" class="page hidden">
       <div id="program-content">
         <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- ─── Settings Page ─── -->
+    <section id="page-settings" class="page hidden">
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Configure global preferences for all workouts and coaching.</p>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Default LLM Model</h2>
+        <p class="hint" style="margin-bottom: var(--space-md);">
+          This model is used for all new workouts, regenerations, and coach chat.
+          Overrides the server default. Debug page has its own per-request selector for testing.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="settings-llm-preset">Model</label>
+            <select id="settings-llm-preset" class="filter-select">
+              <option value="">Server default</option>
+              <option value="openrouter/auto">OpenRouter Auto</option>
+              <option value="openrouter/nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super 120B (free)</option>
+              <option value="openrouter/anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+              <option value="openrouter/openai/gpt-4o">GPT-4o</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+          <div class="form-group" id="settings-llm-custom-group" style="display:none;">
+            <label for="settings-llm-custom">Custom Model ID</label>
+            <input type="text" id="settings-llm-custom" placeholder="e.g., openrouter/mistralai/mixtral-8x7b">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-settings-save-llm" class="btn btn-primary">Save</button>
+          <button type="button" id="btn-settings-clear-llm" class="btn btn-secondary">Reset to Default</button>
+        </div>
+        <p id="settings-llm-current" class="hint" style="margin-top: var(--space-sm);">Current: server default</p>
       </div>
     </section>
 

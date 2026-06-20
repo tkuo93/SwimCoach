@@ -35,12 +35,15 @@ function resolveSwimmerId(req) {
 /**
  * Require that the resolved swimmerId matches the resource owner.
  * Must be called after resolveSwimmerId. Returns 403 on mismatch.
+ * Handles both populated documents (with _id) and raw ObjectIds.
  */
 function requireOwnership(req, res, swimmerId, ownerId) {
   if (!swimmerId) {
     return res.status(401).json({ success: false, error: 'Swimmer ID required. Provide X-Swimmer-Id header.' });
   }
-  if (swimmerId !== ownerId.toString()) {
+  // ownerId may be a populated doc ({ _id: ObjectId, ... }) or a raw ObjectId
+  const ownerIdStr = (ownerId && ownerId._id) ? ownerId._id.toString() : ownerId.toString();
+  if (swimmerId !== ownerIdStr) {
     return res.status(403).json({ success: false, error: 'Forbidden — you do not own this resource.' });
   }
   return null; // OK

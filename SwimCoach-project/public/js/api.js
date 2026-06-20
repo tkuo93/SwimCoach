@@ -56,6 +56,8 @@ const api = {
     regenerate: (id, data, swimmerId) => request(`/workouts/${id}/regenerate`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
     generateProgram: (data, swimmerId) => request('/workouts/generate/program', { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
     getProgram: (programId, swimmerId) => request(`/workouts/program/${programId}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    delete: (id, swimmerId) => request(`/workouts/${id}`, { method: 'DELETE', headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    update: (id, data, swimmerId) => request(`/workouts/${id}`, { method: 'PUT', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
   },
 
   // ─── Customization Options ───

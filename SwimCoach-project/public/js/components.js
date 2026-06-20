@@ -14,6 +14,7 @@ export {
   showPage,
   getTypeLabel,
   buildWorkoutCard,
+  buildWorkoutEditForm,
   buildChatPanel,
   addChatMessage,
   buildFeedbackForm,
@@ -22,6 +23,7 @@ export {
   escapeHtml,
   capitalize,
   formatDate,
+  formatDateInput,
 };
 
 // ─── Toast Notifications ───
@@ -105,7 +107,7 @@ function buildWorkoutCard(workout) {
           <div class="workout-meta">
             <span class="badge badge-type">${getTypeLabel(w.workoutType)}</span>
             <span class="badge badge-intensity badge-intensity-${w.intensity || 'moderate'}">${capitalize(w.intensity || 'moderate')}</span>
-            <span class="badge badge-date">${formatDate(w.date || w.createdAt)}</span>
+            <span class="badge badge-date badge-date-clickable" title="Click to edit date">📅 ${formatDate(w.date || w.createdAt)}</span>
           </div>
         </div>
         <div class="workout-section">
@@ -124,7 +126,7 @@ function buildWorkoutCard(workout) {
           <div class="workout-meta">
             <span class="badge badge-type">${getTypeLabel(w.workoutType)}</span>
             <span class="badge badge-intensity badge-intensity-${w.intensity || 'moderate'}">${capitalize(w.intensity || 'moderate')}</span>
-            <span class="badge badge-date">${formatDate(w.date || w.createdAt)}</span>
+            <span class="badge badge-date badge-date-clickable" title="Click to edit date">📅 ${formatDate(w.date || w.createdAt)}</span>
           </div>
         </div>
         <div class="workout-section">
@@ -144,13 +146,191 @@ function buildWorkoutCard(workout) {
         <div class="workout-meta">
           <span class="badge badge-type">${getTypeLabel(w.workoutType)}</span>
           <span class="badge badge-intensity badge-intensity-${w.intensity || 'moderate'}">${capitalize(w.intensity || 'moderate')}</span>
-          <span class="badge badge-date">${formatDate(w.date || w.createdAt)}</span>
+          <span class="badge badge-date badge-date-clickable" title="Click to edit date">📅 ${formatDate(w.date || w.createdAt)}</span>
         </div>
       </div>
 
       ${buildPoolSection(pool)}
       ${buildGymSection(gym)}
       ${buildTrainingNotes(w.trainingNotes)}
+    </div>`;
+}
+
+// ─── Build Workout Edit Form ───
+
+function buildWorkoutEditForm(workout) {
+  const w = workout;
+  const pool = w.poolWorkout || {};
+  const gym = w.gymWorkout || {};
+
+  const poolMainSetRows = (pool.mainSet || []).map((set, i) => `
+    <tr class="edit-set-row" data-set-index="${i}" data-set-type="pool">
+      <td><input type="number" class="edit-input edit-reps" value="${set.repetitions || 1}" min="1" title="Reps"></td>
+      <td><input type="number" class="edit-input edit-distance" value="${set.distance || 0}" min="0" title="Distance (m)"></td>
+      <td><input type="text" class="edit-input edit-stroke" value="${escapeHtml(set.stroke || 'freestyle')}" title="Stroke"></td>
+      <td><input type="text" class="edit-input edit-interval" value="${escapeHtml(set.interval || '')}" title="Interval (e.g. 1:30)"></td>
+      <td><input type="text" class="edit-input edit-focus" value="${escapeHtml(set.focus || '')}" title="Focus"></td>
+      <td><input type="text" class="edit-input edit-set-notes" value="${escapeHtml(set.description || '')}" title="Notes"></td>
+      <td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">✕</button></td>
+    </tr>
+  `).join('');
+
+  const gymMainSetRows = (gym.mainSet || []).map((ex, i) => `
+    <tr class="edit-set-row" data-set-index="${i}" data-set-type="gym">
+      <td><input type="text" class="edit-input edit-exercise" value="${escapeHtml(ex.exercise || '')}" title="Exercise"></td>
+      <td><input type="number" class="edit-input edit-sets" value="${ex.sets || 1}" min="1" title="Sets"></td>
+      <td><input type="number" class="edit-input edit-reps" value="${ex.repetitions || 1}" min="1" title="Reps"></td>
+      <td>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input type="number" class="edit-input edit-weight" value="${ex.weight || 0}" min="0" title="Weight" style="width:60px;">
+          <select class="edit-input edit-weight-unit" title="Unit" style="width:55px;">
+            <option value="">—</option>
+            <option value="lbs" ${ex.weightUnit === 'lbs' ? 'selected' : ''}>lbs</option>
+            <option value="kg" ${ex.weightUnit === 'kg' ? 'selected' : ''}>kg</option>
+          </select>
+        </div>
+      </td>
+      <td><input type="number" class="edit-input edit-rest" value="${ex.restTime || 0}" min="0" title="Rest (sec)"></td>
+      <td><input type="text" class="edit-input edit-muscle" value="${escapeHtml(ex.muscleGroup || '')}" title="Muscle group"></td>
+      <td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">✕</button></td>
+    </tr>
+  `).join('');
+
+  const trainingNotes = (w.trainingNotes || []).map(n => escapeHtml(n)).join('\n');
+
+  return `
+    <div class="workout-edit-form" id="workout-edit-form-${w._id}">
+      <div class="edit-section">
+        <h3>Workout Details</h3>
+        <div class="edit-grid">
+          <div class="form-group">
+            <label for="edit-name-${w._id}">Title</label>
+            <input type="text" id="edit-name-${w._id}" class="edit-input-full" value="${escapeHtml(w.workoutName || 'Workout')}">
+          </div>
+          <div class="form-group">
+            <label for="edit-type-${w._id}">Type</label>
+            <select id="edit-type-${w._id}">
+              ${['lactate','resistance-power','speed','technique','endurance','recovery','mobility'].map(t =>
+                `<option value="${t}" ${w.workoutType === t ? 'selected' : ''}>${getTypeLabel(t)}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-duration-${w._id}">Duration (min)</label>
+            <input type="number" id="edit-duration-${w._id}" value="${w.duration || 60}" min="10" max="180">
+          </div>
+          <div class="form-group">
+            <label for="edit-intensity-${w._id}">Intensity</label>
+            <select id="edit-intensity-${w._id}">
+              ${['low','moderate','high','maximal'].map(i =>
+                `<option value="${i}" ${w.intensity === i ? 'selected' : ''}>${capitalize(i)}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-date-${escapeHtml(w._id)}">Scheduled Date</label>
+            <input type="date" id="edit-date-${escapeHtml(w._id)}" value="${escapeHtml(formatDateInput(w.date || w.createdAt))}">
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>🏊 Pool — Warm-up</h3>
+        <div class="edit-grid">
+          <div class="form-group">
+            <label>Distance (m)</label>
+            <input type="number" id="edit-pool-wu-dist-${w._id}" value="${pool.warmUp?.distance || 0}" min="0">
+          </div>
+          <div class="form-group">
+            <label>Duration (min)</label>
+            <input type="number" id="edit-pool-wu-dur-${w._id}" value="${pool.warmUp?.duration || 0}" min="0">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea id="edit-pool-wu-desc-${w._id}" rows="2">${escapeHtml(pool.warmUp?.description || '')}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>🏊 Pool — Main Sets</h3>
+        <table class="interval-table edit-table">
+          <thead><tr><th>Reps</th><th>Dist (m)</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="edit-pool-sets-${w._id}">
+            ${poolMainSetRows || '<tr><td colspan="7" class="text-muted">No sets — add one below</td></tr>'}
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-sm btn-secondary btn-add-set" data-pool="true" data-workout-id="${w._id}">+ Add Pool Set</button>
+      </div>
+
+      <div class="edit-section">
+        <h3>🏊 Pool — Cool-down</h3>
+        <div class="edit-grid">
+          <div class="form-group">
+            <label>Distance (m)</label>
+            <input type="number" id="edit-pool-cd-dist-${w._id}" value="${pool.coolDown?.distance || 0}" min="0">
+          </div>
+          <div class="form-group">
+            <label>Duration (min)</label>
+            <input type="number" id="edit-pool-cd-dur-${w._id}" value="${pool.coolDown?.duration || 0}" min="0">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea id="edit-pool-cd-desc-${w._id}" rows="2">${escapeHtml(pool.coolDown?.description || '')}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>💪 Gym — Warm-up</h3>
+        <div class="edit-grid">
+          <div class="form-group">
+            <label>Duration (min)</label>
+            <input type="number" id="edit-gym-wu-dur-${w._id}" value="${gym.warmUp?.duration || 0}" min="0">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea id="edit-gym-wu-desc-${w._id}" rows="2">${escapeHtml(gym.warmUp?.description || '')}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>💪 Gym — Exercises</h3>
+        <table class="interval-table edit-table">
+          <thead><tr><th>Exercise</th><th>Sets</th><th>Reps</th><th>Weight (kg)</th><th>Rest (s)</th><th>Muscle</th><th></th></tr></thead>
+          <tbody id="edit-gym-sets-${w._id}">
+            ${gymMainSetRows || '<tr><td colspan="7" class="text-muted">No exercises — add one below</td></tr>'}
+          </tbody>
+        </table>
+        <button type="button" class="btn btn-sm btn-secondary btn-add-set" data-pool="false" data-workout-id="${w._id}">+ Add Gym Exercise</button>
+      </div>
+
+      <div class="edit-section">
+        <h3>💪 Gym — Cool-down</h3>
+        <div class="edit-grid">
+          <div class="form-group">
+            <label>Duration (min)</label>
+            <input type="number" id="edit-gym-cd-dur-${w._id}" value="${gym.coolDown?.duration || 0}" min="0">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea id="edit-gym-cd-desc-${w._id}" rows="2">${escapeHtml(gym.coolDown?.description || '')}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-section">
+        <h3>🧠 Training Notes</h3>
+        <div class="form-group">
+          <textarea id="edit-notes-${w._id}" rows="3" placeholder="One note per line">${trainingNotes}</textarea>
+        </div>
+      </div>
+
+      <div class="edit-actions">
+        <button type="button" class="btn btn-primary btn-save-edit" data-workout-id="${w._id}">💾 Save Changes</button>
+        <button type="button" class="btn btn-secondary btn-cancel-edit" data-workout-id="${w._id}">Cancel</button>
+      </div>
     </div>`;
 }
 
@@ -193,7 +373,7 @@ function buildGymSection(gym) {
     <tr>
       <td><strong>${escapeHtml(ex.exercise)}</strong></td>
       <td class="reps">${ex.sets}&times;${ex.repetitions}</td>
-      <td>${ex.weight ? `${ex.weight}kg` : '—'}</td>
+      <td>${ex.weight ? `${ex.weight}${ex.weightUnit || 'kg'}` : '—'}</td>
       <td>${ex.restTime ? `${ex.restTime}s rest` : '—'}</td>
       <td>${escapeHtml(ex.muscleGroup || '—')}</td>
     </tr>
@@ -254,6 +434,8 @@ function buildFeedbackForm(workoutId, existingFeedback) {
   const rating = existingFeedback?.rating || 0;
   const difficulty = existingFeedback?.difficultyPerception || '';
   const enjoyment = existingFeedback?.enjoyment || '';
+  const quality = existingFeedback?.quality || '';
+  const accuracy = existingFeedback?.accuracy || '';
 
   return `
     <div class="feedback-panel" id="feedback-panel-${workoutId}">
@@ -282,6 +464,24 @@ function buildFeedbackForm(workoutId, existingFeedback) {
               <option value="">Select…</option>
               ${['did-not-enjoy','neutral','enjoyed','loved'].map(v =>
                 `<option value="${v}" ${enjoyment === v ? 'selected' : ''}>${capitalize(v.replace(/-/g, ' '))}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="quality-${workoutId}">Quality</label>
+            <select id="quality-${workoutId}" name="quality">
+              <option value="">Select…</option>
+              ${['poor','below-average','average','good','excellent'].map(v =>
+                `<option value="${v}" ${quality === v ? 'selected' : ''}>${capitalize(v.replace(/-/g, ' '))}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="accuracy-${workoutId}">Accuracy</label>
+            <select id="accuracy-${workoutId}" name="accuracy">
+              <option value="">Select…</option>
+              ${['way-off','close-but-off','mostly-accurate','spot-on'].map(v =>
+                `<option value="${v}" ${accuracy === v ? 'selected' : ''}>${capitalize(v.replace(/-/g, ' '))}</option>`
               ).join('')}
             </select>
           </div>
@@ -354,5 +554,18 @@ function capitalize(str) {
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  if (isNaN(d.getTime())) return '';
+  // Use UTC to match how dates are stored and avoid timezone-induced off-by-one
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function formatDateInput(dateStr) {
+  if (!dateStr) return '';
+  // Parse as UTC to avoid timezone shifts (dates from API are ISO/UTC strings)
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

@@ -10,6 +10,7 @@ import {
   setActiveNav,
   showPage,
   buildWorkoutCard,
+  buildWorkoutEditForm,
   buildChatPanel,
   buildFeedbackForm,
   showAdaptiveResponse,
@@ -23,6 +24,7 @@ const state = {
   customizationOptions: null,
   editingProfileId: null, // null = create mode, string = edit mode
   debugLlm: null,
+  globalLlm: null,
 };
 
 // ─── DOM Ready ───
@@ -32,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initGenerateForm();
   initExpandableSections();
   initHistoryPage();
+  initSettingsPage();
   initDebugPage();
 
   // Load customization options for generate page
@@ -97,9 +100,11 @@ function handleRoute() {
         navigateTo('profile');
         return;
       }
-      const workoutId = rest[0];
-      if (workoutId) {
-        loadWorkoutPage(workoutId);
+      const workoutIdRaw = rest[0];
+      if (workoutIdRaw) {
+        const [workoutId, queryString] = workoutIdRaw.split('?');
+        const editMode = queryString === 'edit=1';
+        loadWorkoutPage(workoutId, editMode);
       } else {
         showToast('No workout ID provided.', 'error');
         navigateTo('generate');
@@ -130,6 +135,12 @@ function handleRoute() {
         showToast('No program ID provided.', 'error');
         navigateTo('history');
       }
+      break;
+
+    case 'settings':
+      showPage('settings');
+      setActiveNav('settings');
+      loadSettingsPage();
       break;
 
     case 'debug':
@@ -296,6 +307,17 @@ function collectProfileFormData() {
     ? { value: poolLengthValue, unit: poolLengthUnit }
     : { value: 25, unit: 'meters' };
 
+  // Collect weight inventory
+  const weightInventory = [];
+  form.querySelectorAll('.weight-inventory-row').forEach(row => {
+    const type = row.querySelector('.weight-type').value;
+    const weight = parseFloat(row.querySelector('.weight-value').value);
+    const unit = row.querySelector('.weight-unit').value;
+    if (type && weight) {
+      weightInventory.push({ type, weight, unit });
+    }
+  });
+
   return {
     firstName: fd.get('firstName'),
     lastName: fd.get('lastName'),
@@ -322,6 +344,7 @@ function collectProfileFormData() {
       poolEquipment,
       gymEquipment,
     },
+    weightInventory,
     bestTimes,
   };
 }
@@ -433,6 +456,9 @@ function fillProfileForm(profile) {
     });
   }
 
+  // Weight inventory
+  renderWeightInventory(profile.weightInventory || []);
+
   // Day toggles
   renderDayToggles(profile.trainingSchedule?.poolDays || [], profile.trainingSchedule?.gymDays || []);
 
@@ -517,6 +543,84 @@ function addEventRow() {
   `;
   container.insertBefore(newRow, container.lastElementChild); // before the "Add" button
   newRow.querySelector('.btn-remove-event').addEventListener('click', () => newRow.remove());
+}
+
+// ─── Weight Inventory UI ───
+
+function renderWeightInventory(items) {
+  const container = document.getElementById('weight-inventory-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(item => addWeightInventoryRow(item));
+}
+
+function addWeightInventoryRow(existing = null) {
+  const container = document.getElementById('weight-inventory-list');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'weight-inventory-row';
+  row.style.cssText = 'display:flex;gap:var(--space-sm);align-items:center;margin-bottom:var(--space-sm);';
+  row.innerHTML = `
+    <select class="weight-type" required style="width:140px;">
+      <option value="">Type…</option>
+      <option value="dumbbell" ${existing?.type === 'dumbbell' ? 'selected' : ''}>Dumbbell</option>
+      <option value="barbell" ${existing?.type === 'barbell' ? 'selected' : ''}>Barbell</option>
+      <option value="plate" ${existing?.type === 'plate' ? 'selected' : ''}>Plate</option>
+      <option value="kettlebell" ${existing?.type === 'kettlebell' ? 'selected' : ''}>Kettlebell</option>
+    </select>
+    <input type="number" class="weight-value" min="0" step="0.5" placeholder="Weight" value="${existing?.weight || ''}" style="width:100px;">
+    <select class="weight-unit" style="width:70px;">
+      <option value="lbs" ${existing?.unit === 'lbs' || !existing?.unit ? 'selected' : ''}>lbs</option>
+      <option value="kg" ${existing?.unit === 'kg' ? 'selected' : ''}>kg</option>
+    </select>
+    <button type="button" class="btn btn-sm btn-secondary btn-remove-weight" title="Remove">✕</button>
+  `;
+  row.querySelector('.btn-remove-weight').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
+
+// Wire up the "Add Weight" button (profile form)
+document.addEventListener('DOMContentLoaded', () => {
+  const addBtn = document.getElementById('btn-add-weight');
+  if (addBtn) addBtn.addEventListener('click', () => addWeightInventoryRow());
+  const genAddBtn = document.getElementById('btn-gen-add-weight');
+  if (genAddBtn) genAddBtn.addEventListener('click', () => addGenWeightInventoryRow());
+});
+
+// ─── Generate Form Weight Inventory UI ───
+
+function renderGenWeightInventory(items) {
+  const container = document.getElementById('gen-weight-inventory-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(item => addGenWeightInventoryRow(item));
+}
+
+function addGenWeightInventoryRow(existing = null) {
+  const container = document.getElementById('gen-weight-inventory-list');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'gen-weight-inventory-row weight-inventory-row';
+  row.style.cssText = 'display:flex;gap:var(--space-sm);align-items:center;margin-bottom:var(--space-sm);';
+  row.innerHTML = `
+    <select class="gen-weight-type" required style="width:140px;">
+      <option value="">Type…</option>
+      <option value="dumbbell" ${existing?.type === 'dumbbell' ? 'selected' : ''}>Dumbbell</option>
+      <option value="barbell" ${existing?.type === 'barbell' ? 'selected' : ''}>Barbell</option>
+      <option value="plate" ${existing?.type === 'plate' ? 'selected' : ''}>Plate</option>
+      <option value="kettlebell" ${existing?.type === 'kettlebell' ? 'selected' : ''}>Kettlebell</option>
+    </select>
+    <input type="number" class="gen-weight-value" min="0" step="0.5" placeholder="Weight" value="${existing?.weight || ''}" style="width:100px;">
+    <select class="gen-weight-unit" style="width:70px;">
+      <option value="lbs" ${existing?.unit === 'lbs' || !existing?.unit ? 'selected' : ''}>lbs</option>
+      <option value="kg" ${existing?.unit === 'kg' ? 'selected' : ''}>kg</option>
+    </select>
+    <button type="button" class="btn btn-sm btn-secondary btn-remove-gen-weight" title="Remove">✕</button>
+  `;
+  row.querySelector('.btn-remove-gen-weight').addEventListener('click', () => row.remove());
+  container.appendChild(row);
 }
 
 // ─── Competition Date Ranges UI ───
@@ -905,6 +1009,9 @@ function prefillGenerateForm() {
     });
   }
 
+  // Prefill weight inventory from profile
+  renderGenWeightInventory(p.weightInventory || []);
+
   if (p.goals?.trainingFocus) {
     const workoutTypeSelect = document.getElementById('workoutType');
     const tf = Array.isArray(p.goals.trainingFocus) ? p.goals.trainingFocus : [p.goals.trainingFocus];
@@ -947,13 +1054,21 @@ async function generateWorkout(form, quickSessionType) {
 
   try {
     genData.swimmerId = state.currentProfile._id;
+    if (state.globalLlm) genData.llmModel = state.globalLlm;
 
     if (isProgram) {
       // Use program generation endpoint
       const result = await api.workouts.generateProgram(genData);
       hideLoading();
-      const count = result.data.totalSessions;
-      showToast(`Program generated! ${count} workouts created. 🎉`, 'success');
+      const generated = result.data.generatedCount;
+      const total = result.data.totalSessions;
+      if (result.data.partial) {
+        const failedSessions = result.data.errors?.map(e => e.dayOfWeek ? `${e.dayOfWeek} (${e.sessionType})` : `session ${e.session}`).join(', ');
+        const detail = failedSessions ? ` Missing: ${failedSessions}.` : '';
+        showToast(`Program partially generated: ${generated}/${total} workouts created.${detail} Try regenerating the missing ones.`, 'warning');
+      } else {
+        showToast(`Program generated! ${generated} workouts created. 🎉`, 'success');
+      }
       navigateTo('history');
     } else {
       const result = await api.workouts.generate(genData);
@@ -994,6 +1109,9 @@ function collectGenerateFormData(form) {
     data.poolLength = `${poolLengthValue}${poolLengthUnit === 'yards' ? 'yd' : 'm'}`;
   }
 
+  const stroke = fd.get('stroke');
+  if (stroke) data.stroke = stroke;
+
   const programPeriod = fd.get('programPeriod');
   if (programPeriod) data.programPeriod = programPeriod;
 
@@ -1008,24 +1126,62 @@ function collectGenerateFormData(form) {
     data.availableEquipment = availableEquipment;
   }
 
+  // Collect weight inventory from generate form
+  const genWeightInventory = [];
+  form.querySelectorAll('.gen-weight-inventory-row').forEach(row => {
+    const type = row.querySelector('.gen-weight-type').value;
+    const weight = parseFloat(row.querySelector('.gen-weight-value').value);
+    const unit = row.querySelector('.gen-weight-unit').value;
+    if (type && weight) {
+      genWeightInventory.push({ type, weight, unit });
+    }
+  });
+  if (genWeightInventory.length) {
+    data.weightInventory = genWeightInventory;
+  }
+
   return data;
 }
 
 // ─── Workout Page ───
 
-async function loadWorkoutPage(workoutId) {
+async function loadWorkoutPage(workoutId, editMode = false) {
   showLoading('Loading workout…');
   try {
     const result = await api.workouts.get(workoutId, state.currentProfile?._id);
     const workout = result.data;
 
     const container = document.getElementById('workout-content');
-    container.innerHTML = buildWorkoutCard(workout);
-    container.innerHTML += buildChatPanel(workoutId);
-    container.innerHTML += buildFeedbackForm(workoutId, workout.userFeedback);
 
-    initChatHandler(workoutId);
-    initFeedbackHandler(workoutId, workout.userFeedback);
+    if (editMode) {
+      container.innerHTML = buildWorkoutViewWithActions(workout);
+      initEditHandler(workout);
+      initDeleteHandler(workoutId);
+    } else {
+      container.innerHTML = buildWorkoutCard(workout);
+      container.innerHTML += `
+        <div class="workout-actions-bar">
+          <button type="button" class="btn btn-secondary btn-edit-workout-page" data-id="${workoutId}">✏️ Edit</button>
+          <button type="button" class="btn btn-danger btn-delete-workout-page" data-id="${workoutId}">🗑 Delete</button>
+        </div>`;
+      container.innerHTML += buildChatPanel(workoutId);
+      container.innerHTML += buildFeedbackForm(workoutId, workout.userFeedback);
+
+      initChatHandler(workoutId);
+      initFeedbackHandler(workoutId, workout.userFeedback);
+
+      // Click date badge to open edit mode
+      container.querySelector('.badge-date')?.addEventListener('click', () => {
+        loadWorkoutPage(workoutId, true);
+      });
+      container.querySelector('.btn-edit-workout-page').addEventListener('click', () => {
+        loadWorkoutPage(workoutId, true);
+      });
+      container.querySelector('.btn-delete-workout-page').addEventListener('click', () => {
+        if (!confirm('Are you sure you want to delete this workout? This cannot be undone.')) return;
+        deleteWorkout(workoutId);
+      });
+    }
 
     showPage('workout');
     hideLoading();
@@ -1033,6 +1189,205 @@ async function loadWorkoutPage(workoutId) {
     hideLoading();
     showToast(`Error loading workout: ${err.message}`, 'error');
     navigateTo('generate');
+  }
+}
+
+function buildWorkoutViewWithActions(workout) {
+  return buildWorkoutCard(workout) + buildWorkoutEditForm(workout);
+}
+
+  // Edit & Delete Handlers
+
+	function initDeleteHandler(workoutId) {
+	  const form = document.getElementById(`workout-edit-form-${workoutId}`);
+	  if (!form) return;
+	  form.addEventListener('click', (e) => {
+	    if (e.target.closest('.btn-delete-workout-page')) {
+	      e.preventDefault();
+	      if (!confirm('Are you sure you want to delete this workout? This cannot be undone.')) return;
+	      deleteWorkout(workoutId);
+	    }
+	  });
+	}
+
+	function initEditHandler(workout) {
+	  const workoutId = workout._id;
+	  const form = document.getElementById(`workout-edit-form-${workoutId}`);
+	  if (!form) return;
+
+	  form.querySelector('.btn-save-edit')?.addEventListener('click', async () => {
+	    const btn = form.querySelector('.btn-save-edit');
+	    btn.disabled = true;
+	    btn.textContent = 'Saving…';
+	    try {
+	      const updateData = collectEditFormData(workoutId);
+	      const result = await api.workouts.update(workoutId, updateData, state.currentProfile?._id);
+	      showToast('Workout updated!', 'success');
+	      const container = document.getElementById('workout-content');
+	      container.innerHTML = buildWorkoutCard(result.data);
+	      container.innerHTML += `\n\t\t\t<div class="workout-actions-bar">\n\t\t\t  <button type="button" class="btn btn-secondary btn-edit-workout-page" data-id="${workoutId}">\u270f\ufe0f Edit</button>\n\t\t\t  <button type="button" class="btn btn-danger btn-delete-workout-page" data-id="${workoutId}">\ud83d\uddd1 Delete</button>\n\t\t\t</div>`;
+	      container.innerHTML += buildChatPanel(workoutId);
+	      container.innerHTML += buildFeedbackForm(workoutId, result.data.userFeedback);
+	      initChatHandler(workoutId);
+	      initFeedbackHandler(workoutId, result.data.userFeedback);
+      // Click date badge to open edit mode
+      container.querySelector('.badge-date')?.addEventListener('click', () => {
+        loadWorkoutPage(workoutId, true);
+      });
+	      container.querySelector('.btn-edit-workout-page').addEventListener('click', () => {
+	        loadWorkoutPage(workoutId, true);
+	      });
+	      container.querySelector('.btn-delete-workout-page').addEventListener('click', () => {
+	        if (!confirm('Are you sure you want to delete this workout? This cannot be undone.')) return;
+	        deleteWorkout(workoutId);
+	      });
+	    } catch (err) {
+	      showToast(`Error saving workout: ${err.message}`, 'error');
+	      btn.disabled = false;
+	      btn.textContent = '\ud83d\udcbe Save Changes';
+	    }
+	  });
+
+	  form.querySelector('.btn-cancel-edit')?.addEventListener('click', () => {
+	    loadWorkoutPage(workoutId, false);
+	  });
+
+	  form.addEventListener('click', (e) => {
+	    const removeBtn = e.target.closest('.btn-remove-set');
+	    if (removeBtn) {
+	      e.preventDefault();
+	      removeBtn.closest('tr').remove();
+	    }
+	  });
+
+	  form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
+	    const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
+	    const idx = tbody.querySelectorAll('.edit-set-row').length;
+	    const row = document.createElement('tr');
+	    row.className = 'edit-set-row';
+	    row.dataset.setIndex = idx;
+	    row.dataset.setType = 'pool';
+	    row.innerHTML =
+	      '<td><input type="number" class="edit-input edit-reps" value="1" min="1"></td>' +
+	      '<td><input type="number" class="edit-input edit-distance" value="100" min="0"></td>' +
+	      '<td><input type="text" class="edit-input edit-stroke" value="freestyle"></td>' +
+	      '<td><input type="text" class="edit-input edit-interval" placeholder="1:30"></td>' +
+	      '<td><input type="text" class="edit-input edit-focus" placeholder="technique"></td>' +
+	      '<td><input type="text" class="edit-input edit-set-notes"></td>' +
+	      '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">\u2715</button></td>';
+	    tbody.appendChild(row);
+	  });
+
+	  form.querySelector('.btn-add-set[data-pool="false"]')?.addEventListener('click', () => {
+	    const tbody = document.getElementById(`edit-gym-sets-${workoutId}`);
+	    const idx = tbody.querySelectorAll('.edit-set-row').length;
+	    const row = document.createElement('tr');
+	    row.className = 'edit-set-row';
+	    row.dataset.setIndex = idx;
+	    row.dataset.setType = 'gym';
+	    row.innerHTML =
+	      '<td><input type="text" class="edit-input edit-exercise" placeholder="Exercise name"></td>' +
+	      '<td><input type="number" class="edit-input edit-sets" value="3" min="1"></td>' +
+	      '<td><input type="number" class="edit-input edit-reps" value="10" min="1"></td>' +
+	      '<td><input type="number" class="edit-input edit-weight" value="0" min="0"></td>' +
+	      '<td><input type="number" class="edit-input edit-rest" value="60" min="0"></td>' +
+	      '<td><input type="text" class="edit-input edit-muscle" placeholder="full-body"></td>' +
+	      '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove">\u2715</button></td>';
+	    tbody.appendChild(row);
+	  });
+	}
+
+	function collectEditFormData(workoutId) {
+	  const workoutName = document.getElementById(`edit-name-${workoutId}`).value.trim();
+	  const workoutType = document.getElementById(`edit-type-${workoutId}`).value;
+	  const duration = parseInt(document.getElementById(`edit-duration-${workoutId}`).value, 10);
+	  const intensity = document.getElementById(`edit-intensity-${workoutId}`).value;
+	  const dateVal = document.getElementById(`edit-date-${workoutId}`).value;
+	  const date = dateVal ? new Date(dateVal) : undefined;
+
+	  const poolWarmUpDistance = parseInt(document.getElementById(`edit-pool-wu-dist-${workoutId}`).value, 10) || 0;
+	  const poolWarmUpDuration = parseInt(document.getElementById(`edit-pool-wu-dur-${workoutId}`).value, 10) || 0;
+	  const poolWarmUpDesc = document.getElementById(`edit-pool-wu-desc-${workoutId}`).value.trim();
+	  const poolCoolDownDistance = parseInt(document.getElementById(`edit-pool-cd-dist-${workoutId}`).value, 10) || 0;
+	  const poolCoolDownDuration = parseInt(document.getElementById(`edit-pool-cd-dur-${workoutId}`).value, 10) || 0;
+	  const poolCoolDownDesc = document.getElementById(`edit-pool-cd-desc-${workoutId}`).value.trim();
+
+	  const poolMainSet = [];
+	  document.querySelectorAll(`#edit-pool-sets-${workoutId} .edit-set-row`).forEach(function(row) {
+	    poolMainSet.push({
+	      repetitions: parseInt(row.querySelector('.edit-reps').value, 10) || 1,
+	      distance: parseInt(row.querySelector('.edit-distance').value, 10) || 0,
+	      stroke: row.querySelector('.edit-stroke').value.trim() || 'freestyle',
+	      interval: row.querySelector('.edit-interval').value.trim(),
+	      focus: row.querySelector('.edit-focus').value.trim(),
+	      description: row.querySelector('.edit-set-notes').value.trim(),
+	    });
+	  });
+
+	  const poolTotalDistance = poolMainSet.reduce(function(sum, s) { return sum + (s.distance * s.repetitions); }, 0)
+	    + poolWarmUpDistance + poolCoolDownDistance;
+
+	  const gymWarmUpDuration = parseInt(document.getElementById(`edit-gym-wu-dur-${workoutId}`).value, 10) || 0;
+	  const gymWarmUpDesc = document.getElementById(`edit-gym-wu-desc-${workoutId}`).value.trim();
+	  const gymCoolDownDuration = parseInt(document.getElementById(`edit-gym-cd-dur-${workoutId}`).value, 10) || 0;
+	  const gymCoolDownDesc = document.getElementById(`edit-gym-cd-desc-${workoutId}`).value.trim();
+
+		const gymMainSet = [];
+		document.querySelectorAll(`#edit-gym-sets-${workoutId} .edit-set-row`).forEach(function(row) {
+		  const weightUnitVal = row.querySelector('.edit-weight-unit')?.value || null;
+		  gymMainSet.push({
+		    exercise: row.querySelector('.edit-exercise').value.trim(),
+		    sets: parseInt(row.querySelector('.edit-sets').value, 10) || 1,
+		    repetitions: parseInt(row.querySelector('.edit-reps').value, 10) || 1,
+		    weight: parseInt(row.querySelector('.edit-weight').value, 10) || 0,
+		    weightUnit: weightUnitVal,
+		    restTime: parseInt(row.querySelector('.edit-rest').value, 10) || 0,
+		    muscleGroup: row.querySelector('.edit-muscle').value.trim() || 'full-body',
+		  });
+		});
+
+	  const notesStr = document.getElementById(`edit-notes-${workoutId}`).value.trim();
+	  const trainingNotes = notesStr ? notesStr.split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+
+	  return {
+	    workoutName: workoutName,
+	    workoutType: workoutType,
+	    duration: duration,
+	    intensity: intensity,
+	    date: date,
+	    poolWorkout: {
+	      warmUp: { distance: poolWarmUpDistance, duration: poolWarmUpDuration, description: poolWarmUpDesc },
+	      mainSet: poolMainSet,
+	      coolDown: { distance: poolCoolDownDistance, duration: poolCoolDownDuration, description: poolCoolDownDesc },
+	      totalDistance: poolTotalDistance,
+	    },
+	    gymWorkout: {
+	      warmUp: { duration: gymWarmUpDuration, description: gymWarmUpDesc },
+	      mainSet: gymMainSet,
+	      coolDown: { duration: gymCoolDownDuration, description: gymCoolDownDesc },
+	    },
+	    trainingNotes: trainingNotes,
+	  };
+	}
+
+async function deleteWorkout(workoutId) {
+  if (!workoutId || !/^[0-9a-fA-F]{24}$/.test(workoutId)) {
+    showToast('Invalid workout ID.', 'error');
+    return;
+  }
+  showLoading('Deleting workout…');
+  try {
+    await api.workouts.delete(workoutId, state.currentProfile?._id);
+    hideLoading();
+    showToast('Workout deleted.', 'info');
+    navigateTo('history');
+  } catch (err) {
+    hideLoading();
+    if (err.message.includes('not found')) {
+      showToast('Workout not found — it may have already been deleted.', 'error');
+    } else {
+      showToast(`Error deleting workout: ${err.message}`, 'error');
+    }
   }
 }
 
@@ -1083,10 +1438,12 @@ function initChatHandler(workoutId) {
     const typingId = addTypingIndicator(workoutId);
 
     try {
-      const result = await api.workouts.chat(workoutId, {
+      const chatBody = {
         message: text,
         messages: conv.map(m => ({ role: m.role, text: m.text })),
-      }, state.currentProfile?._id);
+      };
+      if (state.globalLlm) chatBody.llmModel = state.globalLlm;
+      const result = await api.workouts.chat(workoutId, chatBody, state.currentProfile?._id);
 
       removeTypingIndicator(typingId);
 
@@ -1204,6 +1561,8 @@ function initFeedbackHandler(workoutId, existingFeedback) {
         rating,
         difficultyPerception: fd.get('difficultyPerception') || undefined,
         enjoyment: fd.get('enjoyment') || undefined,
+        quality: fd.get('quality') || undefined,
+        accuracy: fd.get('accuracy') || undefined,
         comments: fd.get('comments') || undefined,
       };
 
@@ -1275,7 +1634,7 @@ async function loadHistoryPage() {
     }
 
     container.innerHTML = workouts.map(w => {
-      const date = new Date(w.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const date = new Date(w.date || w.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
       const rating = w.userFeedback?.rating || 0;
       const ratingStars = rating ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : 'Not rated';
       const isProgram = !!w.programId;
@@ -1284,6 +1643,7 @@ async function loadHistoryPage() {
         <div class="history-card" data-id="${w._id}">
           <div class="history-card-header">
             <div>
+              <span class="history-card-name">${escapeHtml(w.workoutName || 'Workout')}</span>
               <span class="history-card-type">${escapeHtml(w.workoutType)}</span>
               ${programBadge}
               <span class="history-card-date">${date}</span>
@@ -1299,6 +1659,7 @@ async function loadHistoryPage() {
             <button type="button" class="btn btn-sm btn-secondary btn-view-workout" data-id="${w._id}">View</button>
             <button type="button" class="btn btn-sm btn-secondary btn-edit-workout" data-id="${w._id}">Edit</button>
             ${isProgram ? `<button type="button" class="btn btn-sm btn-primary btn-view-program" data-program-id="${w.programId}">View Program</button>` : ''}
+            <button type="button" class="btn btn-sm btn-danger btn-delete-workout" data-id="${w._id}">Delete</button>
           </div>
         </div>
       `;
@@ -1313,6 +1674,15 @@ async function loadHistoryPage() {
     });
     container.querySelectorAll('.btn-view-program').forEach(btn => {
       btn.addEventListener('click', () => navigateTo(`program/${btn.dataset.programId}`));
+    });
+    container.querySelectorAll('.btn-delete-workout').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (confirm('Delete this workout? This cannot be undone.')) {
+          deleteWorkout(id);
+        }
+      });
     });
 
     hideLoading();
@@ -1346,7 +1716,7 @@ async function loadProgramPage(programId) {
 
     // Build each session card
     program.workouts.forEach((w, idx) => {
-      const date = new Date(w.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const date = new Date(w.date || w.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
       const rating = w.userFeedback?.rating || 0;
       const ratingStars = rating ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : 'Not rated';
       const poolDist = w.poolWorkout?.totalDistance || 0;
@@ -1400,6 +1770,75 @@ async function loadProgramPage(programId) {
       </div>`;
     showPage('program');
   }
+}
+
+// ─── Settings Page ───
+
+function initSettingsPage() {
+  // Preset change — show/hide custom input
+  document.getElementById('settings-llm-preset')?.addEventListener('change', (e) => {
+    const customGroup = document.getElementById('settings-llm-custom-group');
+    if (customGroup) customGroup.style.display = e.target.value === 'custom' ? '' : 'none';
+  });
+
+  // Save button
+  document.getElementById('btn-settings-save-llm')?.addEventListener('click', () => {
+    const preset = document.getElementById('settings-llm-preset').value;
+    const custom = document.getElementById('settings-llm-custom').value.trim();
+    const model = preset === 'custom' ? custom : preset;
+    if (!model) {
+      showToast('Please select or enter a model.', 'error');
+      return;
+    }
+    state.globalLlm = model;
+    localStorage.setItem('swimcoach_global_llm', model);
+    updateSettingsCurrentHint(model);
+    showToast(`Default model set to ${escapeHtml(model)}`, 'success');
+  });
+
+  // Reset button
+  document.getElementById('btn-settings-clear-llm')?.addEventListener('click', () => {
+    state.globalLlm = null;
+    localStorage.removeItem('swimcoach_global_llm');
+    document.getElementById('settings-llm-preset').value = '';
+    document.getElementById('settings-llm-custom').value = '';
+    document.getElementById('settings-llm-custom-group').style.display = 'none';
+    updateSettingsCurrentHint(null);
+    showToast('Reset to server default.', 'success');
+  });
+}
+
+function loadSettingsPage() {
+  const saved = localStorage.getItem('swimcoach_global_llm');
+  if (saved) {
+    state.globalLlm = saved;
+    // Try to match a preset; if not found, set to custom
+    const presetSelect = document.getElementById('settings-llm-preset');
+    if (presetSelect) {
+      const matched = Array.from(presetSelect.options).some(opt => {
+        if (opt.value === saved) { presetSelect.value = saved; return true; }
+        return false;
+      });
+      if (!matched) {
+        presetSelect.value = 'custom';
+        const customInput = document.getElementById('settings-llm-custom');
+        if (customInput) customInput.value = saved;
+        document.getElementById('settings-llm-custom-group').style.display = '';
+      }
+    }
+    updateSettingsCurrentHint(saved);
+  } else {
+    updateSettingsCurrentHint(null);
+  }
+}
+
+function updateSettingsCurrentHint(model) {
+  const el = document.getElementById('settings-llm-current');
+  if (!el) return;
+  // textContent is safe — does not parse HTML. Do NOT refactor to innerHTML.
+  el.textContent = model
+    ? `Current default: ${model}`
+    : 'Current: server default';
 }
 
 // ─── Debug Page ───

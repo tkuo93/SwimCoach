@@ -516,6 +516,28 @@ body {
   display: none;
 }
 
+.field-hint {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  margin-bottom: var(--space-sm);
+}
+
+.weight-inventory-row select,
+.weight-inventory-row input[type="number"] {
+  padding: var(--space-xs) var(--space-sm);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.weight-inventory-row select:focus,
+.weight-inventory-row input[type="number"]:focus {
+  border-color: var(--blue-400);
+  outline: none;
+}
+
 .checkbox-label:has(input:checked) {
   background: var(--blue-50);
   border-color: var(--blue-500);
@@ -639,6 +661,11 @@ body {
 .badge-date {
   background: rgba(255, 255, 255, 0.15);
   color: var(--blue-100);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.badge-date:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* ─── Workout Sections ─── */
@@ -1252,10 +1279,18 @@ body {
   margin-bottom: var(--space-sm);
 }
 
+.history-card-name {
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-900);
+  font-size: 1rem;
+  display: block;
+  margin-bottom: 2px;
+}
+
 .history-card-type {
   font-weight: var(--font-weight-semibold);
   color: var(--blue-700);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   text-transform: capitalize;
 }
 
