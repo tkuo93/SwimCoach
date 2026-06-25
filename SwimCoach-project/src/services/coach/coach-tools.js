@@ -312,6 +312,12 @@ const modifyWorkoutTool = {
   },
   async execute({ description, field, currentValue, newValue }, { workout }) {
     if (!workout) return 'No workout loaded to modify.';
+
+    // Validate field path — reject dangerous paths
+    if (field.includes('$') || field.includes('..') || field.startsWith('_')) {
+      return `Invalid field path: "${field}". Only workout data fields can be modified.`;
+    }
+
     // Return a proposal — the frontend will confirm before applying
     return JSON.stringify({
       proposal: true,
@@ -356,12 +362,22 @@ const regenerateWorkoutTool = {
   },
   async execute({ reason, overrides = {} }, { profile, workout }) {
     if (!workout) return 'No workout loaded to regenerate.';
+
+    // Only allow known override keys — prevent injection of arbitrary fields
+    const ALLOWED_OVERRIDES = new Set(['workoutType', 'duration', 'intensity', 'sessionType', 'stroke', 'poolLength']);
+    const safeOverrides = {};
+    for (const [key, value] of Object.entries(overrides)) {
+      if (ALLOWED_OVERRIDES.has(key)) {
+        safeOverrides[key] = value;
+      }
+    }
+
     // Return a proposal — the route handler will execute regeneration after confirming
     return JSON.stringify({
       proposal: true,
       action: 'regenerateWorkout',
       reason,
-      overrides,
+      overrides: safeOverrides,
       workoutId: workout._id.toString(),
     });
   },
