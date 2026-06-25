@@ -859,6 +859,148 @@ body {
   border-color: var(--blue-400);
 }
 
+/* ─── Coach Page Layout ─── */
+.coach-layout {
+  display: flex;
+  gap: var(--space-lg);
+  min-height: 500px;
+}
+
+.coach-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-sidebar-header {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.coach-conversation-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+}
+
+.coach-conversation-item {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-bottom: var(--space-xs);
+  transition: background var(--transition-fast);
+}
+
+.coach-conversation-item:hover {
+  background: var(--gray-100);
+}
+
+.coach-conversation-item.active {
+  background: var(--blue-50);
+  border: 1px solid var(--blue-200);
+}
+
+.coach-conversation-title {
+  font-size: 0.85rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coach-conversation-time {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.coach-main {
+  flex: 1;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-chat-messages {
+  flex: 1;
+  max-height: none;
+  overflow-y: auto;
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Coach chat input at the bottom of the main area */
+.coach-main .chat-input-form {
+  margin-top: auto;
+}
+
+/* ─── Action Proposals ─── */
+.action-proposal {
+  background: var(--blue-50);
+  border: 1px solid var(--blue-200);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.proposal-description {
+  font-size: 0.85rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--blue-800);
+  margin: 0;
+}
+
+.proposal-detail {
+  font-size: 0.8rem;
+  color: var(--gray-600);
+  margin: var(--space-xs) 0 0 0;
+}
+
+.proposal-detail code {
+  background: var(--gray-200);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+.proposal-actions {
+  margin-top: var(--space-sm);
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Mobile: stack coach layout vertically */
+@media (max-width: 768px) {
+  .coach-layout {
+    flex-direction: column;
+  }
+  .coach-sidebar {
+    width: 100%;
+    max-height: 150px;
+    order: 2;
+  }
+  .coach-main {
+    order: 1;
+    min-height: 400px;
+  }
+}
+
 /* ─── Feedback Form ─── */
 .feedback-panel {
   background: var(--white);

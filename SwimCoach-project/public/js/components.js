@@ -17,8 +17,6 @@ export {
   buildWorkoutEditForm,
   buildChatPanel,
   addChatMessage,
-  buildCoachChatPanel,
-  addCoachMessage,
   buildActionProposal,
   buildFeedbackForm,
   showAdaptiveResponse,

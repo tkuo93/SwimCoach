@@ -12,8 +12,6 @@ import {
   buildWorkoutCard,
   buildWorkoutEditForm,
   buildChatPanel,
-  buildCoachChatPanel,
-  addCoachMessage,
   buildActionProposal,
   buildFeedbackForm,
   showAdaptiveResponse,
@@ -1752,54 +1750,220 @@ async function loadHistoryPage() {
 // ─── Coach Page ───
 
 const coachState = {
-  messages: [],
-  conversationId: null,
+  conversations: [],  // [{ id, title, messages: [{role, text}], createdAt, conversationId }]
+  activeConversationId: null,
 };
 
 function loadCoachPage() {
   const container = document.getElementById('coach-content');
   if (!container) return;
 
-  // Build the chat panel using safe DOM methods
-  const panel = document.createElement('div');
-  panel.innerHTML = buildCoachChatPanel();
-  container.appendChild(panel.firstElementChild);
+  // Always clear and rebuild — prevents duplicate panels on re-navigate
+  container.innerHTML = '';
 
-  const form = document.getElementById('coach-chat-form');
-  const input = document.getElementById('coach-chat-input');
+  // Layout: sidebar (conversation list) + main (chat)
+  const layout = document.createElement('div');
+  layout.className = 'coach-layout';
 
+  // Sidebar
+  const sidebar = document.createElement('div');
+  sidebar.className = 'coach-sidebar';
+  sidebar.id = 'coach-sidebar';
+
+  const sidebarHeader = document.createElement('div');
+  sidebarHeader.className = 'coach-sidebar-header';
+  const newChatBtn = document.createElement('button');
+  newChatBtn.className = 'btn btn-primary btn-sm';
+  newChatBtn.textContent = '+ New Chat';
+  newChatBtn.addEventListener('click', () => startNewCoachConversation());
+  sidebarHeader.appendChild(newChatBtn);
+  sidebar.appendChild(sidebarHeader);
+
+  const conversationList = document.createElement('div');
+  conversationList.className = 'coach-conversation-list';
+  conversationList.id = 'coach-conversation-list';
+  sidebar.appendChild(conversationList);
+
+  // Main chat area
+  const main = document.createElement('div');
+  main.className = 'coach-main';
+  main.id = 'coach-main';
+
+  layout.appendChild(sidebar);
+  layout.appendChild(main);
+  container.appendChild(layout);
+
+  // Render existing conversations in sidebar
+  renderCoachConversationList();
+
+  // Start a new conversation if none active
+  if (!coachState.activeConversationId) {
+    startNewCoachConversation();
+  } else {
+    renderCoachChat(coachState.activeConversationId);
+  }
+}
+
+function startNewCoachConversation() {
+  const id = `local_${Date.now()}`;
+  const conversation = {
+    id,
+    title: 'New conversation',
+    messages: [],
+    createdAt: new Date().toISOString(),
+    conversationId: null, // server-assigned after first message
+  };
+  coachState.conversations.unshift(conversation);
+  coachState.activeConversationId = id;
+  renderCoachConversationList();
+  renderCoachChat(id);
+}
+
+function renderCoachConversationList() {
+  const list = document.getElementById('coach-conversation-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  for (const conv of coachState.conversations) {
+    const item = document.createElement('div');
+    item.className = `coach-conversation-item ${conv.id === coachState.activeConversationId ? 'active' : ''}`;
+    item.dataset.conversationId = conv.id;
+
+    const title = document.createElement('div');
+    title.className = 'coach-conversation-title';
+    title.textContent = conv.title;
+    item.appendChild(title);
+
+    const time = document.createElement('div');
+    time.className = 'coach-conversation-time';
+    time.textContent = formatConversationTime(conv.createdAt);
+    item.appendChild(time);
+
+    item.addEventListener('click', () => {
+      coachState.activeConversationId = conv.id;
+      renderCoachConversationList();
+      renderCoachChat(conv.id);
+    });
+
+    list.appendChild(item);
+  }
+}
+
+function renderCoachChat(conversationId) {
+  const main = document.getElementById('coach-main');
+  if (!main) return;
+  main.innerHTML = '';
+
+  const conv = coachState.conversations.find(c => c.id === conversationId);
+  if (!conv) return;
+
+  // Chat messages area
+  const messagesDiv = document.createElement('div');
+  messagesDiv.className = 'chat-messages coach-chat-messages';
+  messagesDiv.id = 'coach-chat-messages';
+
+  // Welcome message if empty
+  if (conv.messages.length === 0) {
+    const welcome = document.createElement('div');
+    welcome.className = 'chat-message coach';
+    const p = document.createElement('p');
+    p.textContent = "Hey! I'm your personal coach. Ask me about your training, progress, recovery — or just check in. I'll use what I know about you to give you real guidance.";
+    welcome.appendChild(p);
+    messagesDiv.appendChild(welcome);
+  } else {
+    // Render existing messages
+    for (const msg of conv.messages) {
+      const el = document.createElement('div');
+      el.className = `chat-message ${msg.role}`;
+      const p = document.createElement('p');
+      p.textContent = msg.text;
+      el.appendChild(p);
+      messagesDiv.appendChild(el);
+    }
+  }
+
+  // Input form
+  const form = document.createElement('form');
+  form.className = 'chat-input-form';
+  form.id = 'coach-chat-form';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Ask your coach anything…';
+  input.id = 'coach-chat-input';
+  input.autocomplete = 'off';
+
+  const sendBtn = document.createElement('button');
+  sendBtn.type = 'submit';
+  sendBtn.className = 'btn btn-primary btn-sm';
+  sendBtn.textContent = 'Send';
+
+  form.appendChild(input);
+  form.appendChild(sendBtn);
+
+  main.appendChild(messagesDiv);
+  main.appendChild(form);
+
+  // Scroll to bottom
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  // Focus input
+  input.focus();
+
+  // Submit handler
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const message = input.value.trim();
     if (!message) return;
     input.value = '';
 
-    // Show user message
-    addCoachMessage(message, 'user');
-    coachState.messages.push({ role: 'user', text: message });
+    // Add user message
+    conv.messages.push({ role: 'user', text: message });
 
-    // Show typing indicator
-    addCoachMessage('…', 'coach typing');
+    // Update conversation title from first message
+    if (conv.messages.filter(m => m.role === 'user').length === 1) {
+      conv.title = message.slice(0, 50) + (message.length > 50 ? '…' : '');
+      renderCoachConversationList();
+    }
+
+    // Render user message
+    const userEl = document.createElement('div');
+    userEl.className = 'chat-message user';
+    const userP = document.createElement('p');
+    userP.textContent = message;
+    userEl.appendChild(userP);
+    messagesDiv.appendChild(userEl);
+
+    // Typing indicator
+    const typingEl = document.createElement('div');
+    typingEl.className = 'chat-message coach typing';
+    typingEl.textContent = '…';
+    messagesDiv.appendChild(typingEl);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
     try {
       const swimmerId = state.currentProfile?._id;
       const llmModel = state.globalLlm || null;
       const result = await api.coach.chat({
         message,
-        messages: coachState.messages.slice(0, -1), // Send history excluding current
+        messages: conv.messages.slice(0, -1).map(m => ({ role: m.role, text: m.text })),
         ...(llmModel && { llmModel }),
       }, swimmerId);
 
-      // Remove typing indicator
-      const typing = document.querySelector('.chat-message.typing');
-      if (typing) typing.remove();
+      // Remove typing
+      typingEl.remove();
 
       // Show coach reply
-      addCoachMessage(result.data.reply, 'coach');
+      const coachEl = document.createElement('div');
+      coachEl.className = 'chat-message coach';
+      const coachP = document.createElement('p');
+      coachP.textContent = result.data.reply;
+      coachEl.appendChild(coachP);
+      messagesDiv.appendChild(coachEl);
 
-      // Store conversation
-      coachState.messages.push({ role: 'coach', text: result.data.reply });
-      coachState.conversationId = result.data.conversationId;
+      // Store in conversation
+      conv.messages.push({ role: 'coach', text: result.data.reply });
+      conv.conversationId = result.data.conversationId;
 
       // Handle action proposals
       if (result.data.actions?.length > 0) {
@@ -1808,9 +1972,8 @@ function loadCoachPage() {
           if (action.proposal) {
             const proposalEl = buildActionProposal(action, result.data.conversationId, i);
             if (proposalEl) {
-              const messagesContainer = document.getElementById('coach-chat-messages');
-              messagesContainer.appendChild(proposalEl);
-              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+              messagesDiv.appendChild(proposalEl);
+              messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
               proposalEl.querySelector('.btn-confirm-proposal')?.addEventListener('click', () => confirmCoachAction(result.data.conversationId, i));
               proposalEl.querySelector('.btn-dismiss-proposal')?.addEventListener('click', () => dismissCoachAction(result.data.conversationId, i, proposalEl));
@@ -1818,15 +1981,34 @@ function loadCoachPage() {
           }
         }
       }
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     } catch (err) {
-      const typing = document.querySelector('.chat-message.typing');
-      if (typing) typing.remove();
-      addCoachMessage('Sorry, I had trouble with that. Try again?', 'coach');
+      typingEl.remove();
+      const errEl = document.createElement('div');
+      errEl.className = 'chat-message coach';
+      const errP = document.createElement('p');
+      errP.textContent = 'Sorry, I had trouble with that. Try again?';
+      errEl.appendChild(errP);
+      messagesDiv.appendChild(errEl);
       console.error('Coach chat error:', err);
     }
 
     input.focus();
   });
+}
+
+function formatConversationTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 async function confirmCoachAction(conversationId, actionIndex) {
