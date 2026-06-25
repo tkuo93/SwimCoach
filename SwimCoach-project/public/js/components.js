@@ -524,27 +524,7 @@ function showAdaptiveResponse(workoutId, feedback) {
   const container = document.getElementById(`adaptive-response-${workoutId}`);
   if (!container) return;
 
-  let emoji = '💪';
-  let message = "Thanks for the feedback! I'll keep this in mind for your next workout.";
-
-  if (feedback.difficultyPerception === 'too-hard' || feedback.rating <= 2) {
-    emoji = '😅';
-    message = "Got it — that was a tough one. I'll dial it back a bit for your next workout.";
-  } else if (feedback.difficultyPerception === 'too-easy' || feedback.rating >= 5) {
-    emoji = '🔥';
-    message = "You crushed it! I'll push you a little harder next time.";
-  } else if (feedback.difficultyPerception === 'just-right') {
-    emoji = '✅';
-    message = "Perfect — right in the sweet spot. I'll keep the intensity at this level and build from here.";
-  } else if (feedback.enjoyment === 'loved') {
-    emoji = '❤️';
-    message = "So glad you loved it! I'll use this as a template for future workouts.";
-  } else if (feedback.enjoyment === 'did-not-enjoy') {
-    emoji = '🤔';
-    message = "Thanks for being honest. I'll try a different approach next time — more variety coming your way.";
-  }
-
-  container.innerHTML = `<span class="emoji">${emoji}</span><p>${message}</p>`;
+  container.innerHTML = `<span class="emoji">👍</span><p>Thanks for the feedback! I'll keep this in mind for your next workout.</p>`;
   container.classList.remove('hidden');
 }
 
