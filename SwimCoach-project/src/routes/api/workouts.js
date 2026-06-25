@@ -3,8 +3,10 @@ const router = express.Router();
 const Workout = require('../../models/Workout');
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { generateWorkout, regenerateWorkout } = require('../../services/workout-generator');
+const { syncFeedbackToMemory, detectTrends } = require('../../services/coaching-memory-sync');
 const { appendFeedback, deriveLearning } = require('../../services/memory');
-const { chat } = require('../../services/chat-with-coach');
+const { chat: legacyChat } = require('../../services/chat-with-coach');
+const { chat: coachChat } = require('../../services/coach/coach-agent');
 const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
 
 /**
@@ -179,6 +181,29 @@ router.post('/:id/feedback', async (req, res) => {
       console.error('Failed to write to MEMORY.md:', memErr.message);
     }
 
+    // Sync feedback to CoachingMemory for the agentic coach
+    try {
+      await syncFeedbackToMemory({
+        swimmerId: workout.swimmerId,
+        workoutId: workout._id,
+        workoutType: workout.workoutType,
+        feedback: { rating, difficultyPerception, enjoyment, quality, accuracy },
+      });
+
+      // Run trend detection every 5th feedback for this swimmer
+      const feedbackCount = await Workout.countDocuments({
+        swimmerId: workout.swimmerId,
+        'userFeedback.rating': { $exists: true },
+      });
+      if (feedbackCount % 5 === 0) {
+        detectTrends(workout.swimmerId).catch(err =>
+          console.error('Trend detection error:', err.message)
+        );
+      }
+    } catch (memErr) {
+      console.error('Failed to sync to CoachingMemory:', memErr.message);
+    }
+
     res.json({ success: true, data: workout });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -187,7 +212,7 @@ router.post('/:id/feedback', async (req, res) => {
 
 // POST /api/workouts/:id/chat
 // Body: { message: string, messages: Array<{role: 'user'|'coach', text: string}> }
-// Returns: { reply: string, regenerate: boolean, workout?: Workout }
+// Returns: { reply: string, actions: Array, workout?: Workout }
 router.post('/:id/chat', async (req, res) => {
   try {
     const { message, messages = [], llmModel } = req.body;
@@ -203,34 +228,41 @@ router.post('/:id/chat', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
 
-    const result = await chat(profile, workout, messages, message, llmModel);
+    // Use agentic coach in workout mode
+    const result = await coachChat({
+      profile,
+      workout,
+      messages,
+      userMessage: message,
+      mode: 'workout',
+      modelOverride: llmModel,
+    });
 
-    // If the coach decided to regenerate, do it
-    if (result.regenerate) {
-      const customization = {
-        ...(workout.generationParameters?.toObject?.() || {}),
-        ...result.overrides,
-      };
-      // Preserve global model setting on regeneration
-      if (llmModel) customization.llmModel = llmModel;
-      const newWorkout = await regenerateWorkout(req.params.id, profile, customization, {
-        mode: 'direct',
-      });
-      return res.json({
-        success: true,
-        data: {
-          reply: result.reply,
-          regenerate: true,
-          workout: newWorkout,
-        },
-      });
+    // Process actions from the agent
+    const processedActions = [];
+    let regeneratedWorkout = null;
+
+    for (const action of result.actions) {
+      if (action.action === 'regenerateWorkout') {
+        const customization = {
+          ...(workout.generationInfo?.generationParameters?.toObject?.() || {}),
+          ...action.overrides,
+        };
+        if (llmModel) customization.llmModel = llmModel;
+        regeneratedWorkout = await regenerateWorkout(req.params.id, profile, customization, { mode: 'direct' });
+        processedActions.push({ ...action, applied: true });
+      } else {
+        // modifyWorkout proposals are returned to frontend for confirmation
+        processedActions.push(action);
+      }
     }
 
     res.json({
       success: true,
       data: {
         reply: result.reply,
-        regenerate: false,
+        actions: processedActions,
+        ...(regeneratedWorkout && { workout: regeneratedWorkout }),
       },
     });
   } catch (err) {

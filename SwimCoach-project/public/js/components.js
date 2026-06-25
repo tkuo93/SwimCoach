@@ -17,6 +17,9 @@ export {
   buildWorkoutEditForm,
   buildChatPanel,
   addChatMessage,
+  buildCoachChatPanel,
+  addCoachMessage,
+  buildActionProposal,
   buildFeedbackForm,
   showAdaptiveResponse,
   buildEmptyState,
@@ -545,6 +548,104 @@ function showAdaptiveResponse(workoutId, feedback) {
 
   container.innerHTML = `<span class="emoji">${emoji}</span><p>${message}</p>`;
   container.classList.remove('hidden');
+}
+
+// ─── Build Coach Chat Panel (general mode) ───
+
+function buildCoachChatPanel() {
+  return `
+    <div class="chat-panel coach-chat-panel" id="coach-chat-panel">
+      <div class="chat-messages" id="coach-chat-messages">
+        <div class="chat-message coach">
+          <p>Hey! I'm your personal coach. Ask me about your training, progress, recovery — or just check in. I'll use what I know about you to give you real guidance.</p>
+        </div>
+      </div>
+      <form class="chat-input-form" id="coach-chat-form">
+        <input type="text" placeholder="Ask your coach anything…" id="coach-chat-input" autocomplete="off">
+        <button type="submit" class="btn btn-primary btn-sm">Send</button>
+      </form>
+    </div>`;
+}
+
+function addCoachMessage(text, sender, actionsEl = null) {
+  const container = document.getElementById('coach-chat-messages');
+  if (!container) return;
+  const msg = document.createElement('div');
+  msg.className = `chat-message ${sender}`;
+  const p = document.createElement('p');
+  p.textContent = text;
+  msg.appendChild(p);
+  if (actionsEl) msg.appendChild(actionsEl);
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ─── Build Action Proposal ───
+
+function buildActionProposal(action, conversationId, actionIndex) {
+  const el = document.createElement('div');
+  el.className = 'action-proposal';
+  el.dataset.conversationId = conversationId;
+  el.dataset.actionIndex = actionIndex;
+
+  if (action.action === 'modifyWorkout') {
+    const { description, field, currentValue, newValue } = action;
+
+    const descP = document.createElement('p');
+    descP.className = 'proposal-description';
+    descP.textContent = '🔧 Proposed change: ';
+    const strong = document.createElement('strong');
+    strong.textContent = description;
+    descP.appendChild(strong);
+
+    const detailP = document.createElement('p');
+    detailP.className = 'proposal-detail';
+    const code = document.createElement('code');
+    code.textContent = field;
+    detailP.appendChild(code);
+    detailP.appendChild(document.createTextNode(`: ${currentValue} → ${newValue}`));
+
+    el.appendChild(descP);
+    el.appendChild(detailP);
+  } else if (action.action === 'regenerateWorkout') {
+    const { reason, overrides } = action;
+    const overrideItems = Object.entries(overrides || {}).map(([k, v]) => `${k}: ${v}`).join(', ');
+
+    const descP = document.createElement('p');
+    descP.className = 'proposal-description';
+    descP.textContent = '🔄 Regenerate workout: ';
+    const strong = document.createElement('strong');
+    strong.textContent = reason;
+    descP.appendChild(strong);
+
+    el.appendChild(descP);
+
+    if (overrideItems) {
+      const detailP = document.createElement('p');
+      detailP.className = 'proposal-detail';
+      detailP.textContent = `Changes: ${overrideItems}`;
+      el.appendChild(detailP);
+    }
+  } else {
+    return null;
+  }
+
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'proposal-actions';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn btn-primary btn-sm btn-confirm-proposal';
+  confirmBtn.textContent = action.action === 'regenerateWorkout' ? 'Regenerate' : 'Apply';
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'btn btn-secondary btn-sm btn-dismiss-proposal';
+  dismissBtn.textContent = 'Dismiss';
+
+  actionsDiv.appendChild(confirmBtn);
+  actionsDiv.appendChild(dismissBtn);
+  el.appendChild(actionsDiv);
+
+  return el;
 }
 
 // ─── Build Empty State ───

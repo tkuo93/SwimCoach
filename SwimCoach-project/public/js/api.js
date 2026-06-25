@@ -88,6 +88,25 @@ const api = {
       return request(`/debug/prompts?${params}`);
     },
   },
+
+  // ─── Coach ───
+  coach: {
+    chat: (data, swimmerId) => request('/coach/chat', {
+      method: 'POST',
+      body: data,
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+    confirm: (conversationId, actionIndex, swimmerId) => request(`/coach/chat/${conversationId}/confirm`, {
+      method: 'POST',
+      body: { actionIndex },
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+    dismiss: (conversationId, actionIndex, swimmerId) => request(`/coach/chat/${conversationId}/dismiss`, {
+      method: 'POST',
+      body: { actionIndex },
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+  },
 };
 
 // ES module export

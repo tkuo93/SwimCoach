@@ -12,6 +12,9 @@ import {
   buildWorkoutCard,
   buildWorkoutEditForm,
   buildChatPanel,
+  buildCoachChatPanel,
+  addCoachMessage,
+  buildActionProposal,
   buildFeedbackForm,
   showAdaptiveResponse,
   escapeHtml,
@@ -120,6 +123,17 @@ function handleRoute() {
       showPage('history');
       setActiveNav('history');
       loadHistoryPage();
+      break;
+
+    case 'coach':
+      if (!state.currentProfile) {
+        showToast(state.profiles.length > 0 ? 'Please select a profile from the dropdown.' : 'Please create a profile first.', 'error');
+        navigateTo('profile');
+        return;
+      }
+      showPage('coach');
+      setActiveNav('coach');
+      loadCoachPage();
       break;
 
     case 'program':
@@ -1453,20 +1467,19 @@ function initChatHandler(workoutId) {
 
       removeTypingIndicator(typingId);
 
-      const { reply, regenerate, workout: newWorkout } = result.data;
+      const { reply, actions, workout: newWorkout } = result.data;
 
       // Add coach reply
       conv.push({ role: 'coach', text: reply });
       renderConversation(workoutId, conv);
 
-      if (regenerate && newWorkout) {
-        // Workout was regenerated — update the display
+      // If the agent already applied a regeneration, update the display
+      if (newWorkout) {
         const container = document.getElementById('workout-content');
         container.innerHTML = buildWorkoutCard(newWorkout);
         container.innerHTML += buildChatPanel(newWorkout._id);
         container.innerHTML += buildFeedbackForm(newWorkout._id, newWorkout.userFeedback);
 
-        // Transfer conversation to new workout ID
         chatConversations[newWorkout._id] = conv;
         delete chatConversations[workoutId];
 
@@ -1475,6 +1488,44 @@ function initChatHandler(workoutId) {
 
         window.history.replaceState(null, '', `#workout/${newWorkout._id}`);
         showToast('Workout updated!', 'success');
+      }
+
+      // Show pending proposals (modifyWorkout) for in-workout chat
+      if (actions?.length > 0) {
+        for (const action of actions) {
+          if (action.proposal) {
+            // For workout chat, auto-confirm modifications since we're in-context
+            if (action.action === 'modifyWorkout') {
+              // Show the proposal inline; user can dismiss if they don't want it
+              const proposalEl = buildActionProposal(action, 'workout', 0);
+              if (proposalEl) {
+                const msgContainer = document.getElementById(`chat-messages-${workoutId}`);
+                if (msgContainer) {
+                  msgContainer.appendChild(proposalEl);
+                  msgContainer.scrollTop = msgContainer.scrollHeight;
+                  proposalEl.querySelector('.btn-confirm-proposal')?.addEventListener('click', async () => {
+                    // Apply modification directly via workout update endpoint
+                    try {
+                      const update = {};
+                      update[action.field] = parseActionValue(action.newValue);
+                      update.updatedAt = new Date().toISOString();
+                      await api.workouts.update(action.workoutId, update, state.currentProfile?._id);
+                      proposalEl.remove();
+                      showToast('Change applied!', 'success');
+                      // Reload the workout page to show updated data
+                      loadWorkoutPage(action.workoutId);
+                    } catch (err) {
+                      showToast(`Failed: ${err.message}`, 'error');
+                    }
+                  });
+                  proposalEl.querySelector('.btn-dismiss-proposal')?.addEventListener('click', () => {
+                    proposalEl.remove();
+                  });
+                }
+              }
+            }
+          }
+        }
       }
     } catch (err) {
       removeTypingIndicator(typingId);
@@ -1696,6 +1747,123 @@ async function loadHistoryPage() {
     hideLoading();
     container.innerHTML = `<div class="empty-state"><p>Error loading workouts: ${err.message}</p></div>`;
   }
+}
+
+// ─── Coach Page ───
+
+const coachState = {
+  messages: [],
+  conversationId: null,
+};
+
+function loadCoachPage() {
+  const container = document.getElementById('coach-content');
+  if (!container) return;
+
+  // Build the chat panel using safe DOM methods
+  const panel = document.createElement('div');
+  panel.innerHTML = buildCoachChatPanel();
+  container.appendChild(panel.firstElementChild);
+
+  const form = document.getElementById('coach-chat-form');
+  const input = document.getElementById('coach-chat-input');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = '';
+
+    // Show user message
+    addCoachMessage(message, 'user');
+    coachState.messages.push({ role: 'user', text: message });
+
+    // Show typing indicator
+    addCoachMessage('…', 'coach typing');
+
+    try {
+      const swimmerId = state.currentProfile?._id;
+      const llmModel = state.globalLlm || null;
+      const result = await api.coach.chat({
+        message,
+        messages: coachState.messages.slice(0, -1), // Send history excluding current
+        ...(llmModel && { llmModel }),
+      }, swimmerId);
+
+      // Remove typing indicator
+      const typing = document.querySelector('.chat-message.typing');
+      if (typing) typing.remove();
+
+      // Show coach reply
+      addCoachMessage(result.data.reply, 'coach');
+
+      // Store conversation
+      coachState.messages.push({ role: 'coach', text: result.data.reply });
+      coachState.conversationId = result.data.conversationId;
+
+      // Handle action proposals
+      if (result.data.actions?.length > 0) {
+        for (let i = 0; i < result.data.actions.length; i++) {
+          const action = result.data.actions[i];
+          if (action.proposal) {
+            const proposalEl = buildActionProposal(action, result.data.conversationId, i);
+            if (proposalEl) {
+              const messagesContainer = document.getElementById('coach-chat-messages');
+              messagesContainer.appendChild(proposalEl);
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+              proposalEl.querySelector('.btn-confirm-proposal')?.addEventListener('click', () => confirmCoachAction(result.data.conversationId, i));
+              proposalEl.querySelector('.btn-dismiss-proposal')?.addEventListener('click', () => dismissCoachAction(result.data.conversationId, i, proposalEl));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      const typing = document.querySelector('.chat-message.typing');
+      if (typing) typing.remove();
+      addCoachMessage('Sorry, I had trouble with that. Try again?', 'coach');
+      console.error('Coach chat error:', err);
+    }
+
+    input.focus();
+  });
+}
+
+async function confirmCoachAction(conversationId, actionIndex) {
+  const swimmerId = state.currentProfile?._id;
+  try {
+    showLoading('Applying change…');
+    const result = await api.coach.confirm(conversationId, actionIndex, swimmerId);
+    hideLoading();
+
+    if (result.data?.applied) {
+      showToast('Change applied!', 'success');
+      // Remove the proposal from the chat
+      const proposal = document.querySelector(`.action-proposal[data-conversation-id="${conversationId}"][data-action-index="${actionIndex}"]`);
+      if (proposal) proposal.remove();
+
+      if (result.data.workout) {
+        addCoachMessage('✅ Done — your workout has been updated. Check it in History.', 'coach');
+      }
+    }
+  } catch (err) {
+    hideLoading();
+    showToast(`Failed to apply: ${err.message}`, 'error');
+  }
+}
+
+function dismissCoachAction(conversationId, actionIndex, proposalEl) {
+  const swimmerId = state.currentProfile?._id;
+  api.coach.dismiss(conversationId, actionIndex, swimmerId).catch(() => {});
+  if (proposalEl) proposalEl.remove();
+}
+
+function parseActionValue(val) {
+  if (val === 'true') return true;
+  if (val === 'false') return false;
+  if (val === 'null') return null;
+  if (!isNaN(val) && val !== '') return Number(val);
+  return val;
 }
 
 // ─── Program Page ───
