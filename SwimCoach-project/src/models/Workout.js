@@ -47,13 +47,14 @@ const workoutSchema = new mongoose.Schema({
 
   // Pool Workout Components
   poolWorkout: {
+    poolUnit: { type: String, enum: ['meters', 'yards'], default: 'meters' },
     warmUp: {
-      distance: { type: Number, default: 0 }, // meters
+      distance: { type: Number, default: 0 },
       duration: { type: Number, default: 0 }, // minutes
       description: { type: String, trim: true }
     },
     mainSet: [{
-      distance: { type: Number, required: true }, // meters
+      distance: { type: Number, required: true },
       interval: {
         type: String,
         required: true,
@@ -86,7 +87,8 @@ const workoutSchema = new mongoose.Schema({
     totalDistance: {
       type: Number, // meters
       default: 0
-    }
+    },
+    trainingNotes: [{ type: String }]
   },
 
   // Gym Workout Components
@@ -130,7 +132,8 @@ const workoutSchema = new mongoose.Schema({
     coolDown: {
       duration: { type: Number, default: 0 }, // minutes
       description: { type: String, trim: true }
-    }
+    },
+    trainingNotes: [{ type: String }]
   },
 
   // Progression Tracking

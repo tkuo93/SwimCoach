@@ -95,7 +95,7 @@ function buildWorkoutCard(workout) {
   const gym = w.gymWorkout || {};
   const hasPoolContent = pool.mainSet?.length || pool.warmUp?.description || pool.coolDown?.description;
   const hasGymContent = gym.mainSet?.length || gym.warmUp?.description || gym.coolDown?.description;
-  const hasNotes = w.trainingNotes?.length;
+  const hasNotes = w.trainingNotes?.length || pool.trainingNotes?.length || gym.trainingNotes?.length;
   const rawDescription = pool.warmUp?.description || '';
 
   // If no structured content was parsed, show the raw RAG output
@@ -152,7 +152,7 @@ function buildWorkoutCard(workout) {
 
       ${buildPoolSection(pool)}
       ${buildGymSection(gym)}
-      ${buildTrainingNotes(w.trainingNotes)}
+      ${!pool.trainingNotes?.length && !gym.trainingNotes?.length ? buildTrainingNotes(w.trainingNotes) : ''}
     </div>`;
 }
 
@@ -166,7 +166,7 @@ function buildWorkoutEditForm(workout) {
   const poolMainSetRows = (pool.mainSet || []).map((set, i) => `
     <tr class="edit-set-row" data-set-index="${i}" data-set-type="pool">
       <td><input type="number" class="edit-input edit-reps" value="${set.repetitions || 1}" min="1" title="Reps"></td>
-      <td><input type="number" class="edit-input edit-distance" value="${set.distance || 0}" min="0" title="Distance (m)"></td>
+      <td><input type="number" class="edit-input edit-distance" value="${set.distance || 0}" min="0" title="Distance (${pool.poolUnit === 'yards' ? 'yd' : 'm'})"></td>
       <td><input type="text" class="edit-input edit-stroke" value="${escapeHtml(set.stroke || 'freestyle')}" title="Stroke"></td>
       <td><input type="text" class="edit-input edit-interval" value="${escapeHtml(set.interval || '')}" title="Interval (e.g. 1:30)"></td>
       <td><input type="text" class="edit-input edit-focus" value="${escapeHtml(set.focus || '')}" title="Focus"></td>
@@ -197,6 +197,8 @@ function buildWorkoutEditForm(workout) {
   `).join('');
 
   const trainingNotes = (w.trainingNotes || []).map(n => escapeHtml(n)).join('\n');
+  const poolTrainingNotes = ((w.poolWorkout || {}).trainingNotes || []).map(n => escapeHtml(n)).join('\n');
+  const gymTrainingNotes = ((w.gymWorkout || {}).trainingNotes || []).map(n => escapeHtml(n)).join('\n');
 
   return `
     <div class="workout-edit-form" id="workout-edit-form-${w._id}">
@@ -238,7 +240,7 @@ function buildWorkoutEditForm(workout) {
         <h3>🏊 Pool — Warm-up</h3>
         <div class="edit-grid">
           <div class="form-group">
-            <label>Distance (m)</label>
+            <label>Distance (${pool.poolUnit === 'yards' ? 'yd' : 'm'})</label>
             <input type="number" id="edit-pool-wu-dist-${w._id}" value="${pool.warmUp?.distance || 0}" min="0">
           </div>
           <div class="form-group">
@@ -255,7 +257,7 @@ function buildWorkoutEditForm(workout) {
       <div class="edit-section">
         <h3>🏊 Pool — Main Sets</h3>
         <table class="interval-table edit-table">
-          <thead><tr><th>Reps</th><th>Dist (m)</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Reps</th><th>Dist (${pool.poolUnit === 'yards' ? 'yd' : 'm'})</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th><th></th></tr></thead>
           <tbody id="edit-pool-sets-${w._id}">
             ${poolMainSetRows || '<tr><td colspan="7" class="text-muted">No sets — add one below</td></tr>'}
           </tbody>
@@ -267,7 +269,7 @@ function buildWorkoutEditForm(workout) {
         <h3>🏊 Pool — Cool-down</h3>
         <div class="edit-grid">
           <div class="form-group">
-            <label>Distance (m)</label>
+            <label>Distance (${pool.poolUnit === 'yards' ? 'yd' : 'm'})</label>
             <input type="number" id="edit-pool-cd-dist-${w._id}" value="${pool.coolDown?.distance || 0}" min="0">
           </div>
           <div class="form-group">
@@ -322,9 +324,14 @@ function buildWorkoutEditForm(workout) {
 
       <div class="edit-section">
         <h3>🧠 Training Notes</h3>
-        <div class="form-group">
-          <textarea id="edit-notes-${w._id}" rows="3" placeholder="One note per line">${trainingNotes}</textarea>
-        </div>
+        ${poolTrainingNotes || gymTrainingNotes ? `
+          ${poolTrainingNotes ? `<div class="form-group"><label>🏊 Pool Notes</label><textarea id="edit-pool-notes-${w._id}" rows="2" placeholder="One note per line">${poolTrainingNotes}</textarea></div>` : ''}
+          ${gymTrainingNotes ? `<div class="form-group"><label>💪 Gym Notes</label><textarea id="edit-gym-notes-${w._id}" rows="2" placeholder="One note per line">${gymTrainingNotes}</textarea></div>` : ''}
+        ` : `
+          <div class="form-group">
+            <textarea id="edit-notes-${w._id}" rows="3" placeholder="One note per line">${trainingNotes}</textarea>
+          </div>
+        `}
       </div>
 
       <div class="edit-actions">
@@ -337,10 +344,12 @@ function buildWorkoutEditForm(workout) {
 function buildPoolSection(pool) {
   if (!pool || (!pool.warmUp && !pool.mainSet?.length && !pool.coolDown)) return '';
 
+  const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
+
   const mainSetRows = (pool.mainSet || []).map(set => `
     <tr>
       <td class="reps">${set.repetitions}&times;</td>
-      <td class="distance">${set.distance}m</td>
+      <td class="distance">${set.distance}${unit}</td>
       <td>${escapeHtml(set.stroke || 'freestyle')}</td>
       <td>${escapeHtml(set.interval || '—')}</td>
       <td>${escapeHtml(set.focus || '—')}</td>
@@ -350,19 +359,20 @@ function buildPoolSection(pool) {
 
   return `
     <div class="workout-section">
-      <h3><span class="icon">🏊</span> Pool — ${pool.totalDistance || 0}m</h3>
-      ${pool.warmUp?.description ? `<p style="margin-bottom:1rem;color:var(--gray-600);font-size:0.9rem;"><strong>Warm-up:</strong> ${escapeHtml(pool.warmUp.description)}${pool.warmUp.distance ? ` (${pool.warmUp.distance}m)` : ''}</p>` : ''}
+      <h3><span class="icon">🏊</span> Pool — ${pool.totalDistance || 0}${unit}</h3>
+      ${pool.warmUp?.description ? `<p style="margin-bottom:1rem;color:var(--gray-600);font-size:0.9rem;"><strong>Warm-up:</strong> ${escapeHtml(pool.warmUp.description)}${pool.warmUp.distance ? ` (${pool.warmUp.distance}${unit})` : ''}</p>` : ''}
       ${mainSetRows ? `
         <table class="interval-table">
           <thead><tr><th>Reps</th><th>Dist</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th></tr></thead>
           <tbody>${mainSetRows}</tbody>
         </table>` : ''}
       <div class="section-summary">
-        <span>Total: <strong>${pool.totalDistance || 0}m</strong></span>
+        <span>Total: <strong>${pool.totalDistance || 0}${unit}</strong></span>
         ${pool.warmUp?.duration ? `<span>Warm-up: ${pool.warmUp.duration}min</span>` : ''}
         ${pool.coolDown?.duration ? `<span>Cool-down: ${pool.coolDown.duration}min</span>` : ''}
       </div>
-      ${pool.coolDown?.description ? `<p style="margin-top:0.75rem;color:var(--gray-600);font-size:0.9rem;"><strong>Cool-down:</strong> ${escapeHtml(pool.coolDown.description)}</p>` : ''}
+      ${pool.coolDown?.description ? `<p style="margin-top:0.75rem;color:var(--gray-600);font-size:0.9rem;"><strong>Cool-down:</strong> ${escapeHtml(pool.coolDown.description)}${pool.coolDown.distance ? ` (${pool.coolDown.distance}${unit})` : ''}</p>` : ''}
+      ${buildSectionNotes(pool.trainingNotes)}
     </div>`;
 }
 
@@ -389,10 +399,21 @@ function buildGymSection(gym) {
           <tbody>${mainSetRows}</tbody>
         </table>` : ''}
       ${gym.coolDown?.description ? `<p style="margin-top:0.75rem;color:var(--gray-600);font-size:0.9rem;"><strong>Cool-down:</strong> ${escapeHtml(gym.coolDown.description)}${gym.coolDown.duration ? ` (${gym.coolDown.duration}min)` : ''}</p>` : ''}
+      ${buildSectionNotes(gym.trainingNotes)}
+    </div>`;
+}
+
+function buildSectionNotes(notes) {
+  if (!notes?.length) return '';
+  const items = notes.map(n => `<li>${escapeHtml(n)}</li>`).join('');
+  return `
+    <div class="training-notes-inline">
+      <ul class="training-notes">${items}</ul>
     </div>`;
 }
 
 function buildTrainingNotes(notes) {
+  // Fallback for legacy workouts that store notes at root level
   if (!notes?.length) return '';
   const items = notes.map(n => `<li>${escapeHtml(n)}</li>`).join('');
   return `

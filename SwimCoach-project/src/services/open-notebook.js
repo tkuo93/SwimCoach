@@ -308,7 +308,7 @@ function buildPrompt(profile, customization) {
     '  ],',
     '  "coolDown": { "description": "...", "distance": number, "duration": number },',
     '  "totalDistance": number,',
-    '  "trainingNotes": ["note 1", "note 2", "note 3"]',
+    '  "trainingNotes": ["swim-specific training principle 1", "swim tip 2"]',
     '}',
   );
 

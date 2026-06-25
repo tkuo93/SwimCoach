@@ -24,7 +24,7 @@ async function generateWorkout(profile, customization = {}) {
   const includeGym = sessionType === 'both' || sessionType === 'gym';
 
   // Available weights for clamping prescribed weights to what the user actually owns
-  const availableWeights = (customization.weightInventory || profile.weightInventory || []).map(w => ({
+  const availableWeights = (customization.weightInventory || profile.equipment?.weightInventory || []).map(w => ({
     weight: w.weight,
     unit: w.unit || 'lbs',
     type: w.type,
@@ -40,6 +40,7 @@ async function generateWorkout(profile, customization = {}) {
     duration,
     intensity: deriveIntensity(customization.intensity, workoutType),
     poolWorkout: includePool ? {
+      poolUnit: isPoolYards(customization, profile) ? 'yards' : 'meters',
       warmUp: {
         description: aiWorkout.warmUp?.description || '',
         distance: aiWorkout.warmUp?.distance || 0,
@@ -60,7 +61,8 @@ async function generateWorkout(profile, customization = {}) {
         duration: aiWorkout.coolDown?.duration || Math.round(duration * 0.1),
       },
       totalDistance: aiWorkout.totalDistance || calculateTotalDistance(aiWorkout),
-    } : { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, totalDistance: 0 },
+      trainingNotes: aiWorkout.poolWorkout?.trainingNotes || [],
+    } : { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, totalDistance: 0, trainingNotes: [] },
     gymWorkout: includeGym && aiWorkout.gymWorkout ? (() => {
       const rawExercises = (aiWorkout.gymWorkout.exercises || []).map(ex => ({
         exercise: ex.exercise || '',
@@ -105,8 +107,9 @@ async function generateWorkout(profile, customization = {}) {
           description: aiWorkout.gymWorkout.coolDown?.description || '',
           duration: aiWorkout.gymWorkout.coolDown?.duration || 5,
         },
+        trainingNotes: aiWorkout.gymWorkout?.trainingNotes || [],
       };
-    })() : { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 } },
+    })() : { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, trainingNotes: [] },
     trainingNotes: aiWorkout.trainingNotes || [],
     userFeedback: {},
     generationInfo: {
@@ -120,7 +123,7 @@ async function generateWorkout(profile, customization = {}) {
         durationPreference: duration,
         intensityPreference: customization.intensity || null,
         strokePreference: customization.stroke || null,
-        weightInventory: customization.weightInventory || profile.weightInventory || [],
+        weightInventory: customization.weightInventory || profile.equipment?.weightInventory || [],
       },
     },
   });

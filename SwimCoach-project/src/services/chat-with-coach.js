@@ -75,7 +75,7 @@ function buildChatSystemPrompt(profile, workout) {
   const poolGear = Object.entries(equip.poolEquipment || {}).filter(([, v]) => v).map(([k]) => k);
   const gymGear = Object.entries(equip.gymEquipment || {}).filter(([, v]) => v).map(([k]) => k);
   const gymGearNote = gymGear.length === 0 ? '  ⚠️ No gym equipment — only bodyweight exercises!' : '';
-  const weightInv = (profile.weightInventory || []).map(w => `${w.weight}${w.unit} ${w.type}`).join(', ');
+  const weightInv = (profile.equipment?.weightInventory || []).map(w => `${w.weight}${w.unit} ${w.type}`).join(', ');
   const poolUnitNote = `  ⚠️ This is a ${unit} pool — all distances must be in ${unit}, NOT ${isYards ? 'meters' : 'yards'}!`;
 
   const workoutSummary = buildWorkoutSummary(workout, isYards);

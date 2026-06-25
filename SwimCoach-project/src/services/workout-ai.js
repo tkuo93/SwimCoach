@@ -408,7 +408,7 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
   const type = resolveTrainingFocus(profile, customization);
   const trainingFoci = profile.goals?.trainingFocus || [];
   const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
-  const weightInventory = customization.weightInventory || profile.weightInventory || [];
+  const weightInventory = customization.weightInventory || profile.equipment?.weightInventory || [];
   const events = resolvePrimaryEvents(profile, customization);
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const poolLength = resolvePoolLength(customization, profile);
@@ -610,7 +610,16 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
       parts.push('- Rep ranges must match the weight: heavy (4-6 reps), moderate (8-12 reps), light (12-20 reps). Adjust sets and rest accordingly.');
     }
   }
-  parts.push('- Provide 3-5 training notes with scientific rationale');
+  if (includePool) {
+    parts.push('- Include 2-3 pool-specific training notes (swim technique, energy systems, pacing, recovery between sets)');
+  }
+  if (includeGym) {
+    parts.push('- Include 2-3 gym-specific training notes (exercise form, muscle activation, load management, strength/hypertrophy rationale)');
+  }
+  const contentParts = [];
+  if (includePool) contentParts.push('the swim sets (distances, strokes, rest intervals, and progression)');
+  if (includeGym) contentParts.push('the gym exercises (movements, loads, rep ranges, and rest periods)');
+  parts.push(`- Include 3-5 overall training notes that explain the scientific rationale for ${contentParts.join(' and ')} in this specific workout. Each note must reference something concrete from the workout you generated (e.g., why this rep range, why this rest interval, why this stroke focus, why this loading scheme). Do NOT include generic notes that could apply to any workout, and do NOT include notes about workout sections that are not part of this session (e.g., no swim notes in a gym-only workout).`);
   parts.push('- Return ONLY valid JSON, no other text');
 
   return parts.join('\n');
@@ -638,7 +647,11 @@ function buildSystemPrompt(includePool, includeGym) {
     "distance": number,
     "duration": number (minutes)
   },
-  "totalDistance": number,` : '';
+  "totalDistance": number,
+  "trainingNotes": [
+    "Swim-specific training principle or rationale 1",
+    "Pool training tip 2"
+  ],` : '';
 
   const gymJson = includeGym ? `
   "gymWorkout": {
@@ -646,7 +659,11 @@ function buildSystemPrompt(includePool, includeGym) {
     "exercises": [
       { "exercise": "name", "sets": number, "reps": number, "weight": "REQUIRED — specify exact weight with unit (e.g. 25lbs, 10kg) from available weights, or 'bodyweight' if no weight used", "restSeconds": number, "muscleGroup": "one of: arms, legs, core, chest, back, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, glutes, calves, hip-flexors, adductors, abductors, rotator-cuff, lower-back, obliques, full-body", "notes": "form cues and weight selection rationale — do not reference equipment not listed as available" }
     ],
-    "coolDown": { "description": "Stretching", "duration": number }
+    "coolDown": { "description": "Stretching", "duration": number },
+    "trainingNotes": [
+      "Gym-specific training principle or rationale 1",
+      "Strength/power training tip 2"
+    ]
   },` : '';
 
   return `You are an expert swim coach and exercise scientist. Your task is to generate a structured workout plan as a JSON object.
@@ -662,9 +679,9 @@ CRITICAL: Respond with ONLY a valid JSON object. No markdown code blocks, no exp
 Always respond with valid JSON in this exact structure:
 {${poolJson}${gymJson}
   "trainingNotes": [
-    "Scientific principle or rationale 1",
-    "Training tip 2",
-    "Safety consideration 3"
+    "Scientific training principle or rationale 1",
+    "Periodization / programming logic 2",
+    "Safety or recovery consideration 3"
   ]
 }`;
 }

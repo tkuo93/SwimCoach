@@ -343,8 +343,8 @@ function collectProfileFormData() {
       poolLength,
       poolEquipment,
       gymEquipment,
+      weightInventory,
     },
-    weightInventory,
     bestTimes,
   };
 }
@@ -456,8 +456,8 @@ function fillProfileForm(profile) {
     });
   }
 
-  // Weight inventory
-  renderWeightInventory(profile.weightInventory || []);
+  // Weight inventory (stored under equipment in the backend schema)
+  renderWeightInventory(profile.equipment?.weightInventory || []);
 
   // Day toggles
   renderDayToggles(profile.trainingSchedule?.poolDays || [], profile.trainingSchedule?.gymDays || []);
@@ -1009,8 +1009,8 @@ function prefillGenerateForm() {
     });
   }
 
-  // Prefill weight inventory from profile
-  renderGenWeightInventory(p.weightInventory || []);
+  // Prefill weight inventory from profile (stored under equipment)
+  renderGenWeightInventory(p.equipment?.weightInventory || []);
 
   if (p.goals?.trainingFocus) {
     const workoutTypeSelect = document.getElementById('workoutType');
@@ -1346,9 +1346,13 @@ function buildWorkoutViewWithActions(workout) {
 		  });
 		});
 
-	  const notesStr = document.getElementById(`edit-notes-${workoutId}`).value.trim();
-	  const trainingNotes = notesStr ? notesStr.split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : [];
-
+	  const poolNotesEl = document.getElementById(`edit-pool-notes-${workoutId}`);
+  const gymNotesEl = document.getElementById(`edit-gym-notes-${workoutId}`);
+  const legacyNotesEl = document.getElementById(`edit-notes-${workoutId}`);
+  const poolTrainingNotes = poolNotesEl ? poolNotesEl.value.trim().split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+  const gymTrainingNotes = gymNotesEl ? gymNotesEl.value.trim().split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+  const legacyTrainingNotes = legacyNotesEl && !poolNotesEl && !gymNotesEl
+    ? legacyNotesEl.value.trim().split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : [];
 	  return {
 	    workoutName: workoutName,
 	    workoutType: workoutType,
@@ -1360,13 +1364,15 @@ function buildWorkoutViewWithActions(workout) {
 	      mainSet: poolMainSet,
 	      coolDown: { distance: poolCoolDownDistance, duration: poolCoolDownDuration, description: poolCoolDownDesc },
 	      totalDistance: poolTotalDistance,
+	      trainingNotes: poolTrainingNotes,
 	    },
 	    gymWorkout: {
 	      warmUp: { duration: gymWarmUpDuration, description: gymWarmUpDesc },
 	      mainSet: gymMainSet,
 	      coolDown: { duration: gymCoolDownDuration, description: gymCoolDownDesc },
+	      trainingNotes: gymTrainingNotes,
 	    },
-	    trainingNotes: trainingNotes,
+	    trainingNotes: legacyTrainingNotes,
 	  };
 	}
 
@@ -1651,7 +1657,7 @@ async function loadHistoryPage() {
             <span class="history-card-rating">${ratingStars}</span>
           </div>
           <div class="history-card-body">
-            <span>${w.poolWorkout?.totalDistance || 0}m pool</span>
+            <span>${w.poolWorkout?.totalDistance || 0}${w.poolWorkout?.poolUnit === 'yards' ? 'yd' : 'm'} pool</span>
             <span>${w.duration}min</span>
             <span>${escapeHtml(w.intensity || 'moderate')}</span>
           </div>
@@ -1720,6 +1726,7 @@ async function loadProgramPage(programId) {
       const rating = w.userFeedback?.rating || 0;
       const ratingStars = rating ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : 'Not rated';
       const poolDist = w.poolWorkout?.totalDistance || 0;
+      const poolUnit = w.poolWorkout?.poolUnit === 'yards' ? 'yd' : 'm';
       const gymExercises = w.gymWorkout?.mainSet?.length || 0;
 
       html += `
@@ -1733,7 +1740,7 @@ async function loadProgramPage(programId) {
             <span class="program-session-rating">${ratingStars}</span>
           </div>
           <div class="program-session-body">
-            <span>${poolDist}m pool</span>
+            <span>${poolDist}${poolUnit} pool</span>
             <span>${w.duration}min</span>
             <span>${gymExercises} gym exercises</span>
             <span>${escapeHtml(w.intensity || 'moderate')}</span>
