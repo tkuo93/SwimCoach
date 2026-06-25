@@ -9,6 +9,7 @@
 
 const axios = require('axios');
 const { getFeedbackSummary } = require('./memory');
+const CoachingMemory = require('../models/CoachingMemory');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -335,6 +336,9 @@ async function generateWorkout(profile, customization) {
   // Get past feedback summary from MEMORY.md
   const feedbackSummary = getFeedbackSummary(10);
 
+  // Get accumulated coaching observations from CoachingMemory
+  const coachingObservations = await getCoachingObservations(profile._id);
+
   // Determine model — allow override via customization (for debug mode)
   // Sanitize user-supplied model to prevent injection into outbound API calls
   const model = sanitizeModel(customization.llmModel);
@@ -351,7 +355,7 @@ async function generateWorkout(profile, customization) {
     promptCustomization.taperInsights = insights;
   }
 
-  const userPrompt = buildWorkoutPrompt(profile, promptCustomization, insights, feedbackSummary, notebookNotes);
+  const userPrompt = buildWorkoutPrompt(profile, promptCustomization, insights, feedbackSummary, coachingObservations, notebookNotes);
 
   const response = await axios.post(
     `${OPENROUTER_BASE}/chat/completions`,
@@ -404,7 +408,7 @@ async function generateWorkout(profile, customization) {
   }
 }
 
-function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, notebookNotes) {
+function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, coachingObservations, notebookNotes) {
   const type = resolveTrainingFocus(profile, customization);
   const trainingFoci = profile.goals?.trainingFocus || [];
   const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
@@ -590,6 +594,14 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, n
     parts.push('');
   }
 
+  if (coachingObservations) {
+    parts.push('## Coach Observations');
+    parts.push('Your coaching system has derived the following insights about this swimmer over time. These are more reliable than individual feedback entries — they represent accumulated patterns and preferences:');
+    parts.push('');
+    parts.push(coachingObservations);
+    parts.push('');
+  }
+
   const sessionType = customization.sessionType || 'both';
   const includePool = sessionType === 'both' || sessionType === 'pool';
   const includeGym = sessionType === 'both' || sessionType === 'gym';
@@ -686,6 +698,33 @@ Always respond with valid JSON in this exact structure:
 }`;
 }
 
+/**
+ * Fetch accumulated coaching observations for a swimmer from CoachingMemory.
+ * Returns a formatted string for injection into the workout generation prompt.
+ * Returns empty string if no observations or on error (non-blocking).
+ */
+async function getCoachingObservations(swimmerId) {
+  try {
+    const memories = await CoachingMemory.find({
+      swimmerId,
+      active: true,
+    })
+      .sort({ confidence: -1, createdAt: -1 })
+      .limit(10)
+      .select('type category content source confidence');
+
+    if (memories.length === 0) return '';
+
+    return memories.map(m =>
+      `- [${m.type}/${m.category}] (${m.source}, confidence: ${m.confidence}) ${m.content}`
+    ).join('\n');
+  } catch (err) {
+    // Non-blocking — don't fail workout generation if CoachingMemory is unavailable
+    console.warn('Failed to fetch coaching observations:', err.message);
+    return '';
+  }
+}
+
 module.exports = {
   generateWorkout,
   getTrainingInsights,
@@ -700,4 +739,5 @@ module.exports = {
   resolveEquipment,
   resolvePrimaryEvents,
   sanitizeModel,
+  getCoachingObservations,
 };

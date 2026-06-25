@@ -117,6 +117,10 @@ async function chat({ profile, workout, messages, userMessage, mode = 'general',
     reply = lastAssistant?.content || 'I need more time to think about that. Could you ask again?';
   }
 
+  // 4. Post-loop: extract learnings from the conversation and store in CoachingMemory
+  // Only extract when the coach made substantive statements (not just greetings or simple answers)
+  await extractConversationLearnings(profile, userMessage, reply, workout);
+
   return { reply, actions };
 }
 
@@ -270,6 +274,94 @@ function buildConversationHistory(messages, userMessage) {
   // Always include the current user message
   history.push({ role: 'user', content: userMessage });
   return history;
+}
+
+// ─── Observation Extraction ─────────────────────────────────────────
+
+/**
+ * After a conversation, check if the coach's reply contains learnings
+ * worth persisting to CoachingMemory. Uses pattern matching rather than
+ * a separate LLM call to keep it fast and free.
+ *
+ * We store observations when:
+ * - The user states a preference or limitation (detected from user message)
+ * - The coach explicitly recommends a change to training approach
+ * - The user mentions an injury or physical issue
+ */
+async function extractConversationLearnings(profile, userMessage, coachReply, workout) {
+  const observations = [];
+  const lowerUser = (userMessage || '').toLowerCase();
+  const lowerCoach = (coachReply || '').toLowerCase();
+
+  // User-stated injuries or physical issues
+  const injuryKeywords = /\b(hurt|hurts|pain|painful|sore|injury|injured|can't|cannot|avoid|bother|bothering|tweak|twinge|strain)\b/;
+  const bodyParts = /\b(shoulder|knee|back|elbow|wrist|hip|ankle|neck|rotator|calf|hamstring|quad|groin)\b/;
+  if (injuryKeywords.test(lowerUser) && bodyParts.test(lowerUser)) {
+    const bodyMatch = lowerUser.match(bodyParts);
+    const body = bodyMatch ? bodyMatch[0] : 'unspecified';
+    observations.push({
+      type: 'injury',
+      category: 'general',
+      content: `User mentioned ${body} issue: "${userMessage.slice(0, 100)}"`,
+      source: 'user-stated',
+      confidence: 0.9,
+    });
+  }
+
+  // User-stated preferences
+  const preferencePatterns = [
+    { regex: /\b(i prefer|i like|i'd rather|i want more|i want less|i hate|i don't like|i love|i enjoy)\b/, category: 'general' },
+    { regex: /\b(shorter warm.?up|longer warm.?up|no warm.?up)\b/, category: 'volume' },
+    { regex: /\b(more rest|less rest|more recovery|less recovery)\b/, category: 'recovery' },
+    { regex: /\b(more (?:pool|swim)|less (?:pool|swim)|more gym|less gym)\b/, category: 'scheduling' },
+    { regex: /\b(more (?:intensity|volume|endurance|speed)|harder|easier|lighter|heavier)\b/, category: 'intensity' },
+  ];
+  for (const { regex, category } of preferencePatterns) {
+    if (regex.test(lowerUser)) {
+      observations.push({
+        type: 'preference',
+        category,
+        content: `User stated: "${userMessage.slice(0, 120)}"`,
+        source: 'user-stated',
+        confidence: 0.85,
+      });
+      break; // Only one preference observation per message
+    }
+  }
+
+  // Coach recommendations that imply a training insight
+  const coachRecPatterns = [
+    { regex: /\b(you should|we should|let's (?:reduce|increase|try|add|skip|avoid|switch|focus))\b/, category: 'general' },
+    { regex: /\b(reduce (?:intensity|volume)|dial (?:it |back)|pull back|scale back)\b/, category: 'intensity' },
+    { regex: /\b(increase (?:intensity|volume)|push harder|build up|more (?:volume|intensity))\b/, category: 'intensity' },
+    { regex: /\b(avoid (?:overhead|internal rotation|heavy)|work around)\b/, category: 'technique' },
+  ];
+  for (const { regex, category } of coachRecPatterns) {
+    if (regex.test(lowerCoach)) {
+      observations.push({
+        type: 'insight',
+        category,
+        content: `Coach recommendation: "${coachReply.slice(0, 150)}"`,
+        source: 'coach-analysis',
+        confidence: 0.5, // Lower confidence — coach is advising, not yet confirmed
+      });
+      break;
+    }
+  }
+
+  // Store all extracted observations (non-blocking)
+  if (observations.length > 0) {
+    try {
+      await CoachingMemory.insertMany(observations.map(o => ({
+        swimmerId: profile._id,
+        ...o,
+        relevantWorkoutIds: workout ? [workout._id] : [],
+        active: true,
+      })));
+    } catch (err) {
+      console.warn('Failed to store conversation learnings:', err.message);
+    }
+  }
 }
 
 // ─── LLM Call ───────────────────────────────────────────────────────
