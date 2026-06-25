@@ -105,9 +105,43 @@ These are the functional requirements to build towards.
   1. User Story: As a swimmer, I want to keep track of workouts I completed so that I can track my progress and provide feedback on what went well/how it felt so the SwimCoach workout generation model can be improved.
     1. Display each workout card like you did when the workout was generated
     2. Allow quick and open response feedback on each workout individually and for the comprehensive program overall
-    3. The feedback should be stored in [MEMORY.md](./MEMORY.md) and accessible for the workout generation model (SwimCoach system and OpenNotebook swim training knowledgebase) to reference to make improvements.
+    3. The feedback should be stored in [MEMORY.md](./MEMORY.md) and in the CoachingMemory database, and accessible for the workout generation model (SwimCoach system and OpenNotebook swim training knowledgebase) to reference to make improvements. CoachingMemory provides accumulated insights and trend detection beyond individual feedback entries.
   2. This should also be a UI uses can interact with easily and quickly
-5. **Test and Debug Mode**
+5. **Agentic Coach**
+  1. User Story: As a swimmer, I want to chat with a personal coach that knows me — my training history, my preferences, my injuries, my progress — so I can get guidance that goes beyond individual workouts and actually improves over time.
+    1. Two entry points for coaching conversations:
+      1. General coach (Coach tab in main nav) — personal coach conversations outside of any specific workout. Ask about training, progress, recovery, or just check in.
+      2. Workout-scoped coach (chat on workout page) — discuss or modify the current workout.
+    2. The coach is an AI agent with tool-calling capabilities, not a single-shot chatbot. It can:
+      1. Search the swimming knowledge base for scientific principles to support recommendations
+      2. Look up the swimmer's workout history and feedback
+      3. Analyze training trends across multiple sessions (progress, volume patterns, difficulty distribution)
+      4. Retrieve and store observations about the swimmer (preferences, injuries, patterns)
+      5. Explain the reasoning behind a workout's design
+      6. Propose incremental edits to the current workout (user confirms before applying)
+      7. Regenerate the entire workout with modified preferences
+    3. The coach has a personality defined in soul.md that governs how it communicates and makes decisions:
+      1. Evidence-based coaching philosophy
+      2. Athlete-centered (the plan adapts to the swimmer, not vice versa)
+      3. Decision priority: safety → progression → adaptability → variety → preference
+      4. Direct, conversational communication style — talks like a coach on deck, not a textbook
+      5. Honest about uncertainty, not patronizing
+    4. Coaching memory system that accumulates understanding over time:
+      1. Observations stored per swimmer (preferences, injuries, trends, insights)
+      2. Sources: feedback derivation, coach analysis, user-stated, trend detection
+      3. Confidence scoring — user-stated facts get high confidence, coach inferences get lower
+      4. Trend detection runs periodically (every 5th feedback) to spot patterns across sessions
+      5. Coaching memory feeds back into workout generation so future workouts benefit from accumulated insights
+    5. Conversation persistence:
+      1. Sidebar shows conversation history with titles and timestamps
+      2. Click to continue any past conversation
+      3. New Chat button to start fresh
+    6. Action proposals:
+      1. When the coach proposes a workout change, it's shown as a proposal with Apply/Dismiss buttons
+      2. The user explicitly confirms before any modification is applied
+      3. Proposals expire after 10 minutes for security
+  2. This should also be a UI users can interact with easily and quickly
+6. **Test and Debug Mode**
   1. User Story: As the product manager for SwimCoach, I want to be able to test and have observe how the system works so that I can improve the experience. This mode should:
     1. Display and let me select from the list of all swimmer profiles
     2. Add, display, and let me select different LLMs to power workout generation. I should be able to add using openrouter/nvidia/nemotron-3-super-120b-a12b:free as an example.
@@ -115,7 +149,7 @@ These are the functional requirements to build towards.
       1. retrieve insights from OpenNotebook
       2. generate workouts from the SwimCoach LLM (typically OpenRouter)
   2. This should also be a UI uses can interact with easily and quickly
-6. **Design Principles**
+7. **Design Principles**
   1. User Story: As the designer for SwimCoach, I want the design and branding of the product to follow the guidelines below so that users can better use and resonate with the app.
     1. Simplicity and intuition over complexity
     2. Feeling of Apple meets Strava - stylish yet empowering and energetic
