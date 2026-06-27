@@ -14,15 +14,27 @@ const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
  * Returns an error response if not, or null if OK.
  */
 async function verifyWorkoutOwnership(req, res) {
-  const workout = await Workout.findById(req.params.id);
+  let workout;
+  try {
+    workout = await Workout.findById(req.params.id);
+  } catch (castErr) {
+    // Legacy data: poolWorkout/gymWorkout may be stored as strings
+    const { ObjectId } = require('mongoose').Types;
+    workout = await Workout.collection.findOne({ _id: new ObjectId(req.params.id) });
+  }
   if (!workout) {
     res.status(404).json({ success: false, error: 'Workout not found' });
     return null;
   }
   const swimmerId = resolveSwimmerId(req);
-  const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
+  if (!swimmerId) {
+    res.status(401).json({ success: false, error: 'Authentication required' });
+    return null;
+  }
+  const targetSwimmer = typeof workout.swimmerId === 'object' ? workout.swimmerId?._id : workout.swimmerId;
+  const err = requireOwnership(req, res, swimmerId, targetSwimmer);
   if (err) return null;
-  return workout;
+  return sanitizeWorkout(workout);
 }
 
 // POST /api/workouts — Direct create (for PoC, bypasses NotebookLM bridge)
@@ -70,14 +82,33 @@ router.get('/', async (req, res) => {
     if (req.query.swimmerId) {
       filter.swimmerId = req.query.swimmerId;
     }
+    // Use .lean() to skip Mongoose document hydration — prevents casting errors
+    // when legacy workouts have poolWorkout/gymWorkout stored as strings.
     const workouts = await Workout.find(filter)
       .populate('swimmerId', 'firstName lastName')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, count: workouts.length, data: workouts });
+      .sort({ createdAt: -1 })
+      .lean();
+    // Sanitize: force poolWorkout/gymWorkout to be objects (legacy data may be strings)
+    const sanitized = workouts.map(w => sanitizeWorkout(w));
+    res.json({ success: true, count: sanitized.length, data: sanitized });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+/**
+ * Ensure poolWorkout and gymWorkout are plain objects, not strings or missing.
+ * Older saves occasionally stored these as raw strings when AI returned malformed data.
+ */
+function sanitizeWorkout(w) {
+  if (typeof w.poolWorkout === 'string' || w.poolWorkout == null) {
+    w.poolWorkout = { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, totalDistance: 0, trainingNotes: [] };
+  }
+  if (typeof w.gymWorkout === 'string' || w.gymWorkout == null) {
+    w.gymWorkout = { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, trainingNotes: [] };
+  }
+  return w;
+}
 
 // GET /api/workouts/program/:programId — MUST come before /:id to avoid being shadowed
 router.get('/program/:programId', async (req, res) => {
@@ -88,9 +119,24 @@ router.get('/program/:programId', async (req, res) => {
     const swimmerId = resolveSwimmerId(req);
     if (swimmerId) query.swimmerId = swimmerId;
 
-    const workouts = await Workout.find(query)
-      .populate('swimmerId', 'firstName lastName')
-      .sort({ 'generationInfo.generationParameters.programIndex': 1 });
+    let workouts;
+    try {
+      workouts = await Workout.find(query)
+        .populate('swimmerId', 'firstName lastName')
+        .sort({ 'generationInfo.generationParameters.programIndex': 1 });
+    } catch (castErr) {
+      console.warn('Program query casting failed, using raw:', castErr.message);
+      const { ObjectId } = require('mongoose').Types;
+      const raw = await Workout.collection.find(query)
+        .sort({ 'generationInfo.generationParameters.programIndex': 1 })
+        .toArray();
+      const swimmerIds = [...new Set(raw.map(w => w.swimmerId?.toString()).filter(Boolean))];
+      const swimmers = swimmerIds.length
+        ? await SwimmerProfile.find({ _id: { $in: swimmerIds.map(id => new ObjectId(id)) } }).select('firstName lastName').lean()
+        : [];
+      const swimmerMap = Object.fromEntries(swimmers.map(s => [s._id.toString(), s]));
+      workouts = raw.map(w => ({ ...w, swimmerId: swimmerMap[w.swimmerId?.toString()] || null }));
+    }
     if (!workouts.length) {
       return res.status(404).json({ success: false, error: 'Program not found' });
     }
@@ -103,7 +149,7 @@ router.get('/program/:programId', async (req, res) => {
         swimmerName: workouts[0].swimmerId
           ? `${workouts[0].swimmerId.firstName} ${workouts[0].swimmerId.lastName}`
           : 'Unknown',
-        workouts,
+        workouts: workouts.map(w => sanitizeWorkout(w)),
       },
     });
   } catch (err) {
@@ -114,17 +160,29 @@ router.get('/program/:programId', async (req, res) => {
 // GET /api/workouts/:id
 router.get('/:id', async (req, res) => {
   try {
-    const workout = await Workout.findById(req.params.id).populate('swimmerId');
-    if (!workout) {
-      return res.status(404).json({ success: false, error: 'Workout not found' });
+    let workout;
+    try {
+      workout = await Workout.findById(req.params.id).populate('swimmerId');
+    } catch (castErr) {
+      // Legacy data: poolWorkout/gymWorkout may be stored as strings — fetch raw
+      console.warn('Workout.findById casting failed, using raw doc:', castErr.message);
+      const { ObjectId } = require('mongoose').Types;
+      workout = await Workout.collection.findOne({ _id: new ObjectId(req.params.id) });
+      if (!workout) {
+        return res.status(404).json({ success: false, error: 'Workout not found' });
+      }
+      const swimmer = await SwimmerProfile.findById(workout.swimmerId).select('firstName lastName').lean();
+      workout.swimmerId = swimmer || null;
     }
-    // Verify ownership
+    // Verify ownership — always enforce, even when casting fallback was used
     const swimmerId = resolveSwimmerId(req);
-    if (swimmerId) {
-      const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
-      if (err) return err;
+    if (!swimmerId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
     }
-    res.json({ success: true, data: workout });
+    const targetSwimmer = typeof workout.swimmerId === 'object' ? workout.swimmerId?._id : workout.swimmerId;
+    const err = requireOwnership(req, res, swimmerId, targetSwimmer);
+    if (err) return err;
+    res.json({ success: true, data: sanitizeWorkout(workout) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

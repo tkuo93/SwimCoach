@@ -1041,23 +1041,15 @@ function initGenerateForm() {
     await generateWorkout(form);
   });
 
-  document.querySelectorAll('.quick-buttons button').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await generateWorkout(null, btn.dataset.sessionType);
-    });
-  });
 }
 
-async function generateWorkout(form, quickSessionType) {
-  const btn = form
-    ? form.querySelector('button[type="submit"]')
-    : document.querySelector(`.quick-buttons button[data-session-type="${quickSessionType}"]`);
+async function generateWorkout(form) {
+  const btn = form.querySelector('button[type="submit"]');
 
-  const originalText = btn?.textContent || '⚡ Quick Generate';
+  const originalText = btn?.textContent || 'Generate Custom Workout →';
   btn && (btn.disabled = true);
 
   const genData = collectGenerateFormData(form);
-  if (quickSessionType) genData.sessionType = quickSessionType;
   const isProgram = genData.programPeriod && genData.programPeriod !== 'single';
 
   showLoading(isProgram
@@ -1411,14 +1403,31 @@ async function deleteWorkout(workoutId) {
 
 // ─── Chat Handler ───
 
-// Store conversation state per workout
-const chatConversations = {};
+// Persist conversation state per workout in localStorage
+const CHAT_STORAGE_KEY = 'swimcoach_chat_history';
+
+function loadChatHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveChatHistory(workoutId, messages) {
+  try {
+    const all = loadChatHistory();
+    all[workoutId] = messages;
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(all));
+  } catch { /* quota exceeded — silently ignore */ }
+}
 
 function getConversation(workoutId) {
-  if (!chatConversations[workoutId]) {
-    chatConversations[workoutId] = [];
+  const all = loadChatHistory();
+  if (!all[workoutId]) {
+    all[workoutId] = [];
   }
-  return chatConversations[workoutId];
+  return all[workoutId];
 }
 
 function initChatHandler(workoutId) {
@@ -1429,8 +1438,8 @@ function initChatHandler(workoutId) {
       role: 'coach',
       text: 'Need a change? Ask for a harder/easier version, swap exercises, adjust the duration, or just ask me anything about your workout.',
     });
-    renderConversation(workoutId, conv);
   }
+  renderConversation(workoutId, conv);
 
   const form = document.getElementById(`chat-form-${workoutId}`);
   if (!form) return;
@@ -1449,6 +1458,7 @@ function initChatHandler(workoutId) {
 
     // Add user message
     conv.push({ role: 'user', text });
+    saveChatHistory(workoutId, conv);
     renderConversation(workoutId, conv);
     input.value = '';
 
@@ -1469,6 +1479,7 @@ function initChatHandler(workoutId) {
 
       // Add coach reply
       conv.push({ role: 'coach', text: reply });
+      saveChatHistory(workoutId, conv);
       renderConversation(workoutId, conv);
 
       // If the agent already applied a regeneration, update the display
@@ -1478,8 +1489,8 @@ function initChatHandler(workoutId) {
         container.innerHTML += buildChatPanel(newWorkout._id);
         container.innerHTML += buildFeedbackForm(newWorkout._id, newWorkout.userFeedback);
 
-        chatConversations[newWorkout._id] = conv;
-        delete chatConversations[workoutId];
+        saveChatHistory(newWorkout._id, conv);
+        saveChatHistory(workoutId, []); // clear old key
 
         initChatHandler(newWorkout._id);
         initFeedbackHandler(newWorkout._id, newWorkout.userFeedback);
@@ -1507,11 +1518,19 @@ function initChatHandler(workoutId) {
                       const update = {};
                       update[action.field] = parseActionValue(action.newValue);
                       update.updatedAt = new Date().toISOString();
-                      await api.workouts.update(action.workoutId, update, state.currentProfile?._id);
+                      const result = await api.workouts.update(action.workoutId, update, state.currentProfile?._id);
                       proposalEl.remove();
                       showToast('Change applied!', 'success');
-                      // Reload the workout page to show updated data
-                      loadWorkoutPage(action.workoutId);
+                      // Update the workout card in-place without reloading the page
+                      const updatedWorkout = result.data;
+                      const container = document.getElementById('workout-content');
+                      // Replace only the workout card, preserving chat panel and feedback form
+                      const cardIndex = Array.from(container.children).findIndex(el => el.classList.contains('workout-card'));
+                      if (cardIndex !== -1) {
+                        const temp = document.createElement('div');
+                        temp.innerHTML = buildWorkoutCard(updatedWorkout);
+                        container.replaceChild(temp.firstElementChild, container.children[cardIndex]);
+                      }
                     } catch (err) {
                       showToast(`Failed: ${err.message}`, 'error');
                     }

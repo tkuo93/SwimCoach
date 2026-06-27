@@ -178,8 +178,14 @@ function validateYardsDistances(workout) {
  * Regenerates a workout — deletes the old one and creates a fresh one.
  */
 async function regenerateWorkout(workoutId, profile, customization = {}) {
+  const oldWorkout = await Workout.findById(workoutId);
   await Workout.findByIdAndDelete(workoutId);
-  return generateWorkout(profile, customization);
+  // Preserve the original sessionType so we don't generate pool+gym if the
+  // original was pool-only (or gym-only). Only use 'both' as a fallback.
+  const sessionType = customization.sessionType
+    || (oldWorkout?.generationInfo?.generationParameters?.sessionType)
+    || 'both';
+  return generateWorkout(profile, { ...customization, sessionType });
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────

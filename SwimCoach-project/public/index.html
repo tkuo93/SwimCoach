@@ -248,32 +248,12 @@
     <section id="page-generate" class="page hidden">
       <div class="page-header">
         <h1>Generate Workout</h1>
-        <p class="subtitle">Quick generate with your profile settings, or customize below.</p>
+        <p class="subtitle">Set your preferences and generate a personalized workout.</p>
       </div>
 
-      <!-- Quick Generate -->
-      <div class="quick-generate">
-        <p class="quick-generate-label">Quick Generate — pick your session:</p>
-        <div class="quick-buttons">
-          <button id="btn-quick-pool" class="btn btn-primary btn-xl" data-session-type="pool">
-            🏊 Pool Only
-          </button>
-          <button id="btn-quick-gym" class="btn btn-primary btn-xl" data-session-type="gym">
-            💪 Gym Only
-          </button>
-          <button id="btn-quick-both" class="btn btn-accent btn-xl" data-session-type="both">
-            ⚡ Pool + Gym
-          </button>
-        </div>
-        <p class="hint">Uses your profile defaults — fastest way to get a great workout.</p>
-      </div>
-
-      <div class="divider"><span>or customize</span></div>
-
-      <!-- Customize Form -->
       <form id="generate-form" class="form">
         <div class="form-section">
-          <h2 class="section-title">Workout Preferences</h2>
+          <h2 class="section-title">Workout Generator</h2>
           <div class="form-grid">
             <div class="form-group">
               <label for="sessionType">Session Type</label>
@@ -329,10 +309,7 @@
               </select>
             </div>
           </div>
-        </div>
 
-        <div class="form-section">
-          <h2 class="section-title">Available Equipment</h2>
           <div class="checkbox-group">
             <h3>Pool Equipment</h3>
             <div class="checkbox-grid" id="pool-equipment-checkboxes">
