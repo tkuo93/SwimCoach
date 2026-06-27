@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SwimCoach — Prototype</title>
+<style>
+:root {
+  --teal: #0D7377;
+  --teal-dark: #095456;
+  --teal-light: #E6F4F4;
+  --coral: #FF6B35;
+  --coral-light: #FFF0E8;
+  --white: #ffffff;
+  --gray-900: #1a1a2e;
+  --gray-700: #3a3a55;
+  --gray-500: #75758a;
+  --gray-300: #c0c0cc;
+  --gray-100: #f0f0f5;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --space: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: #1a1a2e;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.phone {
+  width: 375px;
+  background: var(--white);
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+  position: relative;
+  min-height: 700px;
+}
+
+.status-bar {
+  height: 44px;
+  background: var(--teal);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  min-height: calc(100vh - 44px);
+  animation: fadeIn 0.2s ease;
+}
+
+.screen.active { display: flex; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Top bar */
+.top-bar {
+  background: var(--teal);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.top-bar h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex: 1;
+}
+
+.top-bar .back {
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.toggle-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle-btn:active { background: rgba(255,255,255,0.3); }
+
+/* Content area */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: 100px;
+}
+
+/* Metadata */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.meta span {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Note boxes */
+.note-box {
+  border: 2px solid var(--teal);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--teal-light);
+}
+
+.note-box .label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--teal);
+  margin-bottom: 6px;
+}
+
+.note-box p {
+  font-size: 14px;
+  color: var(--gray-900);
+  line-height: 1.5;
+}
+
+.note-box.coral {
+  border-color: var(--coral);
+  background: var(--coral-light);
+}
+
+.note-box.coral .label { color: var(--coral); }
+
+/* Why this workout (collapsible) */
+.collapsible {
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--gray-100);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.collapsible-header .arrow { transition: transform 0.2s; }
+.collapsible.open .arrow { transform: rotate(180deg); }
+
+.collapsible-body {
+  display: none;
+  padding: 14px;
+  border-top: 1px solid var(--gray-300);
+  font-size: 14px;
+  color: var(--gray-700);
+  line-height: 1.5;
+}
+
+.collapsible.open .collapsible-body { display: block; }
+
+/* Set card */
+.set-card {
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.set-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.set-card-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--teal-dark);
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+.set-card-header .distance {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+.set-card .description {
+  font-size: 14px;
+  color: var(--gray-900);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.set-card .set-note {
+  background: var(--coral-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--gray-900);
+  line-height: 1.4;
+}
+
+.set-card .set-note .icon {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.set-card .total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-300);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Grand total */
+.grand-total {
+  text-align: center;
+  padding: 16px;
+  border-top: 2px solid var(--gray-900);
+  margin: 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+/* Buttons */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  margin-bottom: 10px;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  background: var(--coral);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.btn-secondary {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  border: 2px solid var(--teal);
+}
+
+.btn-teal {
+  background: var(--teal);
+  color: white;
+}
+
+/* Onboarding */
+.onboarding-header {
+  padding: 24px 16px 16px;
+  text-align: center;
+}
+
+.onboarding-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+}
+
+.onboarding-header p {
+  font-size: 14px;
+  color: var(--gray-500);
+  line-height: 1.4;
+}
+
+.form-section {
+  padding: 0 16px 20px;
+}
+
+.form-section .label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  padding: 10px 16px;
+  border: 2px solid var(--gray-300);
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-700);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pill.selected {
+  border-color: var(--teal);
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  font-weight: 600;
+}
+
+.pill:active { transform: scale(0.96); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  margin: 8px 0 16px;
+  color: var(--gray-500);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--gray-300);
+}
+
+.optional-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.optional-toggle .arrow { transition: transform 0.2s; }
+.optional-toggle.open .arrow { transform: rotate(180deg); }
+
+.optional-content {
+  display: none;
+  padding: 0 16px 16px;
+}
+
+.optional-content.open { display: block; }
+
+/* Preview screen */
+.preview-card {
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.preview-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 4px;
+}
+
+.preview-card .meta-preview {
+  font-size: 14px;
+  color: var(--gray-500);
+  margin-bottom: 12px;
+}
+
+.preview-structure {
+  border-top: 1px solid var(--gray-300);
+  padding-top: 12px;
+}
+
+.preview-structure .phase {
+  margin-bottom: 8px;
+}
+
+.preview-structure .phase-name {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--teal);
+  margin-bottom: 2px;
+}
+
+.preview-structure .phase-desc {
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.best-time-nudge {
+  border: 2px dashed var(--coral);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+  background: var(--coral-light);
+  text-align: center;
+}
+
+.best-time-nudge p {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--coral);
+  margin-bottom: 10px;
+}
+
+.best-time-nudge .input-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.best-time-nudge input {
+  width: 80px;
+  padding: 10px;
+  border: 2px solid var(--coral);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-family: var(--font);
+  font-weight: 600;
+  text-align: center;
+  color: var(--gray-900);
+}
+
+.best-time-nudge .skip {
+  font-size: 13px;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 8px;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.empty-state h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: var(--gray-500);
+  margin-bottom: 24px;
+}
+
+.week-log {
+  border-top: 2px solid var(--gray-300);
+  padding-top: 16px;
+  margin-top: 24px;
+}
+
+.week-log h4 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gray-500);
+  margin-bottom: 12px;
+}
+
+.week-log .log-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 14px;
+}
+
+.week-log .log-entry:last-child { border-bottom: none; }
+.week-log .log-day { font-weight: 600; color: var(--gray-900); }
+.week-log .log-detail { color: var(--gray-500); }
+.week-log .log-check { color: #16a34a; font-weight: 700; }
+
+/* Compact view */
+.compact-workout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.compact-workout .set-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+.compact-workout .set-display {
+  background: var(--teal);
+  color: white;
+  border-radius: 24px;
+  padding: 32px 40px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.compact-workout .reps {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.compact-workout .stroke {
+  font-size: 20px;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.compact-workout .details {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.compact-workout .set-note-compact {
+  background: var(--coral-light);
+  border-radius: var(--radius);
+  padding: 14px;
+  font-size: 14px;
+  color: var(--gray-900);
+  line-height: 1.5;
+  text-align: left;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.compact-workout .set-note-compact .label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--coral);
+  margin-bottom: 4px;
+}
+
+/* Progress dots */
+.progress {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.progress .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gray-300);
+}
+
+.progress .dot.completed { background: var(--teal); }
+.progress .dot.current {
+  background: var(--coral);
+  width: 14px;
+  height: 14px;
+}
+
+.progress .rest-label {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 4px;
+}
+
+.swipe-hint {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 16px;
+}
+
+/* Coach overlay */
+.coach-overlay {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  background: var(--white);
+  z-index: 100;
+  animation: slideIn 0.25s ease;
+}
+
+.coach-overlay.active { display: flex; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.coach-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message {
+  max-width: 85%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--teal);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.message.coach {
+  align-self: flex-start;
+  background: var(--gray-100);
+  color: var(--gray-900);
+  border-bottom-left-radius: 4px;
+}
+
+.proposal {
+  background: var(--teal-light);
+  border: 2px solid var(--teal);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.proposal p {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal-dark);
+  margin-bottom: 8px;
+}
+
+.proposal .proposal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.proposal .proposal-actions button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.proposal .btn-apply { background: var(--teal); color: white; }
+.proposal .btn-dismiss { background: var(--gray-100); color: var(--gray-700); }
+
+.coach-input {
+  padding: 12px 16px;
+  border-top: 1px solid var(--gray-300);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--gray-100);
+}
+
+.coach-input input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid var(--gray-300);
+  border-radius: 100px;
+  font-size: 14px;
+  font-family: var(--font);
+  outline: none;
+}
+
+.coach-input input:focus { border-color: var(--teal); }
+
+.coach-input .mic-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--coral);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom nav */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border-top: 2px solid var(--gray-300);
+  display: flex;
+  padding: 8px 0;
+  z-index: 50;
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--gray-500);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.nav-item.active { color: var(--teal); }
+.nav-item .nav-icon { font-size: 20px; }
+
+/* Screen selector (for prototype) */
+.screen-selector {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 200;
+}
+
+.screen-selector select {
+  background: transparent;
+  color: white;
+  border: none;
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.screen-selector select option {
+  background: var(--gray-900);
+  color: white;
+}
+</style>
+</head>
+<body>
+
+<div class="screen-selector">
+  <label>Jump to: </label>
+  <select id="screenSelect" onchange="showScreen(this.value)">
+    <option value="onboarding">Onboarding</option>
+    <option value="full">Full Workout</option>
+    <option value="compact">Compact / Execute</option>
+    <option value="empty">Empty State</option>
+    <option value="coach">Coach Chat</option>
+  </select>
+</div>
+
+<div class="phone">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span>●●●●○ 100%</span>
+  </div>
+
+  <!-- SCREEN 1: Onboarding -->
+  <div class="screen active" id="screen-onboarding">
+    <div class="onboarding-header">
+      <h2>SwimCoach</h2>
+      <p>Personalized workout generation + AI coach. Tell us how you train — we'll build your first workout from this. You can add more detail anytime.</p>
+    </div>
+
+    <div class="form-section">
+      <div class="label">Primary goal <span style="font-weight:400;color:var(--gray-500);text-transform:none;letter-spacing:0;">(select all that apply)</span></div>
+      <div class="pill-group" id="goalPills">
+        <div class="pill selected" onclick="togglePill(this)">Improve event time</div>
+        <div class="pill" onclick="togglePill(this)">Build endurance</div>
+        <div class="pill" onclick="togglePill(this)">Maintain fitness</div>
+        <div class="pill" onclick="togglePill(this)">Technique work</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="label">Primary event</div>
+      <div style="display:flex;gap:8px;">
+        <select style="flex:1;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);background:var(--white);">
+          <option>Free</option><option>Back</option><option>Breast</option><option>Fly</option><option>IM</option>
+        </select>
+        <input type="number" value="100" style="width:80px;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);text-align:center;">
+        <select style="width:70px;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);background:var(--white);">
+          <option>m</option><option>yd</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="label">Experience level</div>
+      <div class="pill-group" id="levelPills">
+        <div class="pill" onclick="selectPill(this)">Beginner</div>
+        <div class="pill" onclick="selectPill(this)">Intermediate</div>
+        <div class="pill selected" onclick="selectPill(this)">Advanced</div>
+        <div class="pill" onclick="selectPill(this)">Elite</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="label">Typical session duration</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" value="60" style="width:80px;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:16px;font-family:var(--font);text-align:center;font-weight:600;">
+        <span style="font-size:14px;color:var(--gray-700);">min</span>
+      </div>
+    </div>
+
+    <div class="divider">Want more personalized sets?</div>
+
+    <div class="optional-toggle" onclick="toggleOptional()">
+      <span>Best times, equipment, pool length, gym</span>
+      <span class="arrow">▼</span>
+    </div>
+    <div class="optional-content" id="optionalContent">
+      <div class="form-section">
+        <div class="label">Best time for primary event <span style="color:var(--coral);font-weight:600;">— adds pace calibration</span></div>
+        <input type="text" id="bestTimeInput" placeholder="01:25:00" style="width:100%;padding:12px;border:2px solid var(--coral);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);">
+        <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">Optional. Send-offs and target paces will be based on this time.</div>
+      </div>
+      <div class="form-section">
+        <div class="label">Pool sessions per week</div>
+        <input type="number" placeholder="3" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);">
+      </div>
+      <div class="form-section">
+        <div class="label">Gym sessions per week</div>
+        <input type="number" placeholder="2" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);">
+      </div>
+    </div>
+
+    <div style="padding:0 16px 24px;">
+      <button class="btn btn-primary" onclick="showScreen('full')">Build my first workout →</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Full Workout (default) -->
+  <div class="screen" id="screen-full">
+    <div class="top-bar">
+      <span class="back" onclick="showScreen('empty')">←</span>
+      <h1>Freestyle Endurance</h1>
+      <button class="toggle-btn" onclick="showScreen('compact')">🔲 Compact</button>
+    </div>
+    <div class="content">
+      <div class="meta">
+        <span>45 min</span>
+        <span>2,400m</span>
+        <span>8 sets</span>
+        <span>Zone 2-3</span>
+      </div>
+
+      <div class="note-box">
+        <div class="label">📋 Workout Note</div>
+        <p>Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue. Don't go out hot — first two rounds should feel controlled. You're building ability to hold pace when tired.</p>
+      </div>
+
+      <div class="collapsible" onclick="toggleCollapsible(this)">
+        <div class="collapsible-header">
+          <span>💡 Why this workout</span>
+          <span class="arrow">▼</span>
+        </div>
+        <div class="collapsible-body">
+          Race-pace 50s build your neuromuscular speed. The descending rest tightens the stimulus as fatigue accumulates — this is the USRPT principle.
+        </div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-header">
+          <h3>Warmup</h3>
+          <span class="distance">400m</span>
+        </div>
+        <div class="description">
+          400m easy free<br>
+          4×50 drill choice
+        </div>
+        <div class="set-note">
+          <span class="icon">💬</span> Focus on long strokes — count strokes per length, aim to reduce by 1-2. Breathe bilaterally on the easy free.
+        </div>
+        <div class="total">Total: 400m</div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-header">
+          <h3>Pre-Set</h3>
+          <span class="distance">400m</span>
+        </div>
+        <div class="description">
+          4×50 free · :10 rest · descend 1-4<br>
+          200m kick · fins optional
+        </div>
+        <div class="set-note">
+          <span class="icon">💬</span> Descend means each 50 gets faster. #1 @ 1:20 → #4 @ 1:12. Don't sprint the first two — build into it.
+        </div>
+        <div class="total">Total: 400m</div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-header">
+          <h3>Main Set</h3>
+          <span class="distance">1,800m</span>
+        </div>
+        <div class="description">
+          3× {<br>
+          &nbsp;&nbsp;4×50 free @ 1:25 send-off · Zone 3<br>
+          &nbsp;&nbsp;200m easy recovery<br>
+          }
+        </div>
+        <div class="set-note">
+          <span class="icon">💬</span> Hold 1:10/50 pace on each. If you can't hold it, drop to 1:30 — better to finish slow than blow up. Keep recovery truly easy — this is where you build aerobic base.
+        </div>
+        <div class="total">Total: 1,800m</div>
+      </div>
+
+      <div class="set-card">
+        <div class="set-card-header">
+          <h3>Cooldown</h3>
+          <span class="distance">200m</span>
+        </div>
+        <div class="description">
+          200m choice · easy
+        </div>
+        <div class="set-note">
+          <span class="icon">💬</span> Flush the arms — easy backstroke or choice. HR should drop below 120 before you leave. Stretch shoulders after.
+        </div>
+        <div class="total">Total: 200m</div>
+      </div>
+
+      <div class="grand-total">TOTAL: 2,800m · ~45 min</div>
+
+      <div class="note-box coral">
+        <div class="label">📋 Workout Note (recap)</div>
+        <p>Speed endurance focus. Main set descends in rest to simulate late-race fatigue. Don't go out hot.</p>
+      </div>
+
+      <button class="btn btn-teal" onclick="showScreen('coach')">💬 Discuss with Coach</button>
+      <button class="btn btn-primary" onclick="showScreen('compact')">▶ Start Workout</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: Compact / Execute -->
+  <div class="screen" id="screen-compact">
+    <div class="top-bar">
+      <h1 style="font-size:16px;">Freestyle Endurance · Set 3/8</h1>
+      <button class="toggle-btn" onclick="showScreen('full')">🔲 Overview</button>
+    </div>
+
+    <div class="compact-workout">
+      <div class="optional-toggle" style="position:absolute;top:50px;left:0;right:0;padding:8px 16px;" onclick="toggleOverallNote()">
+        <span>📋 Overall workout note</span>
+        <span class="arrow" id="overallArrow">▼</span>
+      </div>
+
+      <div class="overall-note-overlay" id="overallNoteOverlay" style="display:none;position:absolute;top:90px;left:16px;right:16px;z-index:10;">
+        <div class="note-box" style="margin:0;">
+          <div class="label">📋 Workout Note</div>
+          <p>Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue. Don't go out hot — first two rounds should feel controlled.</p>
+        </div>
+      </div>
+
+      <div style="height:60px;"></div>
+
+      <div class="set-number">SET 3 of 8</div>
+
+      <div class="set-display">
+        <div class="reps">4 × 50m</div>
+        <div class="stroke">Freestyle</div>
+        <div class="details">Zone 3 · 1:25 send-off<br>Rest: :15</div>
+      </div>
+
+      <div class="set-note-compact">
+        <div class="label">💬 Set Note</div>
+        Hold 1:10/50 pace. If you can't hold it, drop to 1:30 — better to finish slow than blow up. Keep recovery easy.
+      </div>
+
+      <div class="progress">
+        <span class="dot completed"></span>
+        <span class="dot completed"></span>
+        <span class="dot current"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+
+      <div style="font-size:12px;color:var(--gray-500);margin-top:4px;">warm → main → cd</div>
+
+      <div class="swipe-hint">← swipe coach &nbsp;&nbsp;&nbsp; swipe timer →</div>
+
+      <button class="btn btn-teal" style="margin-top:20px;padding:12px;font-size:14px;" onclick="showScreen('coach')">💬 Ask Coach</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 5: Empty State -->
+  <div class="screen" id="screen-empty">
+    <div class="top-bar">
+      <h1>SwimCoach</h1>
+    </div>
+    <div class="empty-state">
+      <h2>No workout today</h2>
+      <p>Generate one to get started</p>
+      <button class="btn btn-primary" onclick="showScreen('full')" style="max-width:250px;margin:0 auto 24px;">⊕ Generate Workout</button>
+
+      <div class="week-log">
+        <h4>This Week</h4>
+        <div class="log-entry">
+          <span class="log-day">Mon</span>
+          <span class="log-detail">2,000m · Endurance</span>
+          <span class="log-check">✓</span>
+        </div>
+        <div class="log-entry">
+          <span class="log-day">Wed</span>
+          <span class="log-detail">1,500m · Technique</span>
+          <span class="log-check">✓</span>
+        </div>
+        <div class="log-entry">
+          <span class="log-day">Fri</span>
+          <span class="log-detail" style="color:var(--gray-300);">—</span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-item active">
+        <span class="nav-icon">📋</span>
+        <span>Today</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">💬</span>
+        <span>Coach</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">👤</span>
+        <span>Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 6: Coach Chat Overlay -->
+  <div class="coach-overlay" id="screen-coach">
+    <div class="top-bar">
+      <span class="back" onclick="closeCoach()">←</span>
+      <h1>Your Coach</h1>
+    </div>
+    <div class="coach-messages" id="coachMessages">
+      <div class="message coach" style="font-size:12px;color:var(--gray-500);background:transparent;padding:0 8px;">
+        Coach knows today's workout
+      </div>
+      <div class="message user">
+        Should I do the main set on send-off 1:30 or 1:25 today?
+      </div>
+      <div class="message coach">
+        Based on your last two sessions, 1:25 is realistic. You dropped :08 on the final 50 last time.
+      </div>
+      <div class="message coach">
+        <div class="proposal">
+          <p>Try this:</p>
+          <p style="font-weight:400;font-size:12px;color:var(--gray-700);">Sets 1-4 on 1:25<br>Sets 5-8 on 1:30</p>
+          <div class="proposal-actions">
+            <button class="btn-apply" onclick="applyProposal()">Apply</button>
+            <button class="btn-dismiss" onclick="this.closest('.proposal').style.display='none'">Dismiss</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="coach-input">
+      <input type="text" placeholder="Ask your coach..." id="coachInput">
+      <button class="mic-btn">🎤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const screen = document.getElementById('screen-' + id);
+  if (screen) screen.classList.add('active');
+  document.getElementById('screenSelect').value = id;
+  // Close coach overlay if navigating away
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function selectPill(el) {
+  const group = el.parentElement;
+  group.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function togglePill(el) {
+  el.classList.toggle('selected');
+}
+
+function toggleOptional() {
+  const content = document.getElementById('optionalContent');
+  const toggle = content.previousElementSibling;
+  content.classList.toggle('open');
+  toggle.classList.toggle('open');
+}
+
+function toggleCollapsible(el) {
+  el.classList.toggle('open');
+}
+
+function toggleOverallNote() {
+  const overlay = document.getElementById('overallNoteOverlay');
+  const arrow = document.getElementById('overallArrow');
+  const isOpen = overlay.style.display === 'block';
+  overlay.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function showCoach() {
+  document.getElementById('screen-coach').classList.add('active');
+}
+
+function closeCoach() {
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function applyProposal() {
+  const proposal = document.querySelector('.proposal');
+  proposal.innerHTML = '<p style="color:var(--teal);font-weight:600;font-size:14px;">✓ Applied! Sets updated.</p>';
+}
+
+// Allow sending a message
+document.getElementById('coachInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && this.value.trim()) {
+    const messages = document.getElementById('coachMessages');
+    const msg = document.createElement('div');
+    msg.className = 'message user';
+    msg.textContent = this.value;
+    messages.appendChild(msg);
+    this.value = '';
+    messages.scrollTop = messages.scrollHeight;
+
+    // Simulate coach response
+    setTimeout(() => {
+      const reply = document.createElement('div');
+      reply.className = 'message coach';
+      reply.textContent = "Got it. I'll adjust the next workout based on this.";
+      messages.appendChild(reply);
+      messages.scrollTop = messages.scrollHeight;
+    }, 800);
+  }
+});
+</script>
+</body>
+</html>

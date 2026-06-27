@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SwimCoach — Morning Lap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #faf8f4;
+  --cream-warm: #f5f0e8;
+  --surface: #ffffff;
+  --surface-hover: #faf9f7;
+  --border: #e8e2d8;
+  --border-light: #f0ebe3;
+  --sage: #5b7a5e;
+  --sage-light: #e8efe6;
+  --sage-dark: #3d5440;
+  --coral: #e8654a;
+  --coral-light: #fdf0ec;
+  --coral-dark: #c44a32;
+  --text: #1a1a1a;
+  --text-secondary: #6b6560;
+  --text-muted: #9e978e;
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter Tight', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-full: 100px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: #f0ebe3;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 48px 20px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.phone {
+  width: 375px;
+  background: var(--cream);
+  border-radius: 48px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  max-height: 900px;
+}
+
+.status-bar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.screen.active { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  gap: 12px;
+}
+
+.top-bar h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  flex: 1;
+  color: var(--text);
+}
+
+.top-back {
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 8px;
+  margin-left: -8px;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.top-back:hover { background: var(--surface); color: var(--text); }
+
+.coach-fab {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: white;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.15s;
+}
+
+.coach-fab:active { transform: scale(0.92); }
+
+/* ============================================
+   CONVERSATIONAL ONBOARDING
+   ============================================ */
+
+.onboarding {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.coach-hero {
+  padding: 48px 32px 32px;
+  text-align: center;
+}
+
+.coach-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--sage-light);
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.coach-hero h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.coach-hero p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Conversation bubbles */
+.conversation {
+  flex: 1;
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: bubbleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.bubble-coach {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
+  color: var(--text);
+}
+
+.bubble-user {
+  align-self: flex-end;
+  background: var(--sage);
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+/* Question options */
+.options {
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-btn {
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.option-btn:hover {
+  border-color: var(--sage);
+  background: var(--sage-light);
+}
+
+.option-btn.selected {
+  border-color: var(--sage);
+  background: var(--sage-light);
+  color: var(--sage-dark);
+  font-weight: 600;
+}
+
+.option-btn .sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+/* Input prompt */
+.input-prompt {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--border-light);
+}
+
+.input-prompt input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-prompt input:focus { border-color: var(--sage); }
+.input-prompt input::placeholder { color: var(--text-muted); }
+
+.send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--sage);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s;
+}
+
+.send-btn:active { transform: scale(0.9); }
+
+/* Progress dots */
+.progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0 16px;
+}
+
+.progress-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.3s;
+}
+
+.progress-dot.done { background: var(--sage); }
+.progress-dot.now { background: var(--sage); width: 20px; border-radius: 3px; }
+
+/* ============================================
+   TODAY'S WORKOUT (default landing)
+   ============================================ */
+
+.workout-date {
+  padding: 20px 24px 0;
+}
+
+.date-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.workout-title-large {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* Stats row */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  padding: 20px 24px 24px;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 14px 8px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--sage);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+/* Timeline */
+.timeline {
+  padding: 0 24px 100px;
+}
+
+.timeline-section {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 28px;
+}
+
+.timeline-section::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-section:last-child::before { display: none; }
+
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  z-index: 1;
+}
+
+.timeline-section.done .timeline-dot {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: white;
+}
+
+.timeline-section.active .timeline-dot {
+  background: var(--coral);
+  border-color: var(--coral);
+  color: white;
+  box-shadow: 0 0 0 4px var(--coral-light);
+}
+
+.timeline-card {
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: all 0.2s;
+}
+
+.timeline-section.active .timeline-card {
+  border-color: var(--coral);
+  box-shadow: var(--shadow-md);
+}
+
+.timeline-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.timeline-card-head h4 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-card-head .dist {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.timeline-card .sets {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.timeline-card .coaching {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.timeline-section.done .timeline-card {
+  opacity: 0.5;
+}
+
+/* ============================================
+   COMPARE / EXECUTE
+   ============================================ */
+
+.execute-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.exec-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 24px;
+}
+
+.exec-rest-timer {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 3px solid var(--coral);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.exec-rest-timer::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+.rest-value {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--coral);
+  line-height: 1;
+}
+
+.rest-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+.exec-current-set {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-light);
+}
+
+.exec-set-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sage);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.exec-set-detail {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.exec-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.exec-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.exec-btn:active { transform: scale(0.96); }
+.exec-btn-primary { background: var(--sage); color: white; }
+.exec-btn-ghost { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.empty-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.empty-illustration {
+  font-size: 56px;
+  margin-bottom: 24px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.empty-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+.empty-btn {
+  padding: 16px 32px;
+  background: var(--sage);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-md);
+}
+
+.empty-btn:hover { background: var(--sage-dark); }
+.empty-btn:active { transform: scale(0.96); }
+
+/* ============================================
+   COACH OVERLAY
+   ============================================ */
+
+.coach-panel {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(100%);
+  width: 375px;
+  height: 100%;
+  background: var(--cream);
+  z-index: 200;
+  border-radius: 48px;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.coach-panel.active {
+  display: flex;
+  transform: translateX(-50%);
+}
+
+.coach-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.coach-msg {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.coach-msg-user {
+  align-self: flex-end;
+  background: var(--sage);
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.coach-msg-bot {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 6px;
+}
+
+.coach-msg-context {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: transparent;
+  padding: 4px 8px;
+}
+
+.proposal {
+  background: var(--sage-light);
+  border: 1px solid var(--sage);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.proposal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sage-dark);
+  margin-bottom: 4px;
+}
+
+.proposal-detail {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.proposal-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.proposal-btns button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.proposal-btns button:active { transform: scale(0.95); }
+.btn-apply { background: var(--sage); color: white; }
+.btn-reject { background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.coach-input {
+  padding: 14px 20px 24px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--surface);
+}
+
+.coach-input input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--text);
+  outline: none;
+}
+
+.coach-input input:focus { border-color: var(--sage); }
+.coach-input input::placeholder { color: var(--text-muted); }
+
+/* Bottom nav */
+.nav-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  padding: 8px 0 20px;
+  z-index: 50;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: color 0.15s;
+}
+
+.nav-tab.active { color: var(--sage); }
+.nav-tab .icon { font-size: 20px; }
+
+/* Proto nav */
+.proto-nav {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: rgba(250, 248, 244, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.proto-nav select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: auto;
+}
+
+.proto-nav select option { background: var(--cream); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="proto-nav">
+  <span>VIEW</span>
+  <select id="screenSelect" onchange="showScreen(this.value)">
+    <option value="onboarding">Onboarding</option>
+    <option value="today">Today's Workout</option>
+    <option value="execute">Execute</option>
+    <option value="empty">Empty State</option>
+    <option value="coach">Coach Chat</option>
+  </select>
+</div>
+
+<div class="phone">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="color:var(--sage);">●●●●○</span>
+  </div>
+
+  <!-- ONBOARDING: Conversational -->
+  <div class="screen active" id="screen-onboarding">
+    <div class="onboarding">
+      <div class="coach-hero">
+        <div class="coach-avatar">🏊</div>
+        <h2>Hey, I'm your coach.</h2>
+        <p>I'll build personalized workouts for you. Let's start with the basics — you can always adjust later.</p>
+      </div>
+
+      <div class="progress-dots">
+        <span class="progress-dot now"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+        <span class="progress-dot"></span>
+      </div>
+
+      <div class="conversation" id="conv">
+        <div class="bubble bubble-coach">
+          What's your primary goal? Select all that apply.
+        </div>
+      </div>
+
+      <div class="options" id="options">
+        <button class="option-btn" onclick="selectOption(this)">
+          Improve event time
+          <span class="sub">Drop seconds from your best times</span>
+        </button>
+        <button class="option-btn" onclick="selectOption(this)">
+          Build endurance
+          <span class="sub">Swim longer without stopping</span>
+        </button>
+        <button class="option-btn" onclick="selectOption(this)">
+          Maintain fitness
+          <span class="sub">Stay in shape, feel good</span>
+        </button>
+        <button class="option-btn" onclick="selectOption(this)">
+          Technique work
+          <span class="sub">Improve form and efficiency</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TODAY'S WORKOUT (timeline view) -->
+  <div class="screen" id="screen-today">
+    <div class="top-bar">
+      <span class="top-back" onclick="showScreen('empty')">←</span>
+      <h1>Today's Workout</h1>
+      <button class="coach-fab" onclick="showScreen('coach')">💬</button>
+    </div>
+
+    <div class="workout-date">
+      <div class="date-label">Thursday, June 27</div>
+      <div class="workout-title-large">Freestyle Endurance</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-value">2,800</div>
+        <div class="stat-label">meters</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">45</div>
+        <div class="stat-label">minutes</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">3-4</div>
+        <div class="stat-label">zone</div>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <div class="timeline-section done">
+        <div class="timeline-dot">✓</div>
+        <div class="timeline-card">
+          <div class="timeline-card-head">
+            <h4>Warmup</h4>
+            <span class="dist">400m</span>
+          </div>
+          <div class="sets">400m easy free · 4×50 drill choice</div>
+        </div>
+      </div>
+
+      <div class="timeline-section done">
+        <div class="timeline-dot">✓</div>
+        <div class="timeline-card">
+          <div class="timeline-card-head">
+            <h4>Pre-Set</h4>
+            <span class="dist">400m</span>
+          </div>
+          <div class="sets">4×50 free · :10 rest · descend 1-4<br>200m kick · fins optional</div>
+        </div>
+      </div>
+
+      <div class="timeline-section active">
+        <div class="timeline-dot">●</div>
+        <div class="timeline-card">
+          <div class="timeline-card-head">
+            <h4>Main Set</h4>
+            <span class="dist">1,800m</span>
+          </div>
+          <div class="sets">3× {<br>&nbsp;&nbsp;4×50 free @ 1:25 send-off · Zone 3<br>&nbsp;&nbsp;200m easy recovery<br>}</div>
+          <div class="coaching">Hold 1:10/50 pace. If you can't hold it, drop to 1:30 — better to finish slow than blow up.</div>
+        </div>
+      </div>
+
+      <div class="timeline-section">
+        <div class="timeline-dot">○</div>
+        <div class="timeline-card">
+          <div class="timeline-card-head">
+            <h4>Cooldown</h4>
+            <span class="dist">200m</span>
+          </div>
+          <div class="sets">200m choice · easy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXECUTE -->
+  <div class="screen" id="screen-execute">
+    <div class="top-bar">
+      <h1 style="font-size:15px;">Main Set · 2 of 3</h1>
+      <button class="coach-fab" onclick="showScreen('coach')">💬</button>
+    </div>
+
+    <div class="execute-view">
+      <div class="exec-title">4 × 50m Freestyle</div>
+
+      <div class="exec-current-set">
+        <div class="exec-set-name">Send-off 1:25 · Zone 3</div>
+        <div class="exec-set-detail">Hold 1:10/50 pace across all reps. Take :15 rest between each 50.</div>
+      </div>
+
+      <div class="exec-actions">
+        <button class="exec-btn exec-btn-ghost" onclick="showScreen('today')">← Overview</button>
+        <button class="exec-btn exec-btn-primary">Next Set →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div class="screen" id="screen-empty">
+    <div class="top-bar">
+      <h1>SwimCoach</h1>
+    </div>
+    <div class="empty-view">
+      <div class="empty-illustration">🏊</div>
+      <div class="empty-title">Ready to swim?</div>
+      <div class="empty-desc">Generate a personalized workout for today. I'll calibrate it to your goals and schedule.</div>
+      <button class="empty-btn" onclick="showScreen('today')">Generate Today's Workout</button>
+    </div>
+    <div class="nav-bar">
+      <div class="nav-tab active">
+        <span class="icon">📋</span>
+        <span>Today</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">💬</span>
+        <span>Coach</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">👤</span>
+        <span>Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COACH CHAT -->
+  <div class="coach-panel" id="screen-coach">
+    <div class="top-bar">
+      <span class="top-back" onclick="closeCoach()">←</span>
+      <h1>Coach</h1>
+    </div>
+    <div class="coach-messages" id="coachMsgs">
+      <div class="coach-msg coach-msg-context">Coach knows today's workout</div>
+      <div class="coach-msg coach-msg-user">Should I do the main set on 1:30 or 1:25?</div>
+      <div class="coach-msg coach-msg-bot">Based on your last two sessions, 1:25 is realistic. You dropped :08 on the final 50 last time.</div>
+      <div class="coach-msg coach-msg-bot">
+        <div class="proposal">
+          <div class="proposal-title">Try this:</div>
+          <div class="proposal-detail">Sets 1-4 on 1:25<br>Sets 5-8 on 1:30</div>
+          <div class="proposal-btns">
+            <button class="btn-apply" onclick="applyProposal(this)">Apply</button>
+            <button class="btn-reject" onclick="this.closest('.proposal').style.display='none'">Dismiss</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="coach-input">
+      <input type="text" placeholder="Ask your coach..." id="coachInput">
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.getElementById('screenSelect').value = id;
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function selectOption(btn) {
+  btn.classList.toggle('selected');
+}
+
+function closeCoach() {
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function applyProposal(btn) {
+  btn.closest('.proposal').innerHTML = '<div class="proposal-title" style="color:var(--sage);">✓ Applied! Sets updated.</div>';
+}
+
+document.getElementById('coachInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && this.value.trim()) {
+    const msgs = document.getElementById('coachMsgs');
+    const msg = document.createElement('div');
+    msg.className = 'coach-msg coach-msg-user';
+    msg.textContent = this.value;
+    msgs.appendChild(msg);
+    this.value = '';
+    msgs.scrollTop = msgs.scrollHeight;
+
+    setTimeout(() => {
+      const reply = document.createElement('div');
+      reply.className = 'coach-msg coach-msg-bot';
+      reply.textContent = "Got it. I'll adjust the next workout based on this.";
+      msgs.appendChild(reply);
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 800);
+  }
+});
+</script>
+</body>
+</html>

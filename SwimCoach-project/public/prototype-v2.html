@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SwimCoach — Prototype v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f15;
+  --surface: #141a24;
+  --surface-raised: #1b2330;
+  --border: #253044;
+  --border-subtle: #1e2838;
+  --teal: #00d4aa;
+  --teal-glow: rgba(0, 212, 170, 0.12);
+  --coral: #ff6b35;
+  --coral-glow: rgba(255, 107, 53, 0.12);
+  --text: #eef2f8;
+  --text-secondary: #8b97ad;
+  --text-muted: #535f75;
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-body: 'Instrument Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: #06090e;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 48px 20px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.phone {
+  width: 375px;
+  background: var(--bg);
+  border-radius: 48px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04),
+    0 40px 120px rgba(0,0,0,0.6);
+  position: relative;
+  max-height: 900px;
+}
+
+/* Status bar */
+.status-bar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+/* Screen transitions */
+.screen {
+  display: none;
+  flex-direction: column;
+  animation: screenIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.screen.active { display: flex; }
+
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  gap: 12px;
+}
+
+.top-bar h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.top-back {
+  font-size: 22px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: -8px;
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.top-back:hover { background: var(--surface); color: var(--text); }
+
+.toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.toggle-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+/* ============================================
+   ONBOARDING
+   ============================================ */
+
+.onboarding {
+  padding-bottom: 32px;
+}
+
+.onboarding-hero {
+  padding: 40px 28px 32px;
+  text-align: left;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.brand-dot {
+  width: 12px;
+  height: 12px;
+  background: var(--teal);
+  border-radius: 50%;
+  box-shadow: 0 0 16px var(--teal-glow);
+}
+
+.tagline {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 20px;
+}
+
+.onboarding-desc {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+/* Form groups */
+.form-group {
+  padding: 0 28px 28px;
+}
+
+.form-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.form-label .hint {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--coral);
+  margin-left: 6px;
+}
+
+/* Pills */
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  padding: 11px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  font-family: var(--font-body);
+}
+
+.pill:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.pill.selected {
+  border-color: var(--teal);
+  background: var(--teal-glow);
+  color: var(--teal);
+  font-weight: 600;
+}
+
+/* Inputs */
+.input-full {
+  width: 100%;
+  padding: 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-family: var(--font-body);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-full:focus { border-color: var(--teal); }
+.input-full::placeholder { color: var(--text-muted); }
+
+select.input-full {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23535f75' d='M5 7.5L.5 2.5h9z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  cursor: pointer;
+}
+
+.event-row {
+  display: flex;
+  gap: 8px;
+}
+
+.event-row select:first-child { flex: 2; }
+.event-row input { flex: 1.2; }
+.event-row select:last-child { flex: 0.8; }
+
+/* Optional section */
+.optional-header {
+  padding: 0 28px 16px;
+}
+
+.divider-text {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  position: relative;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.divider-text::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.divider-text span {
+  background: var(--bg);
+  padding: 0 12px;
+  position: relative;
+}
+
+.optional-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+
+.optional-toggle:hover { color: var(--text); }
+
+.optional-toggle .arrow { font-size: 9px; transition: transform 0.2s; }
+.optional-toggle.open .arrow { transform: rotate(180deg); }
+
+.optional-body {
+  display: none;
+  padding: 0 28px 20px;
+}
+
+.optional-body.open { display: block; }
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .form-group {
+  flex: 1;
+  padding: 0 0 20px;
+}
+
+.field-row .form-group .form-label { margin-bottom: 10px; }
+
+/* CTA */
+.onboarding-cta {
+  padding: 8px 28px 0;
+}
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  background: var(--coral);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 24px var(--coral-glow);
+}
+
+.btn-primary:hover { box-shadow: 0 6px 32px rgba(255, 107, 53, 0.25); }
+.btn-primary:active { transform: scale(0.97); }
+
+/* ============================================
+   FULL WORKOUT
+   ============================================ */
+
+.workout-header {
+  padding: 20px 24px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.workout-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 14px;
+}
+
+.workout-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.stat-chip.highlight {
+  color: var(--teal);
+  background: var(--teal-glow);
+}
+
+/* Workout body */
+.workout-body {
+  padding: 24px 20px 100px;
+}
+
+/* Note callout */
+.callout {
+  background: var(--teal-glow);
+  border: 1px solid var(--teal-dim);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.callout.coral {
+  background: var(--coral-glow);
+  border-color: var(--coral-dim);
+}
+
+.callout-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--teal);
+  margin-bottom: 8px;
+}
+
+.callout.coral .callout-label { color: var(--coral); }
+
+.callout p {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* Collapsible section */
+.expandable {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.expandable-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+
+.expandable-head:hover { color: var(--text); }
+
+.expandable-head .arrow { font-size: 9px; transition: transform 0.2s; }
+.expandable.open .arrow { transform: rotate(180deg); }
+
+.expandable-body {
+  display: none;
+  padding: 0 20px 16px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.expandable.open .expandable-body { display: block; }
+
+/* Set section */
+.set-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 14px;
+}
+
+.set-section:last-child {
+  margin-bottom: 0;
+}
+
+.set-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.set-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.set-distance {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.set-description {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+
+.set-coaching {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  padding: 10px 14px;
+  background: var(--coral-glow);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+}
+
+.set-total {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Grand total */
+.total-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 20px;
+  margin: 8px 0 20px;
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.total-main {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.total-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+.total-duration {
+  text-align: right;
+}
+
+.total-duration .num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.total-duration .lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Actions */
+.workout-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-coral {
+  background: var(--coral);
+  color: white;
+  box-shadow: 0 4px 20px var(--coral-glow);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+}
+
+.btn-outline:hover { border-color: var(--text-muted); color: var(--text); }
+
+.btn-solid {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-solid:hover { background: var(--surface); }
+
+/* ============================================
+   COMPACT / EXECUTE
+   ============================================ */
+
+.compact-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.compact-overall-note {
+  position: absolute;
+  top: 56px;
+  left: 16px;
+  right: 16px;
+  z-index: 10;
+}
+
+.compact-overall-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+
+.compact-overall-toggle:hover { color: var(--text-secondary); }
+.compact-overall-toggle .arrow { font-size: 8px; transition: transform 0.2s; }
+
+.compact-overall-body {
+  display: none;
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  text-align: left;
+}
+
+.compact-overall-body.open { display: block; }
+
+.compact-set-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.compact-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 40px 28px 32px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.compact-reps {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.compact-stroke {
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.compact-details {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--teal);
+  line-height: 1.7;
+}
+
+.compact-coaching {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.55;
+  text-align: left;
+  margin-bottom: 24px;
+  width: 100%;
+  border-left: 3px solid var(--coral);
+}
+
+.compact-coaching-label {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--coral);
+  margin-bottom: 6px;
+}
+
+/* Progress dots */
+.dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.dot.done { background: var(--teal); }
+.dot.now {
+  background: var(--coral);
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 12px var(--coral-glow);
+}
+
+.swipe-hint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.empty-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.empty-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.empty-cta {
+  max-width: 240px;
+}
+
+.week-summary {
+  width: 100%;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 24px;
+  margin-top: 32px;
+  text-align: left;
+}
+
+.week-summary-title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.week-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.week-row:last-child { border-bottom: none; }
+.week-day { font-weight: 600; width: 36px; color: var(--text); }
+.week-info { color: var(--text-secondary); flex: 1; }
+.week-done { color: var(--teal); font-weight: 700; font-size: 14px; }
+
+/* Bottom nav */
+.nav-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  padding: 8px 0 20px;
+  z-index: 50;
+}
+
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: color 0.15s;
+}
+
+.nav-tab.active { color: var(--teal); }
+.nav-tab .icon { font-size: 20px; }
+
+/* ============================================
+   COACH OVERLAY
+   ============================================ */
+
+.coach-panel {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(100%);
+  width: 375px;
+  height: 100%;
+  background: var(--bg);
+  z-index: 200;
+  border-radius: 48px;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.coach-panel.active {
+  display: flex;
+  transform: translateX(-50%);
+}
+
+.coach-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.msg {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.msg-user {
+  align-self: flex-end;
+  background: var(--teal);
+  color: var(--bg);
+  border-bottom-right-radius: 6px;
+  font-weight: 500;
+}
+
+.msg-coach {
+  align-self: flex-start;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 6px;
+}
+
+.msg-context {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: transparent;
+  padding: 4px 8px;
+}
+
+.proposal-card {
+  background: var(--surface);
+  border: 1px solid var(--teal-dim);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.proposal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  margin-bottom: 4px;
+}
+
+.proposal-detail {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.proposal-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.proposal-btns button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.proposal-btns button:active { transform: scale(0.95); }
+.btn-apply { background: var(--teal); color: var(--bg); }
+.btn-reject { background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border); }
+
+.coach-compose {
+  padding: 14px 16px 20px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--surface);
+}
+
+.coach-compose input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+
+.coach-compose input:focus { border-color: var(--teal); }
+.coach-compose input::placeholder { color: var(--text-muted); }
+
+.mic-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: var(--coral);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+
+.mic-btn:active { transform: scale(0.9); }
+
+/* Screen selector */
+.proto-nav {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: rgba(11, 15, 21, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.proto-nav select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: auto;
+}
+
+.proto-nav select option { background: var(--bg); color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="proto-nav">
+  <span>VIEW</span>
+  <select id="screenSelect" onchange="showScreen(this.value)">
+    <option value="onboarding">Onboarding</option>
+    <option value="full">Full Workout</option>
+    <option value="compact">Compact / Execute</option>
+    <option value="empty">Empty State</option>
+    <option value="coach">Coach Chat</option>
+  </select>
+</div>
+
+<div class="phone">
+  <div class="status-bar">
+    <span>9:41</span>
+    <span style="color:var(--teal);">●●●●○</span>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div class="screen active" id="screen-onboarding">
+    <div class="onboarding">
+      <div class="onboarding-hero">
+        <div class="brand-row">
+          <span class="brand">SwimCoach</span>
+          <span class="brand-dot"></span>
+        </div>
+        <div class="tagline">Personalized Workout Generation + AI Coach</div>
+        <p class="onboarding-desc">Tell us how you train. We'll build your first workout from this. You can add more detail anytime.</p>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Primary goal <span class="hint">select all that apply</span></div>
+        <div class="pill-group" id="goalPills">
+          <div class="pill selected" onclick="togglePill(this)">Improve event time</div>
+          <div class="pill" onclick="togglePill(this)">Build endurance</div>
+          <div class="pill" onclick="togglePill(this)">Maintain fitness</div>
+          <div class="pill" onclick="togglePill(this)">Technique work</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Primary event</div>
+        <div class="event-row">
+          <select class="input-full">
+            <option>Free</option><option>Back</option><option>Breast</option><option>Fly</option><option>IM</option>
+          </select>
+          <input class="input-full" type="number" value="100">
+          <select class="input-full">
+            <option>m</option><option>yd</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Experience level</div>
+        <div class="pill-group" id="levelPills">
+          <div class="pill" onclick="selectPill(this)">Beginner</div>
+          <div class="pill" onclick="selectPill(this)">Intermediate</div>
+          <div class="pill selected" onclick="selectPill(this)">Advanced</div>
+          <div class="pill" onclick="selectPill(this)">Elite</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Typical session duration</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input class="input-full" type="number" value="60" style="width:100px;text-align:center;font-size:20px;font-weight:600;padding:14px;">
+          <span style="color:var(--text-secondary);font-size:14px;">min</span>
+        </div>
+      </div>
+
+      <div class="optional-header">
+        <div class="divider-text"><span>Optional Details</span></div>
+      </div>
+
+      <div class="optional-toggle" onclick="toggleOptional()">
+        <span>Best times, sessions per week, gym <span style="color:var(--text-muted);font-weight:400;font-size:11px;">· 3 fields</span></span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="optional-body" id="optionalContent">
+        <div class="form-group">
+          <div class="form-label">Best time for primary event <span class="hint">calibrates pace</span></div>
+          <input class="input-full" type="text" placeholder="01:25:00" style="border-color:var(--coral);">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Optional. Send-offs and target paces will be based on this.</div>
+        </div>
+        <div class="field-row">
+          <div class="form-group">
+            <div class="form-label">Pool sessions/week</div>
+            <input class="input-full" type="number" placeholder="3">
+          </div>
+          <div class="form-group">
+            <div class="form-label">Gym sessions/week</div>
+            <input class="input-full" type="number" placeholder="2">
+          </div>
+        </div>
+      </div>
+
+      <div class="onboarding-cta">
+        <button class="btn-primary" onclick="showScreen('full')">Build My First Workout →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL WORKOUT (default) -->
+  <div class="screen" id="screen-full">
+    <div class="top-bar">
+      <span class="top-back" onclick="showScreen('empty')">←</span>
+      <h1>Freestyle Endurance</h1>
+      <button class="toggle-btn" onclick="showScreen('compact')">Compact</button>
+    </div>
+
+    <div class="workout-header">
+      <div class="workout-title">Freestyle Endurance</div>
+      <div class="workout-stats">
+        <span class="stat-chip highlight">45 min</span>
+        <span class="stat-chip highlight">2,400m</span>
+        <span class="stat-chip">8 sets</span>
+        <span class="stat-chip">Zone 2-3</span>
+      </div>
+    </div>
+
+    <div class="workout-body">
+      <div class="callout">
+        <div class="callout-label">📋 Workout Note</div>
+        <p>Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue. Don't go out hot — first two rounds should feel controlled. You're building the ability to hold pace when tired.</p>
+      </div>
+
+      <div class="expandable" onclick="toggleExpandable(this)">
+        <div class="expandable-head">
+          <span>💡 Why this workout</span>
+          <span class="arrow">▼</span>
+        </div>
+        <div class="expandable-body">
+          Race-pace 50s build your neuromuscular speed. The descending rest tightens the stimulus as fatigue accumulates — this is the USRPT principle.
+        </div>
+      </div>
+
+      <div class="set-section">
+        <div class="set-head">
+          <span class="set-name">Warmup</span>
+          <span class="set-distance">400m</span>
+        </div>
+        <div class="set-description">
+          400m easy free<br>
+          4×50 drill choice
+        </div>
+        <div class="set-coaching">Focus on long strokes — count strokes per length, aim to reduce by 1-2. Breathe bilaterally on the easy free.</div>
+        <div class="set-total">Total: 400m</div>
+      </div>
+
+      <div class="set-section">
+        <div class="set-head">
+          <span class="set-name">Pre-Set</span>
+          <set-distance>400m</set-distance>
+        </div>
+        <div class="set-description">
+          4×50 free · :10 rest · descend 1-4<br>
+          200m kick · fins optional
+        </div>
+        <div class="set-coaching">Descend means each 50 gets faster. #1 @ 1:20 → #4 @ 1:12. Don't sprint the first two — build into it.</div>
+        <div class="set-total">Total: 400m</div>
+      </div>
+
+      <div class="set-section">
+        <div class="set-head">
+          <span class="set-name">Main Set</span>
+          <span class="set-distance">1,800m</span>
+        </div>
+        <div class="set-description">
+          3× {<br>
+          &nbsp;&nbsp;4×50 free @ 1:25 send-off · Zone 3<br>
+          &nbsp;&nbsp;200m easy recovery<br>
+          }
+        </div>
+        <div class="set-coaching">Hold 1:10/50 pace on each. If you can't hold it, drop to 1:30 — better to finish slow than blow up. Keep recovery truly easy — this is where you build aerobic base.</div>
+        <div class="set-total">Total: 1,800m</div>
+      </div>
+
+      <div class="set-section">
+        <div class="set-head">
+          <span class="set-name">Cooldown</span>
+          <span class="set-distance">200m</span>
+        </div>
+        <div class="set-description">200m choice · easy</div>
+        <div class="set-coaching">Flush the arms — easy backstroke or choice. HR should drop below 120 before you leave. Stretch shoulders after.</div>
+        <div class="set-total">Total: 200m</div>
+      </div>
+
+      <div class="total-bar">
+        <div>
+          <div class="total-main">2,800m</div>
+          <div class="total-sub">total distance</div>
+        </div>
+        <div class="total-duration">
+          <div class="num">~45 min</div>
+          <div class="lbl">duration</div>
+        </div>
+      </div>
+
+      <div class="callout coral">
+        <div class="callout-label">📋 Workout Note (recap)</div>
+        <p>Speed endurance focus. Main set descends in rest to simulate late-race fatigue. Don't go out hot.</p>
+      </div>
+
+      <div class="workout-actions">
+        <div class="btn-row">
+          <button class="btn btn-outline" style="flex:1;" onclick="showScreen('coach')">💬 Coach</button>
+          <button class="btn btn-coral" style="flex:2;" onclick="showScreen('compact')">▶ Start Workout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPACT / EXECUTE -->
+  <div class="screen" id="screen-compact">
+    <div class="top-bar">
+      <h1 style="font-size:15px;">Freestyle Endurance · Set 3/8</h1>
+      <button class="toggle-btn" onclick="showScreen('full')">Overview</button>
+    </div>
+
+    <div class="compact-view">
+      <div class="compact-overall-note">
+        <div class="compact-overall-toggle" onclick="toggleOverallNote()">
+          <span>📋 Overall workout note</span>
+          <span class="arrow" id="overallArrow">▼</span>
+        </div>
+        <div class="compact-overall-body" id="overallBody">
+          <div class="callout" style="margin:0;">
+            <div class="callout-label">📋 Workout Note</div>
+            <p>Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue. Don't go out hot — first two rounds should feel controlled.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="compact-set-label">SET 3 OF 8</div>
+
+      <div class="compact-card">
+        <div class="compact-reps">4 × 50m</div>
+        <div class="compact-stroke">Freestyle</div>
+        <div class="compact-details">Zone 3 · 1:25 send-off<br>Rest: :15</div>
+      </div>
+
+      <div class="compact-coaching">
+        <div class="compact-coaching-label">💬 Set Note</div>
+        Hold 1:10/50 pace. If you can't hold it, drop to 1:30 — better to finish slow than blow up. Keep recovery easy.
+      </div>
+
+      <div class="dots">
+        <span class="dot done"></span>
+        <span class="dot done"></span>
+        <span class="dot now"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+
+      <div class="swipe-hint">← coach &nbsp;&nbsp;·&nbsp;&nbsp; timer →</div>
+
+      <button class="btn btn-solid" style="margin-top:20px;" onclick="showScreen('coach')">💬 Ask Coach</button>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div class="screen" id="screen-empty">
+    <div class="top-bar">
+      <h1>SwimCoach</h1>
+    </div>
+    <div class="empty-view">
+      <div class="empty-icon">🏊</div>
+      <div class="empty-title">No Workout Today</div>
+      <div class="empty-desc">Generate one to get started</div>
+      <button class="btn-primary empty-cta" onclick="showScreen('full')">⊕ Generate Workout</button>
+
+      <div class="week-summary">
+        <div class="week-summary-title">This Week</div>
+        <div class="week-row">
+          <span class="week-day">Mon</span>
+          <span class="week-info">2,000m · Endurance</span>
+          <span class="week-done">✓</span>
+        </div>
+        <div class="week-row">
+          <span class="week-day">Wed</span>
+          <span class="week-info">1,500m · Technique</span>
+          <span class="week-done">✓</span>
+        </div>
+        <div class="week-row">
+          <span class="week-day">Fri</span>
+          <span class="week-info" style="color:var(--text-muted);">—</span>
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <div class="nav-tab active">
+        <span class="icon">📋</span>
+        <span>Today</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">💬</span>
+        <span>Coach</span>
+      </div>
+      <div class="nav-tab">
+        <span class="icon">👤</span>
+        <span>Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COACH CHAT -->
+  <div class="coach-panel" id="screen-coach">
+    <div class="top-bar">
+      <span class="top-back" onclick="closeCoach()">←</span>
+      <h1>Your Coach</h1>
+    </div>
+    <div class="coach-scroll">
+      <div class="msg msg-context">Coach knows today's workout</div>
+      <div class="msg msg-user">Should I do the main set on send-off 1:30 or 1:25 today?</div>
+      <div class="msg msg-coach">Based on your last two sessions, 1:25 is realistic. You dropped :08 on the final 50 last time.</div>
+      <div class="msg msg-coach">
+        <div class="proposal-card">
+          <div class="proposal-title">Try this:</div>
+          <div class="proposal-detail">Sets 1-4 on 1:25<br>Sets 5-8 on 1:30</div>
+          <div class="proposal-btns">
+            <button class="btn-apply" onclick="applyProposal(this)">Apply</button>
+            <button class="btn-reject" onclick="this.closest('.proposal-card').style.display='none'">Dismiss</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="coach-compose">
+      <input type="text" placeholder="Ask your coach..." id="coachInput">
+      <button class="mic-btn">🎤</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const screen = document.getElementById('screen-' + id);
+  if (screen) screen.classList.add('active');
+  document.getElementById('screenSelect').value = id;
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function selectPill(el) {
+  el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function togglePill(el) {
+  el.classList.toggle('selected');
+}
+
+function toggleOptional() {
+  const body = document.getElementById('optionalContent');
+  const head = body.previousElementSibling;
+  body.classList.toggle('open');
+  head.classList.toggle('open');
+}
+
+function toggleExpandable(el) {
+  el.classList.toggle('open');
+}
+
+function toggleOverallNote() {
+  const body = document.getElementById('overallBody');
+  const arrow = document.getElementById('overallArrow');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open');
+  arrow.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+function closeCoach() {
+  document.getElementById('screen-coach').classList.remove('active');
+}
+
+function applyProposal(btn) {
+  const card = btn.closest('.proposal-card');
+  card.innerHTML = '<div class="proposal-title" style="color:var(--teal);">✓ Applied! Sets updated.</div>';
+}
+
+document.getElementById('coachInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter' && this.value.trim()) {
+    const scroll = document.getElementById('coachScroll') || document.querySelector('.coach-scroll');
+    const msg = document.createElement('div');
+    msg.className = 'msg msg-user';
+    msg.textContent = this.value;
+    scroll.appendChild(msg);
+    this.value = '';
+    scroll.scrollTop = scroll.scrollHeight;
+
+    setTimeout(() => {
+      const reply = document.createElement('div');
+      reply.className = 'msg msg-coach';
+      reply.textContent = "Got it. I'll adjust the next workout based on this.";
+      scroll.appendChild(reply);
+      scroll.scrollTop = scroll.scrollHeight;
+    }, 800);
+  }
+});
+</script>
+</body>
+</html>
