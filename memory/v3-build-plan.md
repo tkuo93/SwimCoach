@@ -17,25 +17,51 @@ metadata:
 
 ---
 
-## Phase 1: Conversational Onboarding (Days 1-2)
-**Goal:** First-time user has a conversation with the coach, lands on their first workout
+## Codebase context (from existing app)
+- Express + MongoDB (Mongoose), serves static files from /public
+- SwimmerProfile schema: firstName, lastName, email, phone, dateOfBirth, gender, goals (primaryEvents, outcomes, targetImprovement, trainingFocus), trainingSchedule (weeklyPoolSessions, weeklyGymSessions, sessionDuration, poolDays, gymDays, preferredTimes, competitionDates), equipment (poolLength, poolEquipment, gymEquipment, weightInventory), bestTimes, experienceLevel, healthConsiderations
+- Workout schema: swimmerId, workoutName, workoutType, date, duration, intensity, poolWorkout (warmUp, mainSet, coolDown, totalDistance, trainingNotes), gymWorkout, userFeedback (rating, difficultyPerception, enjoyment, quality, accuracy, comments), generationInfo
+- API endpoints: /api/profiles (CRUD), /api/workouts (CRUD + /generate + /generate/program + /:id/feedback + /:id/chat + /:id/regenerate), /api/coach/chat, /api/workouts/customize/options, /api/debug (profiles, prompts)
+- Auth: X-Swimmer-Id header or swimmerId in body
+- Frontend: vanilla JS SPA, served as static files
+
+---
+
+## Phase 1: Conversational Onboarding + API Integration (Days 1-3)
+**Goal:** First-time user has a conversation with the coach, profile saved to MongoDB, lands on their first workout
 
 Build:
 - Coach avatar + greeting screen
 - Question/answer flow (6 steps):
-  1. Name (text input)
-  2. Email (text input) — for unique identification
-  3. Primary goal (multi-select pills)
-  4. Primary event (stroke + distance)
-  5. Experience level (single select)
+  1. First name + last name (text inputs)
+  2. Email (text input) — unique identifier, checked against MongoDB
+  3. Primary goal (multi-select pills: improve time, build endurance, maintain fitness, technique)
+  4. Primary event (stroke + distance + pool length unit)
+  5. Experience level (single select: beginner/intermediate/advanced/elite)
   6. Session duration (number input)
-- Optional step: best time, pool sessions/week, gym sessions/week
+- Optional step: best times, pool/gym sessions per week, equipment, schedule
 - Progress dots showing which step they're on
 - Each answer appears as a user bubble, coach responds with next question
-- On completion: POST to server → generate workout → redirect to timeline view
-- Profile stored in localStorage (name, email, goal, event, level, duration)
+- On completion: POST to /api/profiles → save to MongoDB → generate workout → redirect to timeline
+- Landing page: load profiles from /api/profiles, show as selectable cards
+- Profile selection: load profile from /api/profiles/:id, set as active
 
-**Exit condition:** User can complete onboarding and see their first workout in timeline view
+**API endpoints used:**
+- GET /api/profiles — list all profiles (landing page)
+- POST /api/profiles — create new profile (onboarding), body maps to SwimmerProfile schema
+- GET /api/profiles/:id — load profile for selection
+- PUT /api/profiles/:id — update profile (profile edit screen)
+
+**Onboarding maps to schema:**
+- firstName, lastName → SwimmerProfile.firstName, lastName
+- email → SwimmerProfile.email (unique)
+- goal (multi-select) → SwimmerProfile.goals.outcomes (enum: drop-time, build-muscle, lose-weight, maintain, technique)
+- event (stroke+distance) → SwimmerProfile.goals.primaryEvents[0]
+- level → SwimmerProfile.experienceLevel (enum: beginner, intermediate, advanced, elite)
+- duration → SwimmerProfile.trainingSchedule.sessionDuration
+- Optional: best times → SwimmerProfile.bestTimes[], pool/gym sessions → trainingSchedule.weeklyPoolSessions/GymSessions
+
+**Exit condition:** User can create profile (saved to MongoDB), see it on landing page on return, and load it
 
 ---
 
@@ -43,13 +69,13 @@ Build:
 **Goal:** Returning user opens the app and sees today's workout as a timeline
 
 Build:
-- App load logic: check localStorage for profile → skip onboarding if exists
-- Timeline view with chronological set sections
+- App load logic: load profile from localStorage, fetch workouts from GET /api/workouts?swimmerId=xxx
+- Timeline view with chronological set sections from poolWorkout.mainSet
 - Three states per set: done (dimmed + checkmark), active (highlighted coral), upcoming (gray dot)
-- Stats row (distance, duration, zone) as large serif cards
-- Overall workout note at top
+- Stats row (totalDistance, duration, intensity) as large serif cards
+- Overall workout note from trainingNotes
 - "Why this workout" collapsible
-- Per-set coaching notes visible inline
+- Per-set coaching notes from trainingNotes array
 - "Start Workout" button → execute view
 - "Coach" FAB in top-right
 
@@ -113,44 +139,43 @@ Build:
 
 Build:
 - History view:
-  - Reverse chronological list of past workouts
+  - Reverse chronological list of past workouts (GET /api/workouts)
   - Each entry: date, workout name, distance, duration, zone, completion status
   - Tap to view full workout details
   - Stats summary at top: total distance this week, current streak, avg distance/workout
-  - Feedback mechanism (REQUIRED — core to workout generation improvement):
+  - Feedback mechanism (REQUIRED):
     - Star rating (1-5) per workout
     - "How did this feel?" emoji selector (too easy / just right / too hard)
     - Optional text note
-    - Feedback stored and sent to LLM prompt for next generation
-    - Visual indicator on history items that have feedback vs. don't
-  - Edit workout: modify sets (reps, distance, stroke, rest, intensity), save as new version
-  - Delete workout: confirm dialog, removes from history and stats
+    - Feedback POST to /api/workouts/:id/feedback
+    - Feeds into CoachingMemory for next generation
+  - Edit workout: modify sets, PUT /api/workouts/:id
+  - Delete workout: DELETE /api/workouts/:id, confirm dialog
   - Filter by: date range, workout type, rating
 - Empty state: illustration + "Generate Today's Workout" CTA
 - Bottom nav bar: Today | Coach | Profile
 - Nav state persists across screens
-- Smooth screen transitions (fadeSlide animation)
 
-**Exit condition:** App feels complete — all states handled, navigation works, no dead ends
+**Exit condition:** History, feedback, edit, delete all working with API
 
 ---
 
 ## Phase 7: Profile + Settings + Debug (Day 8-9)
-**Goal:** All existing app features available in v3 design language
+**Goal:** All existing app features available in v3 design language, connected to MongoDB
 
-### Profile (restructure of existing profile features)
+### Profile (restructure of existing SwimmerProfile schema)
 - Accessible from bottom nav
-- Sections (all editable):
-  - Identity: name, email
-  - Training: primary goal, primary event, experience level, training focus tags (sprint, distance, technique, endurance, lactate)
-  - Schedule: pool sessions/week, gym sessions/week, pool days (day toggles), gym days
-  - Pool setup: pool length (value + unit), pool equipment (fins, paddles, pull buoy, snorkel, parachute, resistance bands)
-  - Gym setup: gym equipment (barbell, dumbbells, kettlebells, machines, pull-up bar, plyo box, medicine ball, yoga mat, bands, sliders), weight inventory
-  - Goals: desired outcomes, target improvement text, competition date ranges
-  - Best times: stroke + distance + time entries
+- Sections (all editable, PUT /api/profiles/:id):
+  - Identity: firstName, lastName, email, phone, dateOfBirth, gender
+  - Training: primaryEvents (stroke + distance), outcomes, trainingFocus, targetImprovement
+  - Schedule: weeklyPoolSessions, weeklyGymSessions, sessionDuration, poolDays, gymDays, preferredTimes, competitionDates
+  - Pool setup: poolLength (value + unit), poolEquipment (all 6 items)
+  - Gym setup: gymEquipment (all 10 items), weightInventory
+  - Performance: bestTimes (stroke + distance + poolLength + time + dateAchieved)
+  - Health: injuries, limitations, allergies
 - "Generate New Workout" button at bottom
-- All fields pre-populated from existing profile data
-- Edits save immediately (no separate save button)
+- All fields pre-populated from GET /api/profiles/:id
+- Edits save immediately
 
 ### Settings
 - LLM model selector (preset list + custom)
@@ -159,25 +184,25 @@ Build:
 
 ### Debug
 - Hidden behind secret gesture (tap logo 5x or ?debug=1)
-- Profile selector (switch between profiles)
+- Profile selector (switch between profiles from MongoDB)
 - LLM model tester (preset + custom)
-- Test generation with duration selector
+- Test generation with workout type + duration selector
 - View prompts (expandable sections showing system/user prompts)
-- All existing debug functionality preserved
+- All existing debug functionality from debug.js route preserved
 
 ### Workout Generation Options
 - When generating, user chooses:
   - Single session (one workout, today)
   - Weekly block (7 interconnected workouts, Mon-Sun)
-- Weekly block shows all 7 days in timeline after generation
-- Each day in the week block is individually editable/regeneratable
-- Program period selector: single session / weekly / monthly
+- Weekly block: generate 7 workouts, each visible in week view
+- Each day individually editable/regeneratable
+- Generation POST to /api/workouts with programPeriod: 'single' | 'weekly' | 'monthly'
 
-**Exit condition:** Every feature from the existing app is available in v3, just restructured into the new UX
+**Exit condition:** Every feature from the existing app is available in v3, connected to MongoDB
 
 ---
 
-## Phase 8: Polish + Pool-Deck Readiness (Day 9-10)
+## Phase 8: Polish + Pool-Deck Readiness (Day 10-11)
 **Goal:** High contrast, touch-friendly, works in sunlight
 
 Build:

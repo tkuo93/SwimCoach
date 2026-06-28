@@ -4,7 +4,8 @@ const Workout = require('../../models/Workout');
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { generateWorkout, regenerateWorkout } = require('../../services/workout-generator');
 const { syncFeedbackToMemory, detectTrends } = require('../../services/coaching-memory-sync');
-const { appendFeedback, deriveLearning } = require('../../services/memory');
+const { appendFeedback, deriveLearning, getFeedbackSummary } = require('../../services/memory');
+const { getCoachingObservations, getAllNotebookNotes } = require('../../services/workout-ai');
 const { chat: legacyChat } = require('../../services/chat-with-coach');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
 const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
@@ -492,7 +493,7 @@ function checkTaper(sessionDate, competitionDates) {
 // Body: { swimmerId, programPeriod, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, sessionsPerWeek? }
 router.post('/generate/program', async (req, res) => {
   try {
-    const { swimmerId, programPeriod, sessionsPerWeek, ...customization } = req.body;
+    const { swimmerId, programPeriod, sessionsPerWeek, weekStartOffset = 0, ...customization } = req.body;
 
     if (!swimmerId) {
       return res.status(400).json({ success: false, error: 'swimmerId is required' });
@@ -538,8 +539,12 @@ router.post('/generate/program', async (req, res) => {
 
     // ── Build weekly schedule from profile's pool/gym days ──
     const DAY_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const poolDays = (profile.trainingSchedule?.poolDays || []).map(d => d.toLowerCase());
-    const gymDays  = (profile.trainingSchedule?.gymDays  || []).map(d => d.toLowerCase());
+    // Allow per-generation overrides of pool/gym days (e.g. custom week flow).
+    // An empty array is treated as "no override" so the profile default is used.
+    const customPoolDays = Array.isArray(customization.poolDays) && customization.poolDays.length > 0 ? customization.poolDays : null;
+    const customGymDays  = Array.isArray(customization.gymDays)  && customization.gymDays.length  > 0 ? customization.gymDays  : null;
+    const poolDays = (customPoolDays || profile.trainingSchedule?.poolDays || []).map(d => d.toLowerCase());
+    const gymDays  = (customGymDays  || profile.trainingSchedule?.gymDays  || []).map(d => d.toLowerCase());
 
     // If no days are configured, fall back to generating all sessions as "both" (legacy behavior)
     const hasSchedule = poolDays.length > 0 || gymDays.length > 0;
@@ -551,6 +556,12 @@ router.post('/generate/program', async (req, res) => {
         if (poolDays.includes(day)) weeklyPattern.push({ dayOfWeek: day, sessionType: 'pool' });
         if (gymDays.includes(day))  weeklyPattern.push({ dayOfWeek: day, sessionType: 'gym' });
       }
+    }
+
+    // Honor a sessionType override ("pool" or "gym") by filtering the pattern.
+    // "both" (or empty) keeps the full profile schedule.
+    if (customization.sessionType === 'pool' || customization.sessionType === 'gym') {
+      weeklyPattern = weeklyPattern.filter(s => s.sessionType === customization.sessionType);
     }
 
     // Determine number of sessions per week
@@ -573,6 +584,9 @@ router.post('/generate/program', async (req, res) => {
       const current = d.getDay();
       const offset = (target - current + 7) % 7;
       d.setDate(d.getDate() + offset);
+      // Midnight in the user's local timezone. The frontend reads dates in
+      // local time too, so the stored date string always matches the day
+      // the user sees — no UTC shift.
       d.setHours(0, 0, 0, 0);
       return d;
     }
@@ -580,14 +594,18 @@ router.post('/generate/program', async (req, res) => {
     // Build the full session plan: [{ date, sessionType }, ...]
     const sessionPlan = [];
     if (hasSchedule && weeklyPattern.length > 0) {
-      // Start from today; first week may not start on Sunday
+      // Start from the Monday of the target week (current week + offset)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const targetMonday = new Date(today);
+      targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset);
 
       for (let week = 0; week < totalWeeks; week++) {
         for (const slot of weeklyPattern) {
           // Find the date for this day-of-week in this week
-          const weekStart = new Date(today);
+          const weekStart = new Date(targetMonday);
           weekStart.setDate(weekStart.getDate() + week * 7);
           const date = nextDateForDay(slot.dayOfWeek, weekStart);
           sessionPlan.push({ date, sessionType: slot.sessionType });
@@ -622,6 +640,20 @@ router.post('/generate/program', async (req, res) => {
     // Competition dates for taper detection
     const competitionDates = profile.trainingSchedule?.competitionDates || [];
 
+    // ── Hoist expensive, session-independent lookups out of the per-session loop ──
+    // Notebook notes, feedback summary, and coaching observations are the same for
+    // every session in a program. Fetching them once (instead of 5×) is the main
+    // reason sessions 4-5 felt slow — each was re-querying the knowledge base.
+    const startTime = Date.now();
+    const feedbackSummary = getFeedbackSummary(10);
+    const coachingObservations = await getCoachingObservations(profile._id);
+    // Determine training focus once so the notes lookup runs a single time.
+    const baseWorkoutType = customization.workoutType
+      || (Array.isArray(profile.goals?.trainingFocus) ? profile.goals.trainingFocus[0] : profile.goals?.trainingFocus)
+      || 'endurance';
+    const notebookNotes = await getAllNotebookNotes(`${baseWorkoutType} training for swimmers`);
+    console.log(`Program context loaded in ${Date.now() - startTime}ms (notes: ${notebookNotes ? 'hit' : 'miss'})`);
+
     for (let i = 0; i < totalSessions; i++) {
       const plan = sessionPlan[i];
       const sessionDate = plan ? plan.date : new Date();
@@ -636,7 +668,13 @@ router.post('/generate/program', async (req, res) => {
         totalSessions,
         programPeriod,
         programId,
-        ...(plan ? { sessionType: plan.sessionType, date: plan.date } : {}),
+        ...(plan ? { date: plan.date } : {}),
+        // sessionType: plan-level pool/gym unless the user overrode it for the whole program
+        ...(plan
+          ? { sessionType: customization.sessionType === 'pool' || customization.sessionType === 'gym'
+              ? customization.sessionType
+              : plan.sessionType }
+          : { sessionType: customization.sessionType || 'both' }),
         // Pass previous session summaries for variety
         ...(previousSessionSummaries.length > 0
           ? { previousSessionSummaries: [...previousSessionSummaries] }
@@ -656,7 +694,7 @@ router.post('/generate/program', async (req, res) => {
       const maxRetries = 3;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          workout = await generateWorkout(profile, sessionCustomization, { mode: 'direct' });
+          workout = await generateWorkout(profile, sessionCustomization, { mode: 'direct', programContext: { feedbackSummary, coachingObservations, notebookNotes } });
           break;
         } catch (genErr) {
           const isRateLimited = genErr.message?.includes('429') || genErr.status === 429 || genErr.statusCode === 429;

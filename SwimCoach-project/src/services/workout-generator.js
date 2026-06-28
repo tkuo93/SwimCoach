@@ -193,45 +193,146 @@ async function regenerateWorkout(workoutId, profile, customization = {}) {
 /**
  * Known equipment requirements for common gym exercises.
  * Maps exercise name keywords -> required equipment.
+ *
+ * NOTE: keywords are matched most-specific-first (array order). Generic terms
+ * like "row" or "lunge" that have bodyweight variants are intentionally
+ * excluded — those exercises are allowed unless the description names a
+ * specific implement (e.g. "dumbbell row", "barbell squat").
  */
 const EXERCISE_EQUIPMENT_MAP = [
   { keywords: ['pull-up', 'pullup', 'chin-up', 'chinup'], equipment: 'pullUpBar' },
   { keywords: ['box jump', 'box step', 'plyo box'], equipment: 'plyometricBox' },
   { keywords: ['medicine ball', 'med ball', 'slam ball'], equipment: 'medicineBall' },
-  { keywords: ['band', 'resistance band'], equipment: 'bands' },
-  { keywords: ['slider', 'ab wheel'], equipment: 'sliders' },
-  { keywords: ['lat pulldown', 'cable', 'leg press', 'machine', 'seated row'], equipment: 'resistanceMachine' },
-  { keywords: ['barbell', 'squat', 'deadlift', 'bench press', 'overhead press', 'hip thrust', 'barbell row', 'barbell curl'], equipment: 'barbell' },
-  { keywords: ['dumbbell', 'db ', 'bicep curl', 'tricep extension', 'shoulder press', 'lunge', 'row', 'chest fly', 'lateral raise', 'dumbbell press'], equipment: 'dumbbell' },
-  { keywords: ['kettlebell', 'kb ', 'kettlebell swing', 'kettlebell clean', 'turkish get-up', 'get up'], equipment: 'kettlebell' },
+  { keywords: ['resistance band'], equipment: 'bands' },
+  { keywords: ['ab wheel'], equipment: 'sliders' },
+  { keywords: ['lat pulldown', 'cable', 'leg press', 'seated row'], equipment: 'resistanceMachine' },
+  { keywords: ['barbell'], equipment: 'barbell' },
+  { keywords: ['dumbbell', 'db '], equipment: 'dumbbell' },
+  { keywords: ['kettlebell', 'kb '], equipment: 'kettlebell' },
 ];
 
 /**
+ * Substitution options when an exercise needs equipment the user doesn't have.
+ * Each entry lists the equipment it can use (any one suffices) and a template.
+ * Order matters: we prefer the user's available gear before falling back to
+ * bodyweight, so a dumbbell user gets a dumbbell variant, not push-ups.
+ */
+const EXERCISE_SUBSTITUTIONS = {
+  chest: [
+    { equipment: ['barbell', 'dumbbell', 'kettlebell'], template: { exercise: 'Floor press', reps: 10, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band chest press', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Push-up variations', reps: 15, sets: 3 } },
+  ],
+  back: [
+    { equipment: ['barbell', 'dumbbell', 'kettlebell'], template: { exercise: 'Bent-over row', reps: 10, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band rows', reps: 15, sets: 3 } },
+    { equipment: ['pullUpBar'], template: { exercise: 'Pull-ups', reps: 8, sets: 3 } },
+    { equipment: [], template: { exercise: 'Superman holds', reps: 12, sets: 3 } },
+  ],
+  shoulders: [
+    { equipment: ['dumbbell', 'kettlebell', 'barbell'], template: { exercise: 'Overhead press', reps: 10, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band shoulder press', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Pike push-ups', reps: 12, sets: 3 } },
+  ],
+  legs: [
+    { equipment: ['barbell', 'dumbbell', 'kettlebell'], template: { exercise: 'Goblet squats', reps: 12, sets: 3 } },
+    { equipment: [], template: { exercise: 'Bodyweight squats', reps: 20, sets: 3 } },
+  ],
+  quads: [
+    { equipment: ['barbell', 'dumbbell', 'kettlebell'], template: { exercise: 'Split squats', reps: 10, sets: 3 } },
+    { equipment: [], template: { exercise: 'Walking lunges', reps: 16, sets: 3 } },
+  ],
+  hamstrings: [
+    { equipment: ['dumbbell', 'kettlebell', 'barbell'], template: { exercise: 'Romanian deadlift', reps: 10, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band good-mornings', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Glute bridges', reps: 15, sets: 3 } },
+  ],
+  glutes: [
+    { equipment: ['dumbbell', 'kettlebell', 'barbell'], template: { exercise: 'Hip thrust', reps: 12, sets: 3 } },
+    { equipment: [], template: { exercise: 'Single-leg glute bridges', reps: 12, sets: 3 } },
+  ],
+  biceps: [
+    { equipment: ['dumbbell', 'barbell', 'kettlebell'], template: { exercise: 'Curls', reps: 12, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band curls', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Isometric curl holds', reps: 10, sets: 3 } },
+  ],
+  triceps: [
+    { equipment: ['dumbbell', 'barbell', 'kettlebell'], template: { exercise: 'Overhead tricep extension', reps: 12, sets: 3 } },
+    { equipment: ['bands'], template: { exercise: 'Band tricep pushdowns', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Bench dips', reps: 15, sets: 3 } },
+  ],
+  core: [
+    { equipment: ['medicineBall'], template: { exercise: 'Med ball slams', reps: 12, sets: 3 } },
+    { equipment: ['kettlebell', 'dumbbell'], template: { exercise: 'Weighted crunches', reps: 15, sets: 3 } },
+    { equipment: [], template: { exercise: 'Plank variations', reps: 8, sets: 3 } },
+  ],
+};
+
+/** Pick the best substitution for a muscle group given available equipment. */
+function pickSubstitution(muscleGroup, availableSet) {
+  const mg = (muscleGroup || 'core').toLowerCase();
+  const options = EXERCISE_SUBSTITUTIONS[mg] || EXERCISE_SUBSTITUTIONS['core'];
+  for (const opt of options) {
+    // An option with no equipment requirement is the bodyweight fallback — always matches.
+    if (opt.equipment.length === 0) return opt.template;
+    // Otherwise require at least one of its equipment to be available.
+    if (opt.equipment.some(eq => availableSet.has(eq))) return opt.template;
+  }
+  // Should never reach here (last option is always bodyweight), but guard anyway.
+  return options[options.length - 1].template;
+}
+
+/**
  * Filter gym exercises to only include those matching available equipment.
- * Exercises that require equipment the user doesn't have are removed.
+ * Exercises requiring unavailable equipment are substituted with a variant
+ * that uses gear the user actually has (or bodyweight if nothing fits),
+ * so the workout keeps its intended size instead of being silently stripped.
  */
 function filterGymExercises(exercises, availableGymGear) {
   if (!exercises || !exercises.length) return [];
   const availableSet = new Set(availableGymGear);
-  // Always allow bodyweight exercises
   availableSet.add('bodyweight');
 
-  return exercises.filter(ex => {
+  const result = [];
+  let substituted = 0;
+
+  for (const ex of exercises) {
     const name = (ex.exercise || '').toLowerCase();
     const notes = (ex.notes || '').toLowerCase();
     const combined = `${name} ${notes}`;
 
+    let required = null;
     for (const mapping of EXERCISE_EQUIPMENT_MAP) {
       for (const keyword of mapping.keywords) {
         if (combined.includes(keyword)) {
-          // This exercise requires specific equipment — check if available
-          return availableSet.has(mapping.equipment);
+          required = mapping.equipment;
+          break;
         }
       }
+      if (required) break;
     }
-    // No specific equipment required — allow it
-    return true;
-  });
+
+    if (!required || availableSet.has(required)) {
+      result.push(ex); // no gear needed, or gear available
+    } else {
+      const sub = pickSubstitution(ex.muscleGroup, availableSet);
+      result.push({
+        ...ex,
+        exercise: `${sub.exercise} (subbed — no ${required})`,
+        reps: sub.reps,
+        sets: sub.sets,
+        weight: 0,
+        weightUnit: null,
+        muscleGroup: ex.muscleGroup,
+      });
+      substituted++;
+    }
+  }
+
+  if (substituted > 0) {
+    console.log(`Substituted ${substituted} gym exercise(s) requiring unavailable equipment`);
+  }
+  return result;
 }
 
 /**

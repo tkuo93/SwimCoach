@@ -182,6 +182,10 @@ function resolvePoolLength(customization, profile) {
     if (typeof cl === 'object' && cl.value) {
       return `${cl.value}${cl.unit === 'yards' ? 'yd' : 'm'}`;
     }
+    // May arrive as a number from the frontend; coerce to a unit string
+    if (typeof cl === 'number') {
+      return customization.poolLengthUnit === 'yards' ? `${cl}yd` : `${cl}m`;
+    }
     return cl; // already a string
   }
   // Profile default
@@ -217,7 +221,10 @@ function isPoolYards(customization, profile) {
     const cl = customization.poolLength;
     if (typeof cl === 'object') return cl.unit === 'yards';
     if (typeof cl === 'string') return /yd|yards|scy/i.test(cl);
+    // numeric poolLength with no recognizable unit — fall through to profile/unit hint
   }
+  if (customization.poolLengthUnit === 'yards') return true;
+  if (customization.poolLengthUnit === 'meters') return false;
   const pl = profile.equipment?.poolLength;
   if (pl) {
     if (typeof pl === 'object') return pl.unit === 'yards';
@@ -311,33 +318,38 @@ function buildInsightsPrompt(profile, customization) {
 
 // ─── Step 2: Generate structured workout via OpenRouter ───────────────
 
-async function generateWorkout(profile, customization) {
+async function generateWorkout(profile, customization, opts = {}) {
   // Resolve training focus once for reuse
   const type = resolveTrainingFocus(profile, customization);
 
-  // Primary: fetch pre-generated notebook notes (fast, condensed insights).
-  // Fallback: RAG query on raw sources only when notes are missing or insufficient.
-  const notesTopic = `${type} training for swimmers`;
-  const notebookNotes = await getAllNotebookNotes(notesTopic);
+  // The program route can pre-fetch these once and pass them in so sessions
+  // 2-5 don't each re-query the knowledge base and coaching memory.
+  const { programContext } = opts;
 
-  // Only run the expensive RAG query on sources if we have no notebook notes.
-  // This avoids sending 167K+ tokens to the LLM when pre-generated notes exist.
+  let notebookNotes;
   let insights = '';
-  if (!notebookNotes) {
-    const cacheKey = hashInsightsPrompt(profile, customization);
-    insights = cacheGet(cacheKey);
-
-    if (insights === null) {
-      insights = await getTrainingInsights(profile, customization);
-      cacheSet(cacheKey, insights);
+  if (programContext?.notebookNotes !== undefined) {
+    notebookNotes = programContext.notebookNotes;
+  } else {
+    const notesTopic = `${type} training for swimmers`;
+    notebookNotes = await getAllNotebookNotes(notesTopic);
+    if (!notebookNotes) {
+      const cacheKey = hashInsightsPrompt(profile, customization);
+      insights = cacheGet(cacheKey);
+      if (insights === null) {
+        insights = await getTrainingInsights(profile, customization);
+        cacheSet(cacheKey, insights);
+      }
     }
   }
 
-  // Get past feedback summary from MEMORY.md
-  const feedbackSummary = getFeedbackSummary(10);
+  const feedbackSummary = programContext?.feedbackSummary !== undefined
+    ? programContext.feedbackSummary
+    : getFeedbackSummary(10);
 
-  // Get accumulated coaching observations from CoachingMemory
-  const coachingObservations = await getCoachingObservations(profile._id);
+  const coachingObservations = programContext?.coachingObservations !== undefined
+    ? programContext.coachingObservations
+    : await getCoachingObservations(profile._id);
 
   // Determine model — allow override via customization (for debug mode)
   // Sanitize user-supplied model to prevent injection into outbound API calls
@@ -357,16 +369,48 @@ async function generateWorkout(profile, customization) {
 
   const userPrompt = buildWorkoutPrompt(profile, promptCustomization, insights, feedbackSummary, coachingObservations, notebookNotes);
 
+  const systemMessage = { role: 'system', content: systemPrompt };
+  const userMessage = { role: 'user', content: userPrompt };
+
+  let result = await callLLM(model, systemMessage, userMessage, 8192);
+  if (!result.content) throw new Error('No response from OpenRouter');
+
+  let parsed = parseWorkoutJSON(result.content);
+
+  // If the JSON didn't parse, the LLM likely truncated mid-output. Retry once
+  // with a higher token limit and the heavy context (insights/notes) stripped
+  // so it has room to finish the workout.
+  if (!parsed && result.finishReason === 'length') {
+    console.warn('Workout JSON truncated (finish_reason=length) — retrying with 16384 tokens, context stripped');
+    const leanPrompt = buildWorkoutPrompt(profile, promptCustomization, '', '', '', '');
+    result = await callLLM(model, systemMessage, { role: 'user', content: leanPrompt }, 16384);
+    if (result.content) parsed = parseWorkoutJSON(result.content);
+  }
+
+  // Last-ditch: try to repair a truncated JSON by closing open brackets.
+  if (!parsed) {
+    const repaired = repairTruncatedJSON(result.content);
+    if (repaired) return repaired;
+  }
+
+  if (!parsed) {
+    console.error('JSON parse error. Raw content:', result.content.substring(0, 500));
+    throw new Error('Failed to parse workout JSON');
+  }
+  return parsed;
+}
+
+/**
+ * Single LLM call. Returns { content, truncated, finishReason }.
+ */
+async function callLLM(model, systemMessage, userMessage, maxTokens) {
   const response = await axios.post(
     `${OPENROUTER_BASE}/chat/completions`,
     {
       model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      messages: [systemMessage, userMessage],
       temperature: 0.7,
-      max_tokens: 8192,
+      max_tokens: maxTokens,
       provider: { order: ['openai'], sort: 'throughput' },
     },
     {
@@ -380,14 +424,16 @@ async function generateWorkout(profile, customization) {
   );
 
   const choice = response.data?.choices?.[0];
-  const finishReason = choice?.finish_reason;
-  if (finishReason === 'length') {
-    throw new Error(`LLM response truncated (finish_reason=length). The max_tokens limit was too low for this workout. Try reducing session duration or complexity.`);
-  }
-
   const content = choice?.message?.content;
-  if (!content) throw new Error('No response from OpenRouter');
+  const finishReason = choice?.finish_reason;
+  return { content, finishReason };
+}
 
+/**
+ * Extract JSON from an LLM response. Returns the parsed object, or null.
+ */
+function parseWorkoutJSON(content) {
+  if (!content) return null;
   let jsonStr = content.trim();
 
   const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
@@ -402,10 +448,41 @@ async function generateWorkout(profile, customization) {
 
   try {
     return JSON.parse(jsonStr);
-  } catch (parseErr) {
-    console.error('JSON parse error. Raw content:', content.substring(0, 500));
-    throw new Error(`Failed to parse workout JSON: ${parseErr.message}`);
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Best-effort repair of a truncated JSON object/array string by closing
+ * open braces, brackets, and quotes. Returns a parsed object or null.
+ */
+function repairTruncatedJSON(content) {
+  if (!content) return null;
+  let s = content.trim();
+  const codeBlockMatch = s.match(/```(?:json)?\s*([\s\S]+?)\s*```/);
+  if (codeBlockMatch) s = codeBlockMatch[1].trim();
+  if (!s.startsWith('{')) {
+    const braceMatch = s.match(/\{[\s\S]+\}/);
+    if (braceMatch) s = braceMatch[0];
+    else s = '{' + s;
+  }
+  // Close open string literals, then close brackets/braces from inside out.
+  let repaired = s;
+  // If we're inside a string (odd number of unescaped quotes), close it.
+  let quotes = 0;
+  for (const ch of repaired) { if (ch === '"') quotes++; }
+  if (quotes % 2 !== 0) repaired += '"';
+  // Close open arrays then objects.
+  let depth = 0; let inStr = false;
+  for (const ch of repaired) {
+    if (ch === '"' && (depth === 0 || repaired[repaired.indexOf(ch) - 1] !== '\\')) inStr = !inStr;
+    if (inStr) continue;
+    if (ch === '{' || ch === '[') depth++;
+    if (ch === '}' || ch === ']') depth = Math.max(0, depth - 1);
+  }
+  for (let i = 0; i < depth; i++) repaired += '}';
+  try { return JSON.parse(repaired); } catch { return null; }
 }
 
 function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, coachingObservations, notebookNotes) {

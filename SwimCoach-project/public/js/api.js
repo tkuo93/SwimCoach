@@ -89,7 +89,7 @@ const api = {
     },
   },
 
-  // ─── Coach ───
+  // ─── Coach (general chat, no workout context) ───
   coach: {
     chat: (data, swimmerId) => request('/coach/chat', {
       method: 'POST',
@@ -104,6 +104,37 @@ const api = {
     dismiss: (conversationId, actionIndex, swimmerId) => request(`/coach/chat/${conversationId}/dismiss`, {
       method: 'POST',
       body: { actionIndex },
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+  },
+
+  // ─── Conversations (persistent chat history) ───
+  _convHeaders(swimmerId) {
+    return swimmerId ? { 'X-Swimmer-Id': swimmerId } : {};
+  },
+  conversations: {
+    list: (includeMessages = false, swimmerId) =>
+      request(`/conversations${includeMessages ? '?includeMessages=true' : ''}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    get: (id, swimmerId) => request(`/conversations/${id}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    findForWorkout: (workoutId, swimmerId) =>
+      request(`/conversations/workout/${workoutId}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    create: (data, swimmerId) => request('/conversations', {
+      method: 'POST',
+      body: data,
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+    addMessages: (id, messages, swimmerId) => request(`/conversations/${id}/messages`, {
+      method: 'PUT',
+      body: { messages },
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+    setTitle: (id, title, swimmerId) => request(`/conversations/${id}/title`, {
+      method: 'PUT',
+      body: { title },
+      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
+    }),
+    delete: (id, swimmerId) => request(`/conversations/${id}`, {
+      method: 'DELETE',
       headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
   },

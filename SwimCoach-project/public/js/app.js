@@ -1403,36 +1403,42 @@ async function deleteWorkout(workoutId) {
 
 // ─── Chat Handler ───
 
-// Persist conversation state per workout in localStorage
-const CHAT_STORAGE_KEY = 'swimcoach_chat_history';
+// Per-workout chat persistence — uses MongoDB-backed Conversation collection
+// instead of localStorage so conversations survive across devices and refreshes.
 
-function loadChatHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY)) || {};
-  } catch {
-    return {};
-  }
+async function getWorkoutConversation(workoutId) {
+  // Try to load an existing conversation for this workout
+  const swimmerId = state.currentProfile?._id;
+  const res = await api.conversations.findForWorkout(workoutId, swimmerId);
+  if (res.success) return res.data;
+  // No existing conversation — create one tied to this workout
+  const created = await api.conversations.create(
+    { title: 'Workout chat', contextWorkoutId: workoutId },
+    swimmerId,
+  );
+  return created.data;
 }
 
-function saveChatHistory(workoutId, messages) {
-  try {
-    const all = loadChatHistory();
-    all[workoutId] = messages;
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(all));
-  } catch { /* quota exceeded — silently ignore */ }
+function persistChatRound(conversationId, userText, coachText) {
+  // Fire-and-forget: save to MongoDB. Failures are non-fatal —
+  // the in-memory copy still renders.
+  if (!conversationId) return;
+  const swimmerId = state.currentProfile?._id;
+  api.conversations.addMessages(
+    conversationId,
+    [
+      { role: 'user', text: userText },
+      { role: 'coach', text: coachText },
+    ],
+    swimmerId,
+  ).catch(() => {});
 }
 
-function getConversation(workoutId) {
-  const all = loadChatHistory();
-  if (!all[workoutId]) {
-    all[workoutId] = [];
-  }
-  return all[workoutId];
-}
-
-function initChatHandler(workoutId) {
-  // Initialize conversation with the opening coach message if fresh
-  const conv = getConversation(workoutId);
+async function initChatHandler(workoutId) {
+  // Load (or create) the persistent conversation for this workout
+  const conversation = await getWorkoutConversation(workoutId);
+  const conv = conversation.messages || [];
+  // Seed welcome message if fresh
   if (conv.length === 0) {
     conv.push({
       role: 'coach',
@@ -1454,11 +1460,8 @@ function initChatHandler(workoutId) {
     const text = input.value.trim();
     if (!text) return;
 
-    const conv = getConversation(workoutId);
-
     // Add user message
     conv.push({ role: 'user', text });
-    saveChatHistory(workoutId, conv);
     renderConversation(workoutId, conv);
     input.value = '';
 
@@ -1479,18 +1482,29 @@ function initChatHandler(workoutId) {
 
       // Add coach reply
       conv.push({ role: 'coach', text: reply });
-      saveChatHistory(workoutId, conv);
+
+      // Persist the conversation round to MongoDB
+      persistChatRound(conversation._id, text, reply);
+
       renderConversation(workoutId, conv);
 
       // If the agent already applied a regeneration, update the display
       if (newWorkout) {
+        // Transfer conversation to the new workout's ID in the background
+        const oldConvId = conversation._id;
+        const newConversation = await getWorkoutConversation(newWorkout._id);
+        await api.conversations.addMessages(
+          newConversation._id,
+          conv.map(m => ({ role: m.role, text: m.text })),
+        );
+        persistChatRound(newConversation._id, text, reply);
+        // Clean up stale old-workout conversation
+        await api.conversations.delete(oldConvId).catch(() => {});
+
         const container = document.getElementById('workout-content');
         container.innerHTML = buildWorkoutCard(newWorkout);
         container.innerHTML += buildChatPanel(newWorkout._id);
         container.innerHTML += buildFeedbackForm(newWorkout._id, newWorkout.userFeedback);
-
-        saveChatHistory(newWorkout._id, conv);
-        saveChatHistory(workoutId, []); // clear old key
 
         initChatHandler(newWorkout._id);
         initFeedbackHandler(newWorkout._id, newWorkout.userFeedback);
@@ -1769,11 +1783,12 @@ async function loadHistoryPage() {
 // ─── Coach Page ───
 
 const coachState = {
-  conversations: [],  // [{ id, title, messages: [{role, text}], createdAt, conversationId }]
+  conversations: [],  // [{ _id, title, messages: [{role, text}], updatedAt, contextWorkoutId }]
   activeConversationId: null,
+  loaded: false,
 };
 
-function loadCoachPage() {
+async function loadCoachPage() {
   const container = document.getElementById('coach-content');
   if (!container) return;
 
@@ -1812,30 +1827,42 @@ function loadCoachPage() {
   layout.appendChild(main);
   container.appendChild(layout);
 
-  // Render existing conversations in sidebar
+  // Load conversations from MongoDB (once per page load)
+  if (!coachState.loaded) {
+    await loadCoachConversations();
+    coachState.loaded = true;
+  }
+
   renderCoachConversationList();
 
-  // Start a new conversation if none active
-  if (!coachState.activeConversationId) {
-    startNewCoachConversation();
-  } else {
+  // Open the active conversation, or the most recent one, or start fresh
+  if (coachState.activeConversationId) {
     renderCoachChat(coachState.activeConversationId);
+  } else if (coachState.conversations.length > 0) {
+    coachState.activeConversationId = coachState.conversations[0]._id;
+    renderCoachChat(coachState.activeConversationId);
+  } else {
+    startNewCoachConversation();
   }
 }
 
-function startNewCoachConversation() {
-  const id = `local_${Date.now()}`;
-  const conversation = {
-    id,
-    title: 'New conversation',
-    messages: [],
-    createdAt: new Date().toISOString(),
-    conversationId: null, // server-assigned after first message
-  };
-  coachState.conversations.unshift(conversation);
-  coachState.activeConversationId = id;
+async function loadCoachConversations() {
+  const res = await api.conversations.list(true);
+  if (res.success) {
+    coachState.conversations = res.data;
+  }
+}
+
+async function startNewCoachConversation() {
+  const swimmerId = state.currentProfile?._id;
+  const created = await api.conversations.create(
+    { title: 'New conversation' },
+    swimmerId,
+  );
+  coachState.conversations.unshift(created.data);
+  coachState.activeConversationId = created.data._id;
   renderCoachConversationList();
-  renderCoachChat(id);
+  renderCoachChat(created.data._id);
 }
 
 function renderCoachConversationList() {
@@ -1844,9 +1871,10 @@ function renderCoachConversationList() {
   list.innerHTML = '';
 
   for (const conv of coachState.conversations) {
+    const convId = conv._id || conv.id;
     const item = document.createElement('div');
-    item.className = `coach-conversation-item ${conv.id === coachState.activeConversationId ? 'active' : ''}`;
-    item.dataset.conversationId = conv.id;
+    item.className = `coach-conversation-item ${convId === coachState.activeConversationId ? 'active' : ''}`;
+    item.dataset.conversationId = convId;
 
     const title = document.createElement('div');
     title.className = 'coach-conversation-title';
@@ -1855,13 +1883,13 @@ function renderCoachConversationList() {
 
     const time = document.createElement('div');
     time.className = 'coach-conversation-time';
-    time.textContent = formatConversationTime(conv.createdAt);
+    time.textContent = formatConversationTime(conv.createdAt || conv.updatedAt);
     item.appendChild(time);
 
     item.addEventListener('click', () => {
-      coachState.activeConversationId = conv.id;
+      coachState.activeConversationId = convId;
       renderCoachConversationList();
-      renderCoachChat(conv.id);
+      renderCoachChat(convId);
     });
 
     list.appendChild(item);
@@ -1873,7 +1901,7 @@ function renderCoachChat(conversationId) {
   if (!main) return;
   main.innerHTML = '';
 
-  const conv = coachState.conversations.find(c => c.id === conversationId);
+  const conv = coachState.conversations.find(c => (c._id || c.id) === conversationId);
   if (!conv) return;
 
   // Chat messages area
@@ -1969,8 +1997,7 @@ function renderCoachChat(conversationId) {
         ...(llmModel && { llmModel }),
       }, swimmerId);
 
-      // Remove typing
-      typingEl.remove();
+           typingEl.remove();
 
       // Show coach reply
       const coachEl = document.createElement('div');
@@ -1980,9 +2007,17 @@ function renderCoachChat(conversationId) {
       coachEl.appendChild(coachP);
       messagesDiv.appendChild(coachEl);
 
-      // Store in conversation
+      // Store in conversation (in-memory)
       conv.messages.push({ role: 'coach', text: result.data.reply });
-      conv.conversationId = result.data.conversationId;
+
+      // Persist the round to MongoDB
+      api.conversations.addMessages(
+        conv._id,
+        [
+          { role: 'user', text: message },
+          { role: 'coach', text: result.data.reply },
+        ],
+      ).catch(() => {});
 
       // Handle action proposals
       if (result.data.actions?.length > 0) {
