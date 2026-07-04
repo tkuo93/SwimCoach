@@ -40,4 +40,4 @@ services:
 # Optional: Add a free Redis for sessions (Render Redis is paid, so we use MongoDB store instead)
 # databases:
 #   - name: swimcoach-redis
-#     plan: free  # Not available on free tier
+#     plan: free  # Not available on free tier# Deploy trigger Sat Jul  4 08:52:04 EDT 2026
