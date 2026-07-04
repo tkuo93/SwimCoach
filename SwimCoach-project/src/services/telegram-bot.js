@@ -222,7 +222,7 @@ class TelegramBotService {
       '3\\. Click \"Link Telegram\" and enter your Telegram ID: `{telegramId}`\n\n' +
       'Or use this direct link: {linkUrl}\n\n' +
       'Once linked, you can:\n' +
-      '\\u2022 /workout \\- Generate today\\'s workout\n' +
+      '\\u2022 /workout - Generate today\'s workout\n' +
       '\\u2022 /coach \\- Chat with your AI coach\n' +
       '\\u2022 /help \\- Show this help',
       { frontendUrl: process.env.FRONTEND_URL, telegramId, linkUrl }
@@ -505,7 +505,7 @@ class TelegramBotService {
     await safeSendMessage(this.bot, chatId,
       '🏊 *SwimCoach Bot Commands*\n\n' +
       '/start \\- Link your account\n' +
-      '/workout \\- Generate today\\'s workout\n' +
+      '/workout \\- Generate today\'s workout\n' +
       '/coach \\- Chat with your AI coach\n' +
       '/help \\- Show this help\n\n' +
       '*In coach chat:* Just type naturally\\!\n' +
