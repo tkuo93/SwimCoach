@@ -73,7 +73,7 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
           <div class="step"><span class="step-num">1</span><span class="step-text">Open Telegram and start a chat with <strong>@SwimCoachBot</strong></span></div>
           <div class="step"><span class="step-num">2</span><span class="step-text">Send <code>/start</code> to the bot</span></div>
           <div class="step"><span class="step-num">3</span><span class="step-text">Copy your Telegram ID shown below</span></div>
-          <div class="step"><span class="step-num">4</span><span class="step-text">Paste it here and click "Generate Link"</span></div>
+          <div class="step"><span class="step-num">4</span><span class="step-text">Click "Generate Link" below</span></div>
         </div>
 
         <div class="qr">
@@ -126,8 +126,8 @@ async function generateLink() {
   }
 
   try {
-    // Call API to generate link token
-    const res = await fetch('/api/profiles/' + profileId + '/telegram-link', {
+    // Call API to generate link token - profileId derived from session on server
+    const res = await fetch('/api/auth/telegram-link-generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -187,17 +187,6 @@ async function verifyToken(token) {
   } catch (err) {
     showError('Verification failed: ' + err.message);
   }
-}
-
-// Get profileId from localStorage or session
-let profileId = localStorage.getItem('sc_profile_id');
-if (!profileId) {
-  // Try to get from current profile
-  const profile = JSON.parse(localStorage.getItem('sc_profile') || 'null');
-  if (profile?._id) profileId = profile._id;
-}
-if (!profileId) {
-  showError('No profile found. Please log in to SwimCoach first.');
 }
 </script>
 </body>

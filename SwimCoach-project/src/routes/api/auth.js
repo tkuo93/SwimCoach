@@ -91,3 +91,44 @@ router.post('/telegram-verify', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// POST /api/auth/telegram-link-generate - Generate Telegram linking token for current user
+router.post('/telegram-link-generate', async (req, res) => {
+  try {
+    const { telegramId } = req.body;
+    if (!telegramId) {
+      return res.status(400).json({ success: false, error: 'Telegram ID required' });
+    }
+
+    // Require authentication - profileId derived from session
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const SwimmerProfile = require('../models/SwimmerProfile');
+    const profile = await SwimmerProfile.findById(req.user._id);
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'Profile not found' });
+    }
+
+    // Check if this Telegram ID is already linked to another account
+    const existingLink = await SwimmerProfile.findOne({ telegramId });
+    if (existingLink && existingLink._id.toString() !== profile._id.toString()) {
+      return res.status(409).json({ success: false, error: 'This Telegram account is already linked to another SwimCoach profile' });
+    }
+
+    // Generate secure linking token
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    profile.telegramLinkToken = token;
+    profile.telegramLinkExpires = expires;
+    await profile.save();
+
+    const linkUrl = `${process.env.FRONTEND_URL}/telegram-link?telegramId=${telegramId}&token=${token}`;
+    res.json({ success: true, data: { token, expires, linkUrl } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});

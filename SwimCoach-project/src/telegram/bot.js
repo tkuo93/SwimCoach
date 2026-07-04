@@ -6,6 +6,7 @@
 const crypto = require('crypto');
 const TelegramBot = require('node-telegram-bot-api');
 const SwimmerProfile = require('../models/SwimmerProfile');
+const CoachSession = require('../models/CoachSession');
 const { generateWorkout } = require('../services/workout-generator');
 const { chat: coachChat } = require('../services/coach/coach-agent');
 
@@ -15,10 +16,21 @@ function escapeMarkdown(text) {
   return String(text).replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
 }
 
+// Safe sender - ensures all dynamic content is escaped
+async function safeSendMessage(bot, chatId, template, values = {}, options = {}) {
+  let text = template;
+  for (const [key, value] of Object.entries(values)) {
+    const escaped = escapeMarkdown(String(value));
+    text = text.replace(new RegExp(`\\{${key}\\}`, 'g'), escaped);
+  }
+  await bot.sendMessage(chatId, text, { ...options, parse_mode: 'MarkdownV2' });
+}
+
 class TelegramBotService {
   constructor() {
     this.bot = null;
     this.webhookUrl = null;
+    this.webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   }
 
   /**
@@ -37,10 +49,15 @@ class TelegramBotService {
     // Create bot WITHOUT polling
     this.bot = new TelegramBot(token, { polling: false });
 
-    // Set webhook
+    // Set webhook with secret token for security
+    const webhookOptions = {};
+    if (this.webhookSecret) {
+      webhookOptions.secret_token = this.webhookSecret;
+    }
+
     try {
-      await this.bot.setWebHook(webhookUrl);
-      console.log(`Telegram: Webhook set to ${webhookUrl}`);
+      await this.bot.setWebHook(webhookUrl, webhookOptions);
+      console.log(`Telegram: Webhook set to ${webhookUrl}${this.webhookSecret ? ' (with secret token)' : ''}`);
     } catch (err) {
       console.error('Telegram: Failed to set webhook:', err.message);
     }
@@ -98,6 +115,60 @@ class TelegramBotService {
   }
 
   /**
+   * Get or create coach session from MongoDB
+   */
+  async getCoachSession(chatId, profile) {
+    let session = await CoachSession.findOne({ chatId });
+    const now = new Date();
+    const ttl = 30 * 60 * 1000; // 30 minutes
+
+    if (!session || (session.expiresAt && session.expiresAt < now)) {
+      // Create new session
+      session = await CoachSession.findOneAndUpdate(
+        { chatId },
+        {
+          chatId,
+          profileId: profile._id,
+          messages: [],
+          expiresAt: new Date(now.getTime() + ttl)
+        },
+        { upsert: true, new: true }
+      );
+    } else {
+      // Refresh TTL and update profile
+      session.expiresAt = new Date(now.getTime() + ttl);
+      session.profileId = profile._id;
+      await session.save();
+    }
+    return session;
+  }
+
+  /**
+   * Verify webhook secret token
+   */
+  verifyWebhookSecret(req) {
+    if (!this.webhookSecret) return true; // No secret configured, allow
+    return req.headers['x-telegram-bot-api-secret-token'] === this.webhookSecret;
+  }
+
+  /**
+   * Process incoming webhook update
+   * Call this from your Express route
+   */
+  processUpdate(req, res) {
+    // Verify secret token
+    if (!this.verifyWebhookSecret(req)) {
+      console.warn('Telegram: Invalid webhook secret token');
+      return res.sendStatus(401);
+    }
+
+    if (this.bot) {
+      this.bot.processUpdate(req.body);
+    }
+    res.sendStatus(200);
+  }
+
+  /**
    * Handle /start - Link Telegram account to SwimCoach profile
    */
   async handleStart(msg, payload) {
@@ -115,35 +186,32 @@ class TelegramBotService {
     // Check if already linked
     const existingProfile = await SwimmerProfile.findOne({ telegramId });
     if (existingProfile) {
-      await this.bot.sendMessage(chatId,
-        `Welcome back, ${escapeMarkdown(existingProfile.firstName)}! 🏊\n\n` +
-        `Your Telegram is already linked to SwimCoach.\n\n` +
-        `Use /workout to generate a workout, or /coach to chat with your coach.`,
-        { parse_mode: 'MarkdownV2' }
+      await safeSendMessage(this.bot, chatId,
+        'Welcome back, {name}! 🏊\n\nYour Telegram is already linked to SwimCoach.\n\nUse /workout to generate a workout, or /coach to chat with your coach.',
+        { name: existingProfile.firstName }
       );
       return;
     }
 
     // Not linked - show linking instructions
     const linkUrl = `${process.env.FRONTEND_URL}/telegram-link?telegramId=${telegramId}`;
-    await this.bot.sendMessage(chatId,
-      `Welcome to SwimCoach! 🏊\n\n` +
-      `To use this bot, you need to link it to your SwimCoach account.\n\n` +
-      `1\\. Open SwimCoach on the web: ${escapeMarkdown(process.env.FRONTEND_URL)}\n` +
-      `2\\. Go to Settings \\u2192 Telegram\n` +
-      `3\\. Click \"Link Telegram\" and enter your Telegram ID: \`${telegramId}\`\n\n` +
-      `Or use this direct link: ${escapeMarkdown(linkUrl)}\n\n` +
-      `Once linked, you can:\n` +
-      `\\u2022 /workout \\- Generate today's workout\n` +
-      `\\u2022 /coach \\- Chat with your AI coach\n` +
-      `\\u2022 /help \\- Show this help`,
-      { parse_mode: 'MarkdownV2' }
+    await safeSendMessage(this.bot, chatId,
+      'Welcome to SwimCoach! 🏊\n\n' +
+      'To use this bot, you need to link it to your SwimCoach account.\n\n' +
+      '1\\. Open SwimCoach on the web: {frontendUrl}\n' +
+      '2\\. Go to Settings \\u2192 Telegram\n' +
+      '3\\. Click \"Link Telegram\" and enter your Telegram ID: `{telegramId}`\n\n' +
+      'Or use this direct link: {linkUrl}\n\n' +
+      'Once linked, you can:\n' +
+      '\\u2022 /workout \\- Generate today\\'s workout\n' +
+      '\\u2022 /coach \\- Chat with your AI coach\n' +
+      '\\u2022 /help \\- Show this help',
+      { frontendUrl: process.env.FRONTEND_URL, telegramId, linkUrl }
     );
   }
 
   /**
    * Link Telegram account using secure token from web
-   * Token is a cryptographically random string stored on profile with expiry
    */
   async linkAccount(chatId, telegramId, token) {
     try {
@@ -154,14 +222,14 @@ class TelegramBotService {
       });
 
       if (!profile) {
-        await this.bot.sendMessage(chatId, '❌ Invalid or expired link token.', { parse_mode: 'MarkdownV2' });
+        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link token.');
         return;
       }
 
       // Check if this Telegram ID is already linked to another account
       const existingLink = await SwimmerProfile.findOne({ telegramId });
       if (existingLink && existingLink._id.toString() !== profile._id.toString()) {
-        await this.bot.sendMessage(chatId, '❌ This Telegram account is already linked to another SwimCoach profile.', { parse_mode: 'MarkdownV2' });
+        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile.');
         return;
       }
 
@@ -171,14 +239,11 @@ class TelegramBotService {
       profile.telegramLinkExpires = undefined;
       await profile.save();
 
-      await this.bot.sendMessage(chatId,
-        `✅ Linked to ${escapeMarkdown(profile.firstName)}!`,
-        { parse_mode: 'MarkdownV2' }
-      );
+      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}!', { name: profile.firstName });
       await this.sendMainMenu(chatId);
     } catch (err) {
       console.error('Telegram link error:', err);
-      await this.bot.sendMessage(chatId, '❌ Failed to link account.', { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '❌ Failed to link account.');
     }
   }
 
@@ -191,18 +256,18 @@ class TelegramBotService {
 
     const profile = await SwimmerProfile.findOne({ telegramId });
     if (!profile) {
-      await this.bot.sendMessage(chatId, '❌ Account not linked. Use /start first.', { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first.');
       return;
     }
 
-    await this.bot.sendMessage(chatId, '🏋️ Generating your workout...');
+    await safeSendMessage(this.bot, chatId, '🏋️ Generating your workout...');
 
     try {
       const workout = await generateWorkout(profile, {}, { mode: 'direct' });
       await this.sendWorkout(chatId, workout);
     } catch (err) {
       console.error('Telegram workout error:', err);
-      await this.bot.sendMessage(chatId, '❌ Failed to generate workout. Try again later.', { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '❌ Failed to generate workout. Try again later.');
     }
   }
 
@@ -214,6 +279,7 @@ class TelegramBotService {
     const gym = workout.gymWorkout || {};
     const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
 
+    // Build workout message with escaped values
     const name = escapeMarkdown(workout.workoutName || workout.workoutType || 'Workout');
     const distance = escapeMarkdown(String(pool.totalDistance || 0));
     const duration = escapeMarkdown(String(workout.duration || 60));
@@ -253,6 +319,7 @@ class TelegramBotService {
         const weightUnit = ex.weightUnit ? escapeMarkdown(ex.weightUnit) : '';
         text += `\\u2022 ${exercise} \\- ${sets}\\u00d7${reps}${weight ? ` @ ${weight}${weightUnit}` : ''}\n`;
       }
+      text += '\n';
     }
 
     // Send with MarkdownV2 parsing
@@ -268,17 +335,15 @@ class TelegramBotService {
 
     const profile = await SwimmerProfile.findOne({ telegramId });
     if (!profile) {
-      await this.bot.sendMessage(chatId, '❌ Account not linked. Use /start first.', { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first.');
       return;
     }
 
-    // Store conversation state (in-memory for simplicity, could use Redis)
-    if (!this.coachSessions) this.coachSessions = new Map();
-    this.coachSessions.set(chatId, { profile, messages: [] });
+    // Get or create coach session from MongoDB
+    await this.getCoachSession(chatId, profile);
 
-    await this.bot.sendMessage(chatId,
-      `💬 *Coach Chat Started*\n\nAsk me anything about your training\!\n\nType your question, or /cancel to end.`,
-      { parse_mode: 'MarkdownV2' }
+    await safeSendMessage(this.bot, chatId,
+      '💬 *Coach Chat Started*\n\nAsk me anything about your training\\!\n\nType your question, or /cancel to end.'
     );
   }
 
@@ -289,23 +354,33 @@ class TelegramBotService {
     const chatId = msg.chat.id;
     const text = msg.text;
 
-    if (!this.coachSessions?.has(chatId)) return; // Not in coach mode
+    // Get session from MongoDB
+    const session = await CoachSession.findOne({ chatId });
+    const now = new Date();
+    if (!session || (session.expiresAt && session.expiresAt < now)) return; // Not in coach mode or expired
 
-    const session = this.coachSessions.get(chatId);
+    // Load profile
+    const profile = await SwimmerProfile.findById(session.profileId);
+    if (!profile) return;
+
+    // Add user message
     session.messages.push({ role: 'user', text });
 
     try {
       const result = await coachChat({
-        profile: session.profile,
+        profile,
         workout: null,
         messages: session.messages,
         userMessage: text,
         mode: 'general',
       });
 
+      // Add coach reply
       session.messages.push({ role: 'coach', text: result.reply });
+      session.expiresAt = new Date(Date.now() + 30 * 60 * 1000); // Refresh TTL
+      await session.save();
 
-      await this.bot.sendMessage(chatId, escapeMarkdown(result.reply), { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '{reply}', { reply: result.reply });
 
       // Handle proposals if any
       if (result.actions?.length) {
@@ -317,7 +392,7 @@ class TelegramBotService {
       }
     } catch (err) {
       console.error('Telegram coach error:', err);
-      await this.bot.sendMessage(chatId, '❌ Coach error. Try again.', { parse_mode: 'MarkdownV2' });
+      await safeSendMessage(this.bot, chatId, '❌ Coach error. Try again.');
     }
   }
 
@@ -328,10 +403,10 @@ class TelegramBotService {
     const desc = escapeMarkdown(action.description || 'Suggested change');
     const detail = escapeMarkdown(action.detail || '');
 
-    await this.bot.sendMessage(chatId,
-      `🤔 *Coach suggests:* ${desc}\n\n${detail}`,
+    await safeSendMessage(this.bot, chatId,
+      '🤔 *Coach suggests:* {desc}\n\n{detail}',
+      { desc, detail },
       {
-        parse_mode: 'MarkdownV2',
         reply_markup: {
           inline_keyboard: [[
             { text: '✅ Apply', callback_data: `apply_${action.action}_${Date.now()}` },
@@ -367,15 +442,14 @@ class TelegramBotService {
    */
   async handleHelp(msg) {
     const chatId = msg.chat.id;
-    await this.bot.sendMessage(chatId,
-      `🏊 *SwimCoach Bot Commands*\n\n` +
-      `/start \\- Link your account\n` +
-      `/workout \\- Generate today's workout\n` +
-      `/coach \\- Chat with your AI coach\n` +
-      `/help \\- Show this help\n\n` +
-      `*In coach chat:* Just type naturally\!\n` +
-      `Type /cancel to exit coach mode.`,
-      { parse_mode: 'MarkdownV2' }
+    await safeSendMessage(this.bot, chatId,
+      '🏊 *SwimCoach Bot Commands*\n\n' +
+      '/start \\- Link your account\n' +
+      '/workout \\- Generate today\\'s workout\n' +
+      '/coach \\- Chat with your AI coach\n' +
+      '/help \\- Show this help\n\n' +
+      '*In coach chat:* Just type naturally\\!\n' +
+      'Type /cancel to exit coach mode.'
     );
   }
 
@@ -384,8 +458,7 @@ class TelegramBotService {
    */
   async sendMainMenu(chatId, text = '') {
     const safeText = escapeMarkdown(text);
-    await this.bot.sendMessage(chatId, safeText || '🏊 *SwimCoach Menu*', {
-      parse_mode: 'MarkdownV2',
+    await safeSendMessage(this.bot, chatId, safeText || '🏊 *SwimCoach Menu*', {}, {
       reply_markup: {
         keyboard: [
           ['🏊 Workout', '💬 Coach'],
@@ -395,16 +468,6 @@ class TelegramBotService {
         one_time_keyboard: false
       }
     });
-  }
-
-  /**
-   * Process incoming webhook update
-   * Call this from your Express route
-   */
-  processUpdate(update) {
-    if (this.bot) {
-      this.bot.processUpdate(update);
-    }
   }
 }
 
