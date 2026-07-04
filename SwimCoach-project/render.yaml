@@ -1,0 +1,13 @@
+# Render config Sat Jul  4 09:54:52 EDT 2026
+services:
+  - type: web
+    name: swimcoach
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: SwimCoach-project
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
