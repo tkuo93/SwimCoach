@@ -1,6 +1,7 @@
 /**
  * SwimCoach API Client
  * Thin fetch wrapper around the Express REST API.
+ * Uses cookie-based authentication (no X-Swimmer-Id header needed).
  */
 
 const BASE = '/api';
@@ -9,6 +10,7 @@ async function request(path, { method = 'GET', body, headers: extraHeaders } = {
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    credentials: 'include', // Include cookies for session auth
   };
   if (body) opts.body = JSON.stringify(body);
 
@@ -41,23 +43,21 @@ const api = {
     create: (data) => request('/profiles', { method: 'POST', body: data }),
     update: (id, data) => request(`/profiles/${id}`, { method: 'PUT', body: data }),
     delete: (id) => request(`/profiles/${id}`, { method: 'DELETE' }),
+    migrate: (profileId) => request('/profiles/migrate', { method: 'POST', body: { profileId } }),
   },
 
-  // ─── Workouts ─ pass swimmerId for ownership verification ───
-  _workoutHeaders(swimmerId) {
-    return swimmerId ? { 'X-Swimmer-Id': swimmerId } : {};
-  },
+  // ─── Workouts ───
   workouts: {
-    list: (swimmerId) => request(`/workouts${swimmerId ? `?swimmerId=${swimmerId}` : ''}`),
-    get: (id, swimmerId) => request(`/workouts/${id}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    generate: (data, swimmerId) => request('/workouts/generate', { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    feedback: (id, data, swimmerId) => request(`/workouts/${id}/feedback`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    chat: (id, data, swimmerId) => request(`/workouts/${id}/chat`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    regenerate: (id, data, swimmerId) => request(`/workouts/${id}/regenerate`, { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    generateProgram: (data, swimmerId) => request('/workouts/generate/program', { method: 'POST', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    getProgram: (programId, swimmerId) => request(`/workouts/program/${programId}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    delete: (id, swimmerId) => request(`/workouts/${id}`, { method: 'DELETE', headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    update: (id, data, swimmerId) => request(`/workouts/${id}`, { method: 'PUT', body: data, headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
+    list: () => request('/workouts'),
+    get: (id) => request(`/workouts/${id}`),
+    generate: (data) => request('/workouts/generate', { method: 'POST', body: data }),
+    feedback: (id, data) => request(`/workouts/${id}/feedback`, { method: 'POST', body: data }),
+    chat: (id, data) => request(`/workouts/${id}/chat`, { method: 'POST', body: data }),
+    regenerate: (id, data) => request(`/workouts/${id}/regenerate`, { method: 'POST', body: data }),
+    generateProgram: (data) => request('/workouts/generate/program', { method: 'POST', body: data }),
+    getProgram: (programId) => request(`/workouts/program/${programId}`),
+    delete: (id) => request(`/workouts/${id}`, { method: 'DELETE' }),
+    update: (id, data) => request(`/workouts/${id}`, { method: 'PUT', body: data }),
   },
 
   // ─── Customization Options ───
@@ -72,18 +72,22 @@ const api = {
     categories: () => request('/knowledge/categories'),
   },
 
-  // ─── Memory ───
+  // ─── Coaching Memory ───
   memory: {
-    get: () => request('/memory'),
-    summary: (max) => request(`/memory/summary${max ? `?max=${max}` : ''}`),
-    append: (data) => request('/memory', { method: 'POST', body: data }),
+    list: (params = {}) => {
+      const qs = new URLSearchParams(params).toString();
+      return request(`/memory${qs ? `?${qs}` : ''}`);
+    },
+    create: (data) => request('/memory', { method: 'POST', body: data }),
+    update: (id, data) => request(`/memory/${id}`, { method: 'PUT', body: data }),
+    delete: (id) => request(`/memory/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Debug ───
   debug: {
     profiles: () => request('/debug/profiles'),
-    prompts: (swimmerId, workoutType, duration, llmModel) => {
-      const params = new URLSearchParams({ swimmerId, workoutType, duration });
+    prompts: (workoutType, duration, llmModel) => {
+      const params = new URLSearchParams({ workoutType, duration });
       if (llmModel) params.set('llmModel', llmModel);
       return request(`/debug/prompts?${params}`);
     },
@@ -91,52 +95,48 @@ const api = {
 
   // ─── Coach (general chat, no workout context) ───
   coach: {
-    chat: (data, swimmerId) => request('/coach/chat', {
+    chat: (data) => request('/coach/chat', {
       method: 'POST',
       body: data,
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
-    confirm: (conversationId, actionIndex, swimmerId) => request(`/coach/chat/${conversationId}/confirm`, {
+    confirm: (conversationId, actionIndex) => request(`/coach/chat/${conversationId}/confirm`, {
       method: 'POST',
       body: { actionIndex },
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
-    dismiss: (conversationId, actionIndex, swimmerId) => request(`/coach/chat/${conversationId}/dismiss`, {
+    dismiss: (conversationId, actionIndex) => request(`/coach/chat/${conversationId}/dismiss`, {
       method: 'POST',
       body: { actionIndex },
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
   },
 
   // ─── Conversations (persistent chat history) ───
-  _convHeaders(swimmerId) {
-    return swimmerId ? { 'X-Swimmer-Id': swimmerId } : {};
-  },
   conversations: {
-    list: (includeMessages = false, swimmerId) =>
-      request(`/conversations${includeMessages ? '?includeMessages=true' : ''}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    get: (id, swimmerId) => request(`/conversations/${id}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    findForWorkout: (workoutId, swimmerId) =>
-      request(`/conversations/workout/${workoutId}`, { headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {} }),
-    create: (data, swimmerId) => request('/conversations', {
+    list: (includeMessages = false) =>
+      request(`/conversations${includeMessages ? '?includeMessages=true' : ''}`),
+    get: (id) => request(`/conversations/${id}`),
+    findForWorkout: (workoutId) =>
+      request(`/conversations/workout/${workoutId}`),
+    create: (data) => request('/conversations', {
       method: 'POST',
       body: data,
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
-    addMessages: (id, messages, swimmerId) => request(`/conversations/${id}/messages`, {
+    addMessages: (id, messages) => request(`/conversations/${id}/messages`, {
       method: 'PUT',
       body: { messages },
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
-    setTitle: (id, title, swimmerId) => request(`/conversations/${id}/title`, {
+    setTitle: (id, title) => request(`/conversations/${id}/title`, {
       method: 'PUT',
       body: { title },
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
-    delete: (id, swimmerId) => request(`/conversations/${id}`, {
+    delete: (id) => request(`/conversations/${id}`, {
       method: 'DELETE',
-      headers: swimmerId ? { 'X-Swimmer-Id': swimmerId } : {},
     }),
+  },
+
+  // ─── Auth ───
+  auth: {
+    me: () => request('/auth/me'),
+    logout: () => request('/auth/logout', { method: 'GET' }),
   },
 };
 

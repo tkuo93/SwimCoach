@@ -4,22 +4,20 @@ const Workout = require('../../models/Workout');
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { generateWorkout, regenerateWorkout } = require('../../services/workout-generator');
 const { syncFeedbackToMemory, detectTrends } = require('../../services/coaching-memory-sync');
-const { appendFeedback, deriveLearning, getFeedbackSummary } = require('../../services/memory');
+const { deriveLearning } = require('../../services/memory');
 const { getCoachingObservations, getAllNotebookNotes } = require('../../services/workout-ai');
 const { chat: legacyChat } = require('../../services/chat-with-coach');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
-const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
 
 /**
  * Verify the requesting user owns the workout.
- * Returns an error response if not, or null if OK.
+ * Returns sanitized workout if OK, or null if not (response already sent).
  */
 async function verifyWorkoutOwnership(req, res) {
   let workout;
   try {
     workout = await Workout.findById(req.params.id);
   } catch (castErr) {
-    // Legacy data: poolWorkout/gymWorkout may be stored as strings
     const { ObjectId } = require('mongoose').Types;
     workout = await Workout.collection.findOne({ _id: new ObjectId(req.params.id) });
   }
@@ -27,14 +25,11 @@ async function verifyWorkoutOwnership(req, res) {
     res.status(404).json({ success: false, error: 'Workout not found' });
     return null;
   }
-  const swimmerId = resolveSwimmerId(req);
-  if (!swimmerId) {
-    res.status(401).json({ success: false, error: 'Authentication required' });
+  const targetSwimmer = typeof workout.swimmerId === 'object' ? workout.swimmerId?._id : workout.swimmerId;
+  if (!req.user || targetSwimmer.toString() !== req.user._id.toString()) {
+    res.status(403).json({ success: false, error: 'Forbidden — you do not own this resource.' });
     return null;
   }
-  const targetSwimmer = typeof workout.swimmerId === 'object' ? workout.swimmerId?._id : workout.swimmerId;
-  const err = requireOwnership(req, res, swimmerId, targetSwimmer);
-  if (err) return null;
   return sanitizeWorkout(workout);
 }
 
@@ -54,16 +49,12 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/workouts/generate
-// Body: { swimmerId, sessionType?, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, programPeriod?, mode? }
+// Body: { sessionType?, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, programPeriod?, mode? }
 router.post('/generate', async (req, res) => {
   try {
-    const { swimmerId, mode = 'direct', ...customization } = req.body;
+    const { mode = 'direct', ...customization } = req.body;
 
-    if (!swimmerId) {
-      return res.status(400).json({ success: false, error: 'swimmerId is required' });
-    }
-
-    const profile = await SwimmerProfile.findById(swimmerId);
+    const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
@@ -76,20 +67,14 @@ router.post('/generate', async (req, res) => {
   }
 });
 
-// GET /api/workouts?swimmerId=xxx
+// GET /api/workouts
 router.get('/', async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.swimmerId) {
-      filter.swimmerId = req.query.swimmerId;
-    }
-    // Use .lean() to skip Mongoose document hydration — prevents casting errors
-    // when legacy workouts have poolWorkout/gymWorkout stored as strings.
-    const workouts = await Workout.find(filter)
+    // Scope to authenticated user
+    const workouts = await Workout.find({ swimmerId: req.user._id })
       .populate('swimmerId', 'firstName lastName')
       .sort({ createdAt: -1 })
       .lean();
-    // Sanitize: force poolWorkout/gymWorkout to be objects (legacy data may be strings)
     const sanitized = workouts.map(w => sanitizeWorkout(w));
     res.json({ success: true, count: sanitized.length, data: sanitized });
   } catch (err) {
@@ -114,11 +99,7 @@ function sanitizeWorkout(w) {
 // GET /api/workouts/program/:programId — MUST come before /:id to avoid being shadowed
 router.get('/program/:programId', async (req, res) => {
   try {
-    const query = { programId: req.params.programId };
-
-    // If swimmerId provided, scope to that user's programs
-    const swimmerId = resolveSwimmerId(req);
-    if (swimmerId) query.swimmerId = swimmerId;
+    const query = { programId: req.params.programId, swimmerId: req.user._id };
 
     let workouts;
     try {
@@ -175,14 +156,11 @@ router.get('/:id', async (req, res) => {
       const swimmer = await SwimmerProfile.findById(workout.swimmerId).select('firstName lastName').lean();
       workout.swimmerId = swimmer || null;
     }
-    // Verify ownership — always enforce, even when casting fallback was used
-    const swimmerId = resolveSwimmerId(req);
-    if (!swimmerId) {
-      return res.status(401).json({ success: false, error: 'Authentication required' });
-    }
+    // Verify ownership
     const targetSwimmer = typeof workout.swimmerId === 'object' ? workout.swimmerId?._id : workout.swimmerId;
-    const err = requireOwnership(req, res, swimmerId, targetSwimmer);
-    if (err) return err;
+    if (!req.user || targetSwimmer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, error: 'Forbidden — you do not own this resource.' });
+    }
     res.json({ success: true, data: sanitizeWorkout(workout) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -215,29 +193,6 @@ router.post('/:id/feedback', async (req, res) => {
     );
     if (!workout) {
       return res.status(404).json({ success: false, error: 'Workout not found' });
-    }
-
-    // Write feedback to MEMORY.md for future generation context
-    try {
-      const profile = await SwimmerProfile.findById(workout.swimmerId);
-      const profileName = profile
-        ? `${profile.firstName} ${profile.lastName}`
-        : 'Unknown';
-
-      appendFeedback({
-        profileName,
-        workoutType: workout.workoutType,
-        rating,
-        difficultyPerception,
-        enjoyment,
-        quality,
-        accuracy,
-        comments,
-        learning: deriveLearning({ rating, difficultyPerception, enjoyment, quality, accuracy, workoutType: workout.workoutType }),
-      });
-    } catch (memErr) {
-      // Don't fail the request if MEMORY.md write fails
-      console.error('Failed to write to MEMORY.md:', memErr.message);
     }
 
     // Sync feedback to CoachingMemory for the agentic coach
@@ -490,19 +445,16 @@ function checkTaper(sessionDate, competitionDates) {
 }
 
 // POST /api/workouts/generate/program
-// Body: { swimmerId, programPeriod, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, sessionsPerWeek? }
+// Body: { programPeriod, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, sessionsPerWeek? }
 router.post('/generate/program', async (req, res) => {
   try {
-    const { swimmerId, programPeriod, sessionsPerWeek, weekStartOffset = 0, ...customization } = req.body;
+    const { programPeriod, sessionsPerWeek, weekStartOffset = 0, ...customization } = req.body;
 
-    if (!swimmerId) {
-      return res.status(400).json({ success: false, error: 'swimmerId is required' });
-    }
     if (!programPeriod || programPeriod === 'single') {
       return res.status(400).json({ success: false, error: 'programPeriod must be weekly or monthly' });
     }
 
-    const profile = await SwimmerProfile.findById(swimmerId);
+    const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
@@ -645,7 +597,7 @@ router.post('/generate/program', async (req, res) => {
     // every session in a program. Fetching them once (instead of 5×) is the main
     // reason sessions 4-5 felt slow — each was re-querying the knowledge base.
     const startTime = Date.now();
-    const feedbackSummary = getFeedbackSummary(10);
+    const feedbackSummary = await getFeedbackSummary(10, req.user._id);
     const coachingObservations = await getCoachingObservations(profile._id);
     // Determine training focus once so the notes lookup runs a single time.
     const baseWorkoutType = customization.workoutType

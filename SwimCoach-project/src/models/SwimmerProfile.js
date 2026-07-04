@@ -229,6 +229,28 @@ const swimmerProfileSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  // OAuth
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  migratedAt: {
+    type: Date
+  },
+  // Telegram
+  telegramId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  telegramLinkToken: {
+    type: String,
+    sparse: true
+  },
+  telegramLinkExpires: {
+    type: Date
   }
 });
 

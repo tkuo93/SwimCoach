@@ -3,28 +3,21 @@ const crypto = require('crypto');
 const router = express.Router();
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const Workout = require('../../models/Workout');
+const Conversation = require('../../models/Conversation');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
 const { regenerateWorkout } = require('../../services/workout-generator');
-const { resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
-
-// In-memory store for pending proposals (conversationId -> { swimmerId, actions[] })
-const pendingProposals = new Map();
 
 // POST /api/coach/chat
-// Body: { swimmerId, messages: Array<{role, text}>, message: string, llmModel? }
+// Body: { messages: Array<{role, text}>, message: string, llmModel? }
 router.post('/chat', async (req, res) => {
   try {
     const { message, messages = [], llmModel } = req.body;
-    const swimmerId = resolveSwimmerId(req);
 
     if (!message) {
       return res.status(400).json({ success: false, error: 'message is required' });
     }
-    if (!swimmerId) {
-      return res.status(401).json({ success: false, error: 'Swimmer ID required. Provide X-Swimmer-Id header.' });
-    }
 
-    const profile = await SwimmerProfile.findById(swimmerId);
+    const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
@@ -38,15 +31,21 @@ router.post('/chat', async (req, res) => {
       modelOverride: llmModel,
     });
 
-    // Generate a cryptographically random conversation ID for tracking proposals
-    const conversationId = crypto.randomUUID();
-
-    // Store any proposal actions for later confirmation (keyed with swimmerId for ownership)
+    // Store any proposal actions in Conversation DB for later confirmation
     const proposals = result.actions.filter(a => a.proposal);
+    let conversationId = null;
     if (proposals.length > 0) {
-      pendingProposals.set(conversationId, { swimmerId, actions: proposals });
-      // Auto-clean up old proposals after 10 minutes
-      setTimeout(() => pendingProposals.delete(conversationId), 10 * 60 * 1000);
+      conversationId = crypto.randomUUID();
+      await Conversation.create({
+        _id: conversationId,
+        swimmerId: req.user._id,
+        title: 'Coach Proposals',
+        messages: [],
+        contextWorkoutId: null,
+        proposals: proposals,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
+      });
     }
 
     res.json({
@@ -70,35 +69,35 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { actionIndex = 0 } = req.body;
-    const swimmerId = resolveSwimmerId(req);
 
-    if (!swimmerId) {
-      return res.status(401).json({ success: false, error: 'Swimmer ID required.' });
-    }
-
-    const entry = pendingProposals.get(conversationId);
-    if (!entry || !entry.actions[actionIndex]) {
+    const entry = await Conversation.findById(conversationId);
+    if (!entry || !entry.proposals?.[actionIndex]) {
       return res.status(404).json({ success: false, error: 'Proposal not found or expired. Ask the coach again.' });
     }
 
-    // Verify the requesting swimmer owns this proposal
-    if (entry.swimmerId !== swimmerId) {
+    // Verify the requesting user owns this proposal
+    if (entry.swimmerId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, error: 'Forbidden.' });
     }
 
-    const proposal = entry.actions[actionIndex];
+    // Check TTL
+    if (entry.expiresAt && entry.expiresAt < new Date()) {
+      await Conversation.findByIdAndDelete(conversationId);
+      return res.status(404).json({ success: false, error: 'Proposal expired.' });
+    }
+
+    const proposal = entry.proposals[actionIndex];
 
     if (proposal.action === 'modifyWorkout') {
-      // Apply the field modification to the workout
       const workout = await Workout.findById(proposal.workoutId);
       if (!workout) {
         return res.status(404).json({ success: false, error: 'Workout not found.' });
       }
 
-      const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
-      if (err) return err;
+      if (workout.swimmerId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, error: 'Forbidden.' });
+      }
 
-      // Parse the field path — validate against allowlist to prevent mass assignment
       const { field, newValue } = proposal;
       if (!isAllowedField(field)) {
         return res.status(400).json({ success: false, error: `Field "${field}" is not modifiable.` });
@@ -114,8 +113,12 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
       );
 
       // Remove confirmed proposal
-      entry.actions.splice(actionIndex, 1);
-      if (entry.actions.length === 0) pendingProposals.delete(conversationId);
+      entry.proposals.splice(actionIndex, 1);
+      if (entry.proposals.length === 0) {
+        await Conversation.findByIdAndDelete(conversationId);
+      } else {
+        await entry.save();
+      }
 
       return res.json({
         success: true,
@@ -133,10 +136,11 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
         return res.status(404).json({ success: false, error: 'Workout not found.' });
       }
 
-      const err = requireOwnership(req, res, swimmerId, workout.swimmerId);
-      if (err) return err;
+      if (workout.swimmerId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, error: 'Forbidden.' });
+      }
 
-      const profile = await SwimmerProfile.findById(swimmerId);
+      const profile = await SwimmerProfile.findById(req.user._id);
       if (!profile) {
         return res.status(404).json({ success: false, error: 'Swimmer profile not found.' });
       }
@@ -149,8 +153,12 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
       const newWorkout = await regenerateWorkout(proposal.workoutId, profile, customization, { mode: 'direct' });
 
       // Remove confirmed proposal
-      entry.actions.splice(actionIndex, 1);
-      if (entry.actions.length === 0) pendingProposals.delete(conversationId);
+      entry.proposals.splice(actionIndex, 1);
+      if (entry.proposals.length === 0) {
+        await Conversation.findByIdAndDelete(conversationId);
+      } else {
+        await entry.save();
+      }
 
       return res.json({
         success: true,
@@ -171,23 +179,26 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
 
 // POST /api/coach/chat/:conversationId/dismiss
 // Body: { actionIndex: number }
-router.post('/chat/:conversationId/dismiss', (req, res) => {
+router.post('/chat/:conversationId/dismiss', async (req, res) => {
   const { conversationId } = req.params;
   const { actionIndex = 0 } = req.body;
-  const swimmerId = resolveSwimmerId(req);
 
-  const entry = pendingProposals.get(conversationId);
-  if (!entry || !entry.actions[actionIndex]) {
+  const entry = await Conversation.findById(conversationId);
+  if (!entry || !entry.proposals?.[actionIndex]) {
     return res.status(404).json({ success: false, error: 'Proposal not found.' });
   }
 
   // Verify ownership
-  if (entry.swimmerId !== swimmerId) {
+  if (entry.swimmerId.toString() !== req.user._id.toString()) {
     return res.status(403).json({ success: false, error: 'Forbidden.' });
   }
 
-  entry.actions.splice(actionIndex, 1);
-  if (entry.actions.length === 0) pendingProposals.delete(conversationId);
+  entry.proposals.splice(actionIndex, 1);
+  if (entry.proposals.length === 0) {
+    await Conversation.findByIdAndDelete(conversationId);
+  } else {
+    await entry.save();
+  }
 
   res.json({ success: true, dismissed: true });
 });

@@ -247,7 +247,9 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 .nav-tab .icon{font-size:20px}
 
 /* Coach */
-.coach-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--cream);transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+/* Overlay is absolutely positioned inside .phone so it fills the phone frame
+   like a native mobile modal, not the whole browser viewport. */
+.coach-overlay{display:none;position:absolute;inset:0;z-index:200;background:var(--cream);border-radius:48px;overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
 .coach-overlay.active{display:flex;flex-direction:column;transform:translateY(0)}
 /* Modal is absolutely positioned inside .phone so it overlays the app frame
    like a native mobile modal, not the whole browser viewport. */
@@ -285,6 +287,11 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 .coach-msg{max-width:85%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.5}
 .coach-msg-user{align-self:flex-end;background:var(--sage);color:#fff;border-bottom-right-radius:6px}
 .coach-msg-bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:6px}
+.coach-msg-thinking{display:flex;gap:5px;align-items:center;padding:14px 18px}
+.thinking-dot{width:7px;height:7px;border-radius:50%;background:var(--text-mut);animation:think 1.2s ease-in-out infinite}
+.thinking-dot:nth-child(2){animation-delay:.15s}
+.thinking-dot:nth-child(3){animation-delay:.3s}
+@keyframes think{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
 .coach-msg-context{align-self:center;font-family:var(--font-m);font-size:9px;color:var(--text-mut);text-transform:uppercase;letter-spacing:.08em;background:transparent;padding:4px 8px}
 .coach-input{padding:12px 16px 16px;border-top:1px solid var(--border-light);display:flex;gap:10px;align-items:center;background:var(--surface)}
 .coach-input input{flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--rf);font-size:14px;font-family:var(--font-b);background:var(--cream);color:var(--text);outline:none}
@@ -455,6 +462,7 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
     </div>
     <div class="coach-history-view" id="coachHistoryView">
       <div class="coach-history-header">
+        <button class="coach-back" onclick="hideCoachHistory()">←</button>
         <h1>Conversations</h1>
         <button class="sidebar-new-btn" onclick="newConversation()">＋ New</button>
       </div>
@@ -503,15 +511,15 @@ function workoutLocalDate(w) {
 }
 
 // Re-fetch workouts from the API and update the in-memory array.
-// Keeps the week view, today view, and history in sync after deletes/generations.
 async function refreshWorkouts() {
   if (!profile?._id) return;
-  const res = await fetch('/api/workouts?swimmerId=' + profile._id, {
-    headers: { 'X-Swimmer-Id': profile._id },
-  });
-  const json = await res.json();
-  if (json.success) {
-    workouts = json.data || [];
+  try {
+    const res = await api.workouts.list();
+    if (res.success) {
+      workouts = res.data || [];
+    }
+  } catch (err) {
+    console.error('Failed to refresh workouts:', err);
   }
 }
 
@@ -720,7 +728,7 @@ function saveWorkoutEdits(){
   pool.mainSet=newMainSet;
   pool.totalDistance=newMainSet.reduce((s,e)=>s+e.distance*e.repetitions,0)+(pool.warmUp?.distance||0)+(pool.coolDown?.distance||0);
   // Save to API
-  fetch('/api/workouts/'+currentWorkout._id,{method:'PUT',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({poolWorkout:pool,gymWorkout:gym})}).then(r=>r.json()).then(res=>{
+  api.workouts.update(currentWorkout._id, {poolWorkout:pool,gymWorkout:gym}).then(res=>{
     if(res.success){toggleWorkoutEdit();}
     else{alert('Failed to save: '+(res.error||'Unknown'));}
   });
@@ -814,8 +822,12 @@ function submitFeedback(){
   const comments=document.getElementById('fb-comments').value;
   if(!rating){alert('Please select a rating');return;}
   const btn=event.target;btn.disabled=true;btn.textContent='Saving...';
-  fetch('/api/workouts/'+currentWorkout._id+'/feedback',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({rating,difficultyPerception:difficulty,enjoyment,quality,accuracy,comments})}).then(r=>r.json()).then(res=>{
-    if(res.success){currentWorkout.userFeedback={rating,difficultyPerception:difficulty,enjoyment,quality,accuracy,comments};btn.textContent='✓ Saved!';setTimeout(()=>renderFeedback(),1000);}
+  api.workouts.feedback(currentWorkout._id, {rating,difficultyPerception:difficulty,enjoyment,quality,accuracy,comments}).then(res=>{
+    if(res.success){
+      currentWorkout.userFeedback={rating,difficultyPerception:difficulty,enjoyment,quality,accuracy,comments};
+      btn.textContent='✓ Saved!';
+      setTimeout(()=>renderFeedback(),1000);
+    }
     else{alert('Failed: '+(res.error||'Unknown'));btn.disabled=false;btn.textContent='Submit Feedback';}
   });
 }
@@ -834,8 +846,16 @@ function sendCoachMessage(text,isSystem){
   const msgs=document.getElementById('coachMsgs');
   const m=document.createElement('div');m.className='coach-msg '+(isSystem?'coach-msg-context':'coach-msg-user');m.textContent=text;msgs.appendChild(m);msgs.scrollTop=msgs.scrollHeight;
   coachMessages.push({role:isSystem?'context':'user',text});
+
+  // Thinking indicator — confirms the message was received while the coach generates a reply.
+  const thinking=document.createElement('div');thinking.className='coach-msg coach-msg-bot coach-msg-thinking';thinking.innerHTML='<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span>';msgs.appendChild(thinking);msgs.scrollTop=msgs.scrollHeight;
+  // Disable input while thinking so the user sees the conversation is mid-flight.
+  const inp=document.getElementById('coachInp');if(inp)inp.disabled=true;
+
   // Call coach API
-  fetch('/api/coach/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({message:text,messages:coachMessages.slice(-10),workoutId:currentWorkout?._id})}).then(r=>r.json()).then(res=>{
+  api.coach.chat({message:text,messages:coachMessages.slice(-10),workoutId:currentWorkout?._id}).then(res=>{
+    thinking.remove();
+    if(inp)inp.disabled=false;
     if(res.data){
       const reply=document.createElement('div');reply.className='coach-msg coach-msg-bot';reply.textContent=res.data.reply;msgs.appendChild(reply);msgs.scrollTop=msgs.scrollHeight;
       coachMessages.push({role:'coach',text:res.data.reply});
@@ -849,12 +869,19 @@ function sendCoachMessage(text,isSystem){
           }
         });
       }
+    }else{
+      // API returned nothing or an error — surface it instead of leaving the user hanging.
+      const err=document.createElement('div');err.className='coach-msg coach-msg-bot';err.textContent="Sorry, I couldn't get a response right now. Try again?";msgs.appendChild(err);msgs.scrollTop=msgs.scrollHeight;
     }
-  }).catch(()=>{});
+    if(inp)inp.focus();
+  }).catch(()=>{
+    thinking.remove();
+    if(inp){inp.disabled=false;inp.focus();}
+  });
 }
 function confirmAction(conversationId,actionIndex,btn){
   btn.disabled=true;btn.textContent='Applying...';
-  fetch('/api/coach/chat/'+conversationId+'/confirm',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({actionIndex})}).then(r=>r.json()).then(res=>{
+  api.coach.confirm(conversationId, actionIndex).then(res=>{
     if(res.success){btn.textContent='✓ Applied';}
     else{alert('Failed: '+(res.error||'Unknown'));btn.disabled=false;btn.textContent='Apply';}
   });
@@ -879,8 +906,11 @@ function renderWeek(){
     const dateStr=d.toISOString().split('T')[0]; // UTC YYYY-MM-DD
     const w=workouts.find(x=>workoutLocalDate(x)===dateStr);
     const isToday=dateStr===todayStr;
+    // Only mark a day as completed (green) if the date is today or in the past.
+    // Future days with a generated workout stay un-highlighted until they arrive.
+    const isPast=dateStr<todayStr;
     const div=document.createElement('div');
-    div.className='week-day'+(isToday?' today':'')+(w?' done':' rest');
+    div.className='week-day'+(isToday?' today':'')+((w&&(isToday||isPast))?' done':(w?'':' rest'));
     // Pool day shows distance; gym day shows a gym label
     const isGym=w&&w.gymWorkout?.mainSet?.length>0;
     const dist=w?(w.poolWorkout?.totalDistance||0):0;
@@ -1019,7 +1049,7 @@ function confirmGenerateWeek(){
     progress=Math.min(progress+1,numSessions-1);
     setLoadingProgress(progress,numSessions,'Generating workout '+progress+' of '+numSessions+'…');
   },2000);
-  fetch('/api/workouts/generate/program',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify(body)}).then(r=>r.json()).then(res=>{
+  api.workouts.generateProgram(body).then(res=>{
     clearInterval(progressInterval);
     stopLoadingTimer();
     if(res.success){
@@ -1045,7 +1075,7 @@ function confirmGenerateWeek(){
 function renderHistory(){
   const list=document.getElementById('historyList');list.innerHTML='';
   list.innerHTML='<div style="text-align:center;padding:24px"><div class="loading-spinner" style="margin:0 auto 12px"></div></div>';
-  fetch('/api/workouts?swimmerId='+profile._id,{headers:{'X-Swimmer-Id':profile._id}}).then(r=>r.json()).then(res=>{
+  api.workouts.list().then(res=>{
     const sorted=(res.data||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
     if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">No workouts yet. Generate your first one!</div>';return}
     list.innerHTML='';
@@ -1059,11 +1089,11 @@ function renderHistory(){
   }).catch(()=>{list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">Failed to load workouts</div>'});
 }
 function rateWorkout(id,rating){
-  fetch('/api/workouts/'+id+'/feedback',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({rating,difficultyPerception:'just-right',enjoyment:4,quality:4,accuracy:4})}).then(()=>renderHistory());
+  api.workouts.feedback(id, {rating,difficultyPerception:'just-right',enjoyment:4,quality:4,accuracy:4}).then(()=>renderHistory());
 }
 async function deleteWorkout(id){
   if(!confirm('Delete this workout?'))return;
-  await fetch('/api/workouts/'+id,{method:'DELETE',headers:{'X-Swimmer-Id':profile._id}});
+  await api.workouts.delete(id);
   await refreshWorkouts();
   // Re-render whichever view is active so the count/strip update immediately
   const active = document.querySelector('.screen.active');
@@ -1072,7 +1102,7 @@ async function deleteWorkout(id){
   else renderHistory();
 }
 function viewHistoryWorkout(id){
-  fetch('/api/workouts/'+id,{headers:{'X-Swimmer-Id':profile._id}}).then(r=>r.json()).then(res=>{if(res.data){currentWorkout=res.data;renderToday();showScreen('s-today')}});
+  api.workouts.get(id).then(res=>{if(res.data){currentWorkout=res.data;renderToday();showScreen('s-today')}});
 }
 
 // === PROFILE ===
@@ -1295,24 +1325,60 @@ function saveProfile(){
 }
 
 // === SETTINGS ===
+// List of known free models on OpenRouter
+const FREE_MODELS = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'meta-llama/llama-3.1-405b-instruct:free',
+  'meta-llama/llama-3.1-70b-instruct:free',
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'google/gemma-2-27b-it:free',
+  'mistralai/mistral-nemo:free',
+  'mistralai/mistral-7b-instruct:free',
+  'microsoft/phi-3-mini-128k-instruct:free',
+  'microsoft/phi-3-medium-128k-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'qwen/qwen-2.5-32b-instruct:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+];
+
 function renderSettings(){
+  const options = ['auto', ...FREE_MODELS].map(m =>
+    `<option value="${m}">${m === 'auto' ? 'Auto (default)' : m}</option>`
+  ).join('');
   document.getElementById('settingsSection').innerHTML=`
-    <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="llmSelect" onchange="saveSetting('llm',this.value)"><option value="openrouter/auto">Auto</option><option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option><option value="openai/gpt-4o">GPT-4o</option><option value="custom">Custom</option></select></div>
+    <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="llmSelect" onchange="saveSetting('llm',this.value)">${options}</select></div>
     <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentLlm">Auto</span></div>
-    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetSettings()">Reset to Default</button></div>`;
+    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetSettings()">Reset to Default</button></div>
+    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn del" onclick="logout()">Log Out</button></div>`;
   const llm=localStorage.getItem('sc_llm')||'auto';
   document.getElementById('llmSelect').value=llm;
   document.getElementById('currentLlm').textContent=llm;
+}
+async function logout(){
+  if(!confirm('Log out of SwimCoach?'))return;
+  try {
+    await api.auth.logout();
+    localStorage.removeItem('sc_profile');
+    localStorage.removeItem('sc_profile_id');
+    window.location.href = '/login.html';
+  } catch (e) {
+    console.error('Logout failed:', e);
+    window.location.href = '/login.html';
+  }
 }
 function saveSetting(k,v){localStorage.setItem('sc_'+k,v);renderSettings()}
 function resetSettings(){localStorage.removeItem('sc_llm');renderSettings()}
 
 // === DEBUG ===
 function renderDebug(){
+  const options = ['auto', ...FREE_MODELS].map(m =>
+    `<option value="${m}">${m === 'auto' ? 'Auto (default)' : m}</option>`
+  ).join('');
   document.getElementById('debugSection').innerHTML=`
     <div class="settings-row"><span class="settings-label">Profile</span><span class="settings-value">${profile?profile.name||'—':'None'}</span></div>
     <div class="settings-row"><span class="settings-label">Workouts</span><span class="settings-value">${workouts.length}</span></div>
-    <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="debugLlm" onchange="localStorage.setItem('sc_llm',this.value)"><option value="openrouter/auto">Auto</option><option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option><option value="openai/gpt-4o">GPT-4o</option></select></div>
+    <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="debugLlm" onchange="localStorage.setItem('sc_llm',this.value)">${options}</select></div>
     <div class="settings-row"><span class="settings-label">Test Generation</span><button class="history-action-btn" onclick="testGen()">Generate Test</button></div>
     <div class="settings-row"><span class="settings-label">View Prompts</span><button class="history-action-btn" onclick="viewPrompts()">View</button></div>
     <div class="settings-row"><span class="settings-label">Clear All Data</span><button class="history-action-btn del" onclick="clearAll()">Clear</button></div>`;
@@ -1354,12 +1420,15 @@ function showCoachHistory(){
   document.getElementById('coachHistoryView').classList.add('open');
   renderConversationList();
 }
+function hideCoachHistory(){
+  document.getElementById('coachHistoryView').classList.remove('open');
+}
 function loadNewChat(){
   document.getElementById('coachTitle').textContent='Coach';
   document.getElementById('coachMsgs').innerHTML=`<div class="coach-msg coach-msg-context">Ask me anything about your training</div>`;
   currentConversationId=null;
   coachMessages=[];
-  document.getElementById('coachHistoryView').classList.remove('open');
+  hideCoachHistory();
   document.querySelectorAll('.conversation-item').forEach(el=>el.classList.remove('active'));
 }
 function newConversation(){
@@ -1368,7 +1437,7 @@ function newConversation(){
 function renderConversationList(){
   const list=document.getElementById('conversationList');
   list.innerHTML='<div style="text-align:center;padding:24px"><div class="loading-spinner" style="margin:0 auto 12px"></div></div>';
-  fetch('/api/conversations',{headers:{'X-Swimmer-Id':profile._id}}).then(r=>r.json()).then(res=>{
+  api.conversations.list().then(res=>{
     const convs=res.data||[];
     if(!convs.length){list.innerHTML='<div style="text-align:center;padding:32px 16px;color:var(--text-mut);font-size:13px">No conversations yet.<br>Start chatting!</div>';return}
     list.innerHTML='';
@@ -1383,7 +1452,7 @@ function renderConversationList(){
   }).catch(()=>{list.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-mut)">Failed to load</div>'});
 }
 function loadConversation(id){
-  fetch('/api/conversations/'+id,{headers:{'X-Swimmer-Id':profile._id}}).then(r=>r.json()).then(res=>{
+  api.conversations.get(id).then(res=>{
     if(!res.data)return;
     currentConversationId=id;
     document.getElementById('coachTitle').textContent=res.data.title||'Coach';
@@ -1394,13 +1463,14 @@ function loadConversation(id){
       coachMessages.push({role:m.role,text:m.text});
     });
     msgs.scrollTop=msgs.scrollHeight;
-    // Update sidebar active state
+    // Close the sidebar and update active state
+    hideCoachHistory();
     document.querySelectorAll('.conversation-item').forEach(el=>el.classList.toggle('active',el.querySelector('h4')?.textContent===(res.data.title||'')));
   });
 }
 function deleteConversation(id){
   if(!confirm('Delete this conversation?'))return;
-  fetch('/api/conversations/'+id,{method:'DELETE',headers:{'X-Swimmer-Id':profile._id}}).then(()=>{
+  api.conversations.delete(id).then(()=>{
     if(currentConversationId===id)loadNewChat();
     renderConversationList();
   });
@@ -1447,7 +1517,7 @@ function genNewWorkout(){
   setLoadingProgress(0,1,'Building your workout…');
   startLoadingTimer();
   // Use real API generation
-  fetch('/api/workouts/generate',{method:'POST',headers:{'Content-Type':'application/json','X-Swimmer-Id':profile._id},body:JSON.stringify({swimmerId:profile._id})}).then(r=>r.json()).then(res=>{
+  api.workouts.generate({}).then(res=>{
     stopLoadingTimer();
     if(res.success&&res.data){
       const w=res.data;
@@ -1479,12 +1549,12 @@ function renderLanding(){
   });
 }
 function loadProfile(id){
-  fetch('/api/profiles/'+id).then(r=>r.json()).then(res=>{
+  api.profiles.get(id).then(res=>{
     if(res.data){
       profile=res.data;localStorage.setItem('sc_profile',JSON.stringify(profile));selectedSwimmerId=profile._id;
       // Find today's workout
       const today=new Date().toISOString().split('T')[0];
-      fetch('/api/workouts?swimmerId='+profile._id).then(r=>r.json()).then(wres=>{
+      api.workouts.list().then(wres=>{
         workouts=wres.data||[];
         currentWorkout=workouts.find(w=>workoutLocalDate(w)===today)||null;
         if(currentWorkout){renderToday();showScreen('s-today')}else{showScreen('s-empty')}
@@ -1501,19 +1571,46 @@ function showDebugEntry(){showScreen('s-debug')}
 
 // === INIT ===
 async function init(){
-  // Fetch all profiles from MongoDB API
-  try{
-    const res=await fetch('/api/profiles');
-    const data=await res.json();
+  // Check authentication status
+  try {
+    const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+    const authData = await authRes.json();
+
+    if (!authData.authenticated) {
+      // Not authenticated - redirect to login
+      window.location.href = '/login.html';
+      return;
+    }
+
+    // Authenticated - fetch profiles
+    const res = await fetchRes = await fetch('/api/profiles', { credentials: 'include' });
+    const data = await fetchRes.json();
     console.log('API response:', data);
-    if(data.data){allProfiles=data.data;console.log('Loaded',allProfiles.length,'profiles')}
-  }catch(e){console.log('API error:', e.message)}
-  // Also check localStorage for locally-created profiles
-  const local=JSON.parse(localStorage.getItem('sc_all_profiles')||'[]');
-  local.forEach(lp=>{if(!allProfiles.find(p=>p._id===lp._id||p.email===lp.email)){allProfiles.push(lp)}});
+    if (data.data) { allProfiles = data.data; console.log('Loaded', allProfiles.length, 'profiles') }
+  } catch (e) {
+    console.log('API error:', e.message);
+  }
+
+  // Also check localStorage for locally-created profiles (for migration)
+  const local = JSON.parse(localStorage.getItem('sc_all_profiles') || '[]');
+  local.forEach(lp => { if (!allProfiles.find(p => p._id === lp._id || p.email === lp.email)) { allProfiles.push(lp) } });
+
   // Migrate old sc_profile format
-  if(profile&&!allProfiles.find(p=>p.email===profile.email||p._id===profile._id)){allProfiles.push(profile)}
-  console.log('Total profiles for landing:',allProfiles.length);
+  if (profile && !allProfiles.find(p => p.email === profile.email || p._id === profile._id)) { allProfiles.push(profile) }
+  console.log('Total profiles for landing:', allProfiles.length);
+
+  // Check if we need to migrate localStorage profiles
+  const localProfileId = localStorage.getItem('sc_profile_id');
+  if (localProfileId && !allProfiles.find(p => p._id === localProfileId)) {
+    try {
+      await api.profiles.migrate(localProfileId);
+      localStorage.removeItem('sc_profile_id');
+      console.log('Migrated localStorage profile');
+    } catch (e) {
+      console.log('Migration failed:', e.message);
+    }
+  }
+
   renderLanding();
   // Always show landing page first so user can select or create a profile
   showScreen('s-landing');

@@ -16,9 +16,9 @@ RUN addgroup -g 1001 -S appuser && \
     adduser -S appuser -u 1001 -G appuser
 USER appuser
 
-EXPOSE 3000
+EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+  CMD wget -qO- http://localhost:10000/health || exit 1
 
 CMD ["node", "src/index.js"]

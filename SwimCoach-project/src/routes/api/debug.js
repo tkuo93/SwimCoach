@@ -3,16 +3,13 @@ const router = express.Router();
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { buildInsightsPrompt, buildWorkoutPrompt } = require('../../services/workout-ai');
 const { getFeedbackSummary } = require('../../services/memory');
-const { requireApiKey } = require('../../middleware/auth');
 
-// All debug endpoints require API key auth
-router.use(requireApiKey);
+// All debug endpoints require authentication (already applied in index.js)
 
-// GET /api/debug/profiles — List all profiles (for debug selector)
+// GET /api/debug/profiles — List current user's profiles
 router.get('/profiles', async (req, res) => {
   try {
-    const profiles = await SwimmerProfile.find().sort({ createdAt: -1 });
-    // Strip PII — only return what the debug UI needs
+    const profiles = await SwimmerProfile.find({ googleId: req.user.googleId }).sort({ createdAt: -1 });
     const safe = profiles.map(p => ({
       _id: p._id,
       name: `${p.firstName} ${p.lastName}`,
@@ -24,16 +21,12 @@ router.get('/profiles', async (req, res) => {
   }
 });
 
-// GET /api/debug/prompts — Preview prompts for a given profile + customization
+// GET /api/debug/prompts — Preview prompts for current user + customization
 router.get('/prompts', async (req, res) => {
   try {
-    const { swimmerId, workoutType, duration, llmModel } = req.query;
+    const { workoutType, duration, llmModel } = req.query;
 
-    if (!swimmerId) {
-      return res.status(400).json({ success: false, error: 'swimmerId is required' });
-    }
-
-    const profile = await SwimmerProfile.findById(swimmerId);
+    const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Profile not found' });
     }
@@ -54,7 +47,6 @@ router.get('/prompts', async (req, res) => {
         generationPrompt,
         feedbackSummary: feedbackSummary || 'No past feedback',
         modelUsed: llmModel || process.env.OPEN_ROUTER_MODEL || 'openrouter/owl-alpha (default)',
-        // Minimal profile summary — no PII like email, DOB, etc.
         profile: {
           name: `${profile.firstName} ${profile.lastName}`,
           level: profile.experienceLevel,

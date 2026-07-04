@@ -1,0 +1,43 @@
+# render.yaml - Render Blueprint for SwimCoach
+# Deploy with: render deploy (or connect repo at dashboard.render.com)
+
+services:
+  - type: web
+    name: swimcoach
+    runtime: node
+    plan: free
+    region: oregon  # or frankfurt, singapore
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"  # Render uses PORT env var
+      - key: MONGODB_URI
+        sync: false  # Set manually in dashboard
+      - key: SESSION_SECRET
+        sync: false  # Set manually in dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        value: https://swimcoach.onrender.com/api/auth/google/callback
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://swimcoach.onrender.com
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_URL
+        value: https://swimcoach.onrender.com/api/telegram
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false  # Generate: openssl rand -base64 32
+
+# Optional: Add a free Redis for sessions (Render Redis is paid, so we use MongoDB store instead)
+# databases:
+#   - name: swimcoach-redis
+#     plan: free  # Not available on free tier

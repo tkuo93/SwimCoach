@@ -1,63 +1,91 @@
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-const { readMemory, getFeedbackSummary, appendFeedback } = require('../../services/memory');
-const { requireApiKey, resolveSwimmerId, requireOwnership } = require('../../middleware/auth');
+const CoachingMemory = require('../../models/CoachingMemory');
+const { requireAuth } = require('../../middleware/auth');
 
-// All memory endpoints require API key auth
-router.use(requireApiKey);
+// All memory endpoints require authentication (already applied in index.js)
+// Admin-only endpoints can still check for a specific user or role
 
-// Resolve MEMORY_PATH safely — hardcoded, not overridable via env
-const MEMORY_PATH = path.join(__dirname, '..', '..', '..', 'MEMORY.md');
-
-// GET /api/memory — Read full MEMORY.md (admin only)
-router.get('/', (req, res) => {
+// GET /api/memory — Get user's coaching memories
+router.get('/', async (req, res) => {
   try {
-    const content = readMemory();
-    res.json({ success: true, data: { content } });
+    const { type, category, active = 'true', limit = 50 } = req.query;
+    const filter = { swimmerId: req.user._id };
+    if (type) filter.type = type;
+    if (category) filter.category = category;
+    if (active !== 'all') filter.active = active === 'true';
+
+    const memories = await CoachingMemory.find(filter)
+      .sort({ confidence: -1, updatedAt: -1 })
+      .limit(parseInt(limit));
+    res.json({ success: true, count: memories.length, data: memories });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// GET /api/memory/summary — Get condensed feedback summary for prompts
-router.get('/summary', (req, res) => {
+// POST /api/memory — Add a coaching observation (user-initiated)
+router.post('/', async (req, res) => {
   try {
-    const maxEntries = parseInt(req.query.max, 10) || 10;
-    const summary = getFeedbackSummary(maxEntries);
-    res.json({ success: true, data: { summary, entryCount: maxEntries } });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+    const { type, category, content, source = 'user', confidence = 0.8 } = req.body;
 
-// POST /api/memory — Append a feedback entry
-// Restricted: only server-side feedback writes should use this.
-// User-provided input is sanitized to prevent injection.
-router.post('/', (req, res) => {
-  try {
-    const { profileName, workoutType, rating, difficultyPerception, enjoyment, comments, learning, swimmerId } = req.body;
-
-    // If swimmerId is provided, verify ownership
-    const requestingSwimmerId = resolveSwimmerId(req);
-    if (swimmerId && requestingSwimmerId) {
-      const err = requireOwnership(req, res, requestingSwimmerId, swimmerId);
-      if (err) return err;
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'content is required' });
     }
 
-    // Sanitize string inputs to prevent injection
-    const sanitize = (s) => typeof s === 'string' ? s.replace(/[<>{}]/g, '').slice(0, 500) : '';
-
-    appendFeedback({
-      profileName: sanitize(profileName) || 'Unknown',
-      workoutType: sanitize(workoutType),
-      rating: rating ? parseInt(rating, 10) : null,
-      difficultyPerception: sanitize(difficultyPerception),
-      enjoyment: sanitize(enjoyment),
-      comments: sanitize(comments),
-      learning: sanitize(learning),
+    const memory = new CoachingMemory({
+      swimmerId: req.user._id,
+      type,
+      category,
+      content,
+      source,
+      confidence,
+      active: true,
     });
-    res.json({ success: true, data: { message: 'Entry appended to MEMORY.md' } });
+    await memory.save();
+    res.status(201).json({ success: true, data: memory });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PUT /api/memory/:id — Update a memory (e.g., mark inactive, update confidence)
+router.put('/:id', async (req, res) => {
+  try {
+    const memory = await CoachingMemory.findOne({
+      _id: req.params.id,
+      swimmerId: req.user._id
+    });
+    if (!memory) {
+      return res.status(404).json({ success: false, error: 'Memory not found' });
+    }
+
+    const { type, category, content, confidence, active, supersededBy } = req.body;
+    if (type) memory.type = type;
+    if (category) memory.category = category;
+    if (content) memory.content = content;
+    if (confidence !== undefined) memory.confidence = confidence;
+    if (active !== undefined) memory.active = active;
+    if (supersededBy) memory.supersededBy = supersededBy;
+
+    await memory.save();
+    res.json({ success: true, data: memory });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// DELETE /api/memory/:id — Delete a memory
+router.delete('/:id', async (req, res) => {
+  try {
+    const memory = await CoachingMemory.findOneAndDelete({
+      _id: req.params.id,
+      swimmerId: req.user._id
+    });
+    if (!memory) {
+      return res.status(404).json({ success: false, error: 'Memory not found' });
+    }
+    res.json({ success: true, message: 'Memory deleted' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

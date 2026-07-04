@@ -20,7 +20,7 @@ const { sanitizeModel } = require('../workout-ai');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
 const MAX_AGENT_ITERATIONS = 5;
 const MAX_HISTORY_TOKENS = 1500;
 
