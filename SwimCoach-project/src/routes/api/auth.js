@@ -126,8 +126,17 @@ router.post('/telegram-link-generate', async (req, res) => {
     profile.telegramLinkExpires = expires;
     await profile.save();
 
-    const linkUrl = `${process.env.FRONTEND_URL}/telegram-link?telegramId=${telegramId}&token=${token}`;
-    res.json({ success: true, data: { token, expires, linkUrl } });
+    // Return token separately - frontend should NOT put it in URL
+    // Instead, frontend will use the token via Telegram Web App or direct deep link
+    const linkCode = crypto.randomBytes(16).toString('hex'); // Short code for URL
+    profile.telegramLinkCode = linkCode;
+    profile.telegramLinkCodeExpires = expires;
+    await profile.save();
+
+    // Deep link format: https://t.me/SwimCoachBot?start=link_{code}
+    // Token is NOT in URL - bot validates code → token server-side
+    const deepLink = `https://t.me/${process.env.TELEGRAM_BOT_USERNAME || 'SwimCoachBot'}?start=link_${linkCode}`;
+    res.json({ success: true, data: { linkCode, expires, deepLink } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

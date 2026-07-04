@@ -147,7 +147,11 @@ class TelegramBotService {
    * Verify webhook secret token
    */
   verifyWebhookSecret(req) {
-    if (!this.webhookSecret) return true; // No secret configured, allow
+    // Fail-closed: require secret in production
+    if (process.env.NODE_ENV === 'production' && !this.webhookSecret) {
+      throw new Error('TELEGRAM_WEBHOOK_SECRET must be set in production');
+    }
+    if (!this.webhookSecret) return true; // Allow in development only
     return req.headers['x-telegram-bot-api-secret-token'] === this.webhookSecret;
   }
 
@@ -170,16 +174,27 @@ class TelegramBotService {
 
   /**
    * Handle /start - Link Telegram account to SwimCoach profile
+   * Supports two formats:
+   * - /start link_<token> (legacy token-based)
+   * - /start link_<code> (new code-based, token validated server-side)
    */
   async handleStart(msg, payload) {
     const chatId = msg.chat.id;
     const telegramId = msg.from.id;
     const username = msg.from.username || msg.from.first_name;
 
-    // Check if payload contains a linking token (from web OAuth flow)
+    // Check if payload contains a linking code/token (from web OAuth flow)
     if (payload && payload.startsWith('link_')) {
-      const token = payload.replace('link_', '');
-      await this.linkAccount(chatId, telegramId, token);
+      const codeOrToken = payload.replace('link_', '');
+
+      // Try new code-based linking first (shorter code)
+      if (codeOrToken.length <= 32) {
+        await this.linkAccountByCode(chatId, telegramId, codeOrToken);
+        return;
+      }
+
+      // Fall back to legacy token-based linking
+      await this.linkAccount(chatId, telegramId, codeOrToken);
       return;
     }
 
@@ -243,6 +258,47 @@ class TelegramBotService {
       await this.sendMainMenu(chatId);
     } catch (err) {
       console.error('Telegram link error:', err);
+      await safeSendMessage(this.bot, chatId, '❌ Failed to link account.');
+    }
+  }
+
+  /**
+   * Link Telegram account using short code (new flow)
+   * Code is validated server-side, token never exposed in URL
+   */
+  async linkAccountByCode(chatId, telegramId, code) {
+    try {
+      // Find profile by linking code (short code from URL)
+      const profile = await SwimmerProfile.findOne({
+        telegramLinkCode: code,
+        telegramLinkCodeExpires: { $gt: new Date() }
+      });
+
+      if (!profile) {
+        // Try legacy token for backward compatibility
+        await this.linkAccount(chatId, telegramId, code);
+        return;
+      }
+
+      // Check if this Telegram ID is already linked to another account
+      const existingLink = await SwimmerProfile.findOne({ telegramId });
+      if (existingLink && existingLink._id.toString() !== profile._id.toString()) {
+        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile.');
+        return;
+      }
+
+      // Link the account
+      profile.telegramId = telegramId;
+      profile.telegramLinkCode = undefined;
+      profile.telegramLinkCodeExpires = undefined;
+      profile.telegramLinkToken = undefined;
+      profile.telegramLinkExpires = undefined;
+      await profile.save();
+
+      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}!', { name: profile.firstName });
+      await this.sendMainMenu(chatId);
+    } catch (err) {
+      console.error('Telegram link by code error:', err);
       await safeSendMessage(this.bot, chatId, '❌ Failed to link account.');
     }
   }

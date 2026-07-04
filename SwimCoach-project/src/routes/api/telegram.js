@@ -4,13 +4,8 @@ const telegramBot = require('../telegram/bot');
 
 // Webhook endpoint - Telegram POSTs here
 router.post('/telegram', express.json(), (req, res) => {
-  try {
-    telegramBot.processUpdate(req.body);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error('Telegram webhook error:', err);
-    res.sendStatus(500);
-  }
+  // Pass full req/res to processUpdate for secret verification
+  telegramBot.processUpdate(req, res);
 });
 
 // Health check for Telegram

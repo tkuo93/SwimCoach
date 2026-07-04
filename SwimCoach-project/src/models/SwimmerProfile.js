@@ -251,6 +251,13 @@ const swimmerProfileSchema = new mongoose.Schema({
   },
   telegramLinkExpires: {
     type: Date
+  },
+  telegramLinkCode: {
+    type: String,
+    sparse: true
+  },
+  telegramLinkCodeExpires: {
+    type: Date
   }
 });
 
