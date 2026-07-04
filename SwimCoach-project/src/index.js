@@ -65,7 +65,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/telegram', telegramRoutes);
 
 // Protected API routes
-const requireAuth = require('./middleware/auth');
+const { requireAuth } = require('./middleware/auth');
 app.use('/api/profiles', requireAuth, profileRoutes);
 app.use('/api/workouts', requireAuth, workoutRoutes);
 app.use('/api/knowledge', requireAuth, knowledgeRoutes);
