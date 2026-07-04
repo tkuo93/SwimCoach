@@ -254,6 +254,7 @@ const swimmerProfileSchema = new mongoose.Schema({
   },
   telegramLinkCode: {
     type: String,
+    unique: true,
     sparse: true
   },
   telegramLinkCodeExpires: {

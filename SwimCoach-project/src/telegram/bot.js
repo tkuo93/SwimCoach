@@ -145,13 +145,12 @@ class TelegramBotService {
 
   /**
    * Verify webhook secret token
+   * Always requires secret - never fail open
    */
   verifyWebhookSecret(req) {
-    // Fail-closed: require secret in production
-    if (process.env.NODE_ENV === 'production' && !this.webhookSecret) {
-      throw new Error('TELEGRAM_WEBHOOK_SECRET must be set in production');
+    if (!this.webhookSecret) {
+      throw new Error('TELEGRAM_WEBHOOK_SECRET must be configured');
     }
-    if (!this.webhookSecret) return true; // Allow in development only
     return req.headers['x-telegram-bot-api-secret-token'] === this.webhookSecret;
   }
 
@@ -161,9 +160,14 @@ class TelegramBotService {
    */
   processUpdate(req, res) {
     // Verify secret token
-    if (!this.verifyWebhookSecret(req)) {
-      console.warn('Telegram: Invalid webhook secret token');
-      return res.sendStatus(401);
+    try {
+      if (!this.verifyWebhookSecret(req)) {
+        console.warn('Telegram: Invalid webhook secret token');
+        return res.status(401).send('Unauthorized');
+      }
+    } catch (err) {
+      console.error('Telegram webhook secret error:', err.message);
+      return res.status(500).send('Internal Server Error');
     }
 
     if (this.bot) {
@@ -265,6 +269,7 @@ class TelegramBotService {
   /**
    * Link Telegram account using short code (new flow)
    * Code is validated server-side, token never exposed in URL
+   * No fallback to legacy token - code-based flow is standalone
    */
   async linkAccountByCode(chatId, telegramId, code) {
     try {
@@ -275,8 +280,7 @@ class TelegramBotService {
       });
 
       if (!profile) {
-        // Try legacy token for backward compatibility
-        await this.linkAccount(chatId, telegramId, code);
+        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link code.');
         return;
       }
 
