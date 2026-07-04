@@ -6,7 +6,6 @@
  */
 
 const CoachingMemory = require('../models/CoachingMemory');
-const { deriveLearning } = require('./memory');
 
 /**
  * Get a summary of recent feedback for inclusion in workout generation prompts.
