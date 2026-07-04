@@ -20,7 +20,7 @@ const authRoutes = require('./routes/api/auth');
 const telegramRoutes = require('./routes/api/telegram');
 
 require('./auth/passport');
-const telegramBot = require('./telegram/bot');
+const telegramBot = require('./services/telegram-bot');
 
 const app = express();
 const PORT = process.env.PORT || 10000;  // Render uses PORT=10000

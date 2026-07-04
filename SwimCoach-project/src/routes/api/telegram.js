@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const telegramBot = require('../telegram/bot');
+const telegramBot = require('../../services/telegram-bot');
 
 // Webhook endpoint - Telegram POSTs here
 router.post('/telegram', express.json(), (req, res) => {
