@@ -472,6 +472,11 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
   <div id="generateModal"></div>
 </div>
 
+<script type="module">
+  import { api } from '/js/api.js';
+  window.api = api;
+</script>
+
 <script>
 // === STATE ===
 let profile = JSON.parse(localStorage.getItem('sc_profile') || 'null');
