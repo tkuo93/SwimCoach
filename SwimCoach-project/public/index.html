@@ -1583,7 +1583,7 @@ async function init(){
     }
 
     // Authenticated - fetch profiles
-    const res = await fetchRes = await fetch('/api/profiles', { credentials: 'include' });
+    const fetchRes = await fetch('/api/profiles', { credentials: 'include' });
     const data = await fetchRes.json();
     console.log('API response:', data);
     if (data.data) { allProfiles = data.data; console.log('Loaded', allProfiles.length, 'profiles') }
