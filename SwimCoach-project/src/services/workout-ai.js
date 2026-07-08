@@ -405,29 +405,42 @@ async function generateWorkout(profile, customization, opts = {}) {
  * Single LLM call. Returns { content, truncated, finishReason }.
  */
 async function callLLM(model, systemMessage, userMessage, maxTokens) {
-  const response = await axios.post(
-    `${OPENROUTER_BASE}/chat/completions`,
-    {
-      model,
-      messages: [systemMessage, userMessage],
-      temperature: 0.7,
-      max_tokens: maxTokens,
-      provider: { order: ['openai'], sort: 'throughput' },
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://swimcoach.app',
-        'X-Title': 'SwimCoach',
+  try {
+    const response = await axios.post(
+      `${OPENROUTER_BASE}/chat/completions`,
+      {
+        model,
+        messages: [systemMessage, userMessage],
+        temperature: 0.7,
+        max_tokens: maxTokens,
+        provider: { order: ['openai'], sort: 'throughput' },
       },
-      timeout: 120_000,
-    },
-  );
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://swimcoach.app',
+          'X-Title': 'SwimCoach',
+        },
+        timeout: 120_000,
+      },
+    );
 
-  const choice = response.data?.choices?.[0];
-  const content = choice?.message?.content;
-  const finishReason = choice?.finish_reason;
-  return { content, finishReason };
+    const choice = response.data?.choices?.[0];
+    const content = choice?.message?.content;
+    const finishReason = choice?.finish_reason;
+    return { content, finishReason };
+  } catch (err) {
+    if (err.response) {
+      console.error('OpenRouter API Error:', err.response.status, err.response.data);
+      throw new Error(`OpenRouter API error: ${err.response.status} - ${JSON.stringify(err.response.data)}`);
+    } else if (err.request) {
+      console.error('OpenRouter Network Error:', err.message);
+      throw new Error(`OpenRouter network error: ${err.message}`);
+    } else {
+      console.error('OpenRouter Request Error:', err.message);
+      throw new Error(`OpenRouter request error: ${err.message}`);
+    }
+  }
 }
 
 /**
