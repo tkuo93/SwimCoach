@@ -79,7 +79,7 @@ class TelegramBotService {
       await this.handleStart(msg, match?.[1]?.trim());
     });
 
-    // /workout - Generate today's workout
+    // /workout - Generate today\\'s workout
     this.bot.onText(/\/workout/, async (msg) => {
       await this.handleWorkout(msg);
     });
@@ -206,25 +206,25 @@ class TelegramBotService {
     const existingProfile = await SwimmerProfile.findOne({ telegramId });
     if (existingProfile) {
       await safeSendMessage(this.bot, chatId,
-        'Welcome back, {name}! 🏊\n\nYour Telegram is already linked to SwimCoach.\n\nUse /workout to generate a workout, or /coach to chat with your coach.',
+        'Welcome back, {name}\\! 🏊\n\nYour Telegram is already linked to SwimCoach.\n\nUse /workout to generate a workout, or /coach to chat with your coach.',
         { name: existingProfile.firstName }
       );
       return;
     }
 
-    // Not linked - show linking instructions
+// Not linked - show linking instructions
     const linkUrl = `${process.env.FRONTEND_URL}/telegram-link?telegramId=${telegramId}`;
     await safeSendMessage(this.bot, chatId,
-      'Welcome to SwimCoach! 🏊\n\n' +
-      'To use this bot, you need to link it to your SwimCoach account.\n\n' +
-      '1\\. Open SwimCoach on the web: {frontendUrl}\n' +
-      '2\\. Go to Settings \\u2192 Telegram\n' +
-      '3\\. Click \"Link Telegram\" and enter your Telegram ID: `{telegramId}`\n\n' +
+      'Welcome to SwimCoach\! 🏊\n\n' +
+      'To use this bot, you need to link it to your SwimCoach account\.\n\n' +
+      '1\. Open SwimCoach on the web: {frontendUrl}\n' +
+      '2\. Go to Settings → Telegram\n' +
+      '3\. Click "Link Telegram" and enter your Telegram ID: `{telegramId}`\n\n' +
       'Or use this direct link: {linkUrl}\n\n' +
       'Once linked, you can:\n' +
-      '\\u2022 /workout - Generate today\'s workout\n' +
-      '\\u2022 /coach \\- Chat with your AI coach\n' +
-      '\\u2022 /help \\- Show this help',
+      '\u2022 /workout - Generate today\'s workout\n' +
+      '\u2022 /coach - Chat with your AI coach\n' +
+      '\u2022 /help - Show this help',
       { frontendUrl: process.env.FRONTEND_URL, telegramId, linkUrl }
     );
   }
