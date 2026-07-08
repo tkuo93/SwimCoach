@@ -10,11 +10,12 @@ const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, reso
  *
  * @param {Object} profile        - SwimmerProfile Mongoose document
  * @param {Object} customization  - Optional workout overrides
+ * @param {Object} opts           - Optional context (programContext, mode, etc.)
  * @returns {Promise<Object>}     - Saved Workout document
  */
-async function generateWorkout(profile, customization = {}) {
+async function generateWorkout(profile, customization = {}, opts = {}) {
   // Step 1+2: Get insights from knowledge base, then generate structured workout via OpenRouter
-  const aiWorkout = await generateWorkoutAI(profile, customization);
+  const aiWorkout = await generateWorkoutAI(profile, customization, opts);
 
   const workoutType = customization.workoutType || (Array.isArray(profile.goals?.trainingFocus) ? profile.goals.trainingFocus[0] : profile.goals?.trainingFocus) || 'endurance';
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
@@ -177,7 +178,7 @@ function validateYardsDistances(workout) {
 /**
  * Regenerates a workout — deletes the old one and creates a fresh one.
  */
-async function regenerateWorkout(workoutId, profile, customization = {}) {
+async function regenerateWorkout(workoutId, profile, customization = {}, opts = {}) {
   const oldWorkout = await Workout.findById(workoutId);
   await Workout.findByIdAndDelete(workoutId);
   // Preserve the original sessionType so we don't generate pool+gym if the
@@ -185,7 +186,7 @@ async function regenerateWorkout(workoutId, profile, customization = {}) {
   const sessionType = customization.sessionType
     || (oldWorkout?.generationInfo?.generationParameters?.sessionType)
     || 'both';
-  return generateWorkout(profile, { ...customization, sessionType });
+  return generateWorkout(profile, { ...customization, sessionType }, opts);
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
