@@ -62,7 +62,9 @@ app.use(passport.session());
 app.use('/api/auth', authRoutes);
 
 // Telegram webhook (public - no auth required)
+console.log('[Index] Mounting telegramRoutes:', typeof telegramRoutes, telegramRoutes?.stack?.length);
 app.use('/api/telegram', telegramRoutes);
+console.log('[Index] telegramRoutes mounted');
 
 // Protected API routes
 const { requireAuth } = require('./middleware/auth');
