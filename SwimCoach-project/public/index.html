@@ -1352,13 +1352,21 @@ function renderSettings(){
     `<option value="${m}">${m === 'auto' ? 'Auto (default)' : m}</option>`
   ).join('');
   document.getElementById('settingsSection').innerHTML=`
-    <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="llmSelect" onchange="saveSetting('llm',this.value)">${options}</select></div>
-    <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentLlm">Auto</span></div>
-    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetSettings()">Reset to Default</button></div>
+    <div class="settings-section">
+      <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="llmSelect" onchange="saveSetting('llm',this.value)">${options}</select></div>
+      <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentLlm">Auto</span></div>
+      <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetSettings()">Reset to Default</button></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-row"><span class="settings-label">Telegram Bot</span><span class="settings-value" id="telegramStatus">Checking…</span></div>
+      <div class="settings-row" id="telegramLinked" style="display:none"><span class="settings-label">Linked</span><span class="settings-value success">✅ Connected</span></div>
+      <div class="settings-row" id="telegramNotLinked" style="display:none"><span class="settings-label">Not Linked</span><button class="history-action-btn" onclick="linkTelegram()">Link Telegram</button></div>
+    </div>
     <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn del" onclick="logout()">Log Out</button></div>`;
   const llm=localStorage.getItem('sc_llm')||'auto';
   document.getElementById('llmSelect').value=llm;
   document.getElementById('currentLlm').textContent=llm;
+  checkTelegramStatus();
 }
 async function logout(){
   if(!confirm('Log out of SwimCoach?'))return;
@@ -1374,6 +1382,28 @@ async function logout(){
 }
 function saveSetting(k,v){localStorage.setItem('sc_'+k,v);renderSettings()}
 function resetSettings(){localStorage.removeItem('sc_llm');renderSettings()}
+
+// Telegram linking
+async function checkTelegramStatus(){
+  if(!profile) return;
+  try {
+    const res = await api.profiles.get(profile._id);
+    if(res.success && res.data) {
+      const isLinked = !!res.data.telegramId;
+      document.getElementById('telegramStatus').textContent = isLinked ? '✅ Linked' : 'Not linked';
+      document.getElementById('telegramLinked').style.display = isLinked ? 'flex' : 'none';
+      document.getElementById('telegramNotLinked').style.display = isLinked ? 'none' : 'flex';
+    }
+  } catch (e) {
+    document.getElementById('telegramStatus').textContent = 'Error checking';
+    console.error('Telegram status check failed:', e);
+  }
+}
+
+function linkTelegram(){
+  // Open telegram-link page - user gets their Telegram ID from the bot first
+  window.open('/telegram-link.html', '_blank');
+}
 
 // === DEBUG ===
 function renderDebug(){

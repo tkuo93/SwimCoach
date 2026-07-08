@@ -72,16 +72,17 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
         <div class="steps">
           <div class="step"><span class="step-num">1</span><span class="step-text">Open Telegram and start a chat with <strong>@SwimCoachBot</strong></span></div>
           <div class="step"><span class="step-num">2</span><span class="step-text">Send <code>/start</code> to the bot</span></div>
-          <div class="step"><span class="step-num">3</span><span class="step-text">Copy your Telegram ID shown below</span></div>
-          <div class="step"><span class="step-num">4</span><span class="step-text">Click "Generate Link" below</span></div>
+          <div class="step"><span class="step-num">3</span><span class="step-text">Copy your Telegram ID shown by the bot</span></div>
+          <div class="step"><span class="step-num">4</span><span class="step-text">Paste it below and click "Generate Link"</span></div>
         </div>
 
         <div class="qr">
           <label style="display:block;font-size:13px;color:var(--text-sec);margin-bottom:8px">Your Telegram ID:</label>
-          <div class="code" id="telegramId">Loading...</div>
+          <div class="code" id="telegramIdDisplay">Not provided</div>
+          <input type="text" id="telegramIdInput" placeholder="Paste your Telegram ID here" style="width:100%;margin-top:12px;padding:14px;border:1.5px solid var(--border);border-radius:var(--rs);font-family:var(--font-m);font-size:16px;background:var(--surface);color:var(--text);outline:none" />
         </div>
 
-        <button class="btn btn-coral" onclick="generateLink()">Generate Link</button>
+        <button class="btn btn-coral" onclick="generateLink()" style="margin-top:16px">Generate Link</button>
       </div>
 
       <div id="linkState" style="display:none">
@@ -113,15 +114,20 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 <script>
 // Get URL params
 const params = new URLSearchParams(window.location.search);
-const telegramId = params.get('telegramId');
+const telegramIdFromUrl = params.get('telegramId');
 const token = params.get('token');
 const frontendUrl = window.location.origin;
 
-document.getElementById('telegramId').textContent = telegramId || 'Not provided';
+// Pre-fill from URL if provided
+if (telegramIdFromUrl) {
+  document.getElementById('telegramIdInput').value = telegramIdFromUrl;
+  document.getElementById('telegramIdDisplay').textContent = telegramIdFromUrl;
+}
 
 async function generateLink() {
+  const telegramId = document.getElementById('telegramIdInput').value.trim();
   if (!telegramId) {
-    showError('Telegram ID not found in URL. Please use the link from the bot.');
+    showError('Please enter your Telegram ID from the bot.');
     return;
   }
 
@@ -136,7 +142,7 @@ async function generateLink() {
     const data = await res.json();
 
     if (data.success) {
-      const linkUrl = data.data.linkUrl;
+      const linkUrl = data.data.deepLink;  // Use deepLink from server
       document.getElementById('linkButton').href = linkUrl;
       document.getElementById('copyLink').textContent = linkUrl;
       document.getElementById('linkingState').style.display = 'none';
