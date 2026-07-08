@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
+console.log('[Telegram] Route module loading...');
 const telegramBot = require('../../services/telegram-bot');
+console.log('[Telegram] Bot service loaded:', !!telegramBot);
 
-// Webhook endpoint - Telegram POSTs here
 router.post('/telegram', express.json(), (req, res) => {
-  // Pass full req/res to processUpdate for secret verification
+  console.log('[Telegram] Webhook received');
   telegramBot.processUpdate(req, res);
 });
 
-// Health check for Telegram
 router.get('/telegram', (req, res) => {
   res.json({ status: 'ok', bot: 'Telegram webhook endpoint' });
 });
 
+console.log('[Telegram] Route module loaded');
 module.exports = router;
