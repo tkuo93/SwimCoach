@@ -215,7 +215,7 @@ class TelegramBotService {
 // Not linked - show linking instructions
     const linkUrl = `${process.env.FRONTEND_URL}/telegram-link?telegramId=${telegramId}`;
     await safeSendMessage(this.bot, chatId,
-      'Welcome to SwimCoach\! 🏊\n\n' +
+      'Welcome to SwimCoach\\! 🏊\n\n' +
       'To use this bot, you need to link it to your SwimCoach account\.\n\n' +
       '1\. Open SwimCoach on the web: {frontendUrl}\n' +
       '2\. Go to Settings → Telegram\n' +
