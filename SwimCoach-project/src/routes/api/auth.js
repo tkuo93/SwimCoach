@@ -74,7 +74,7 @@ router.post('/telegram-verify', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Token required' });
     }
 
-    const { SwimmerProfile } = require('../models');
+    const { SwimmerProfile } = require('../../models');
     // Find profile by linking token
     const profile = await SwimmerProfile.findOne({
       telegramLinkToken: token,
@@ -105,7 +105,7 @@ router.post('/telegram-link-generate', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
-    const { SwimmerProfile } = require('../models');
+    const { SwimmerProfile } = require('../../models');
     const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Profile not found' });
