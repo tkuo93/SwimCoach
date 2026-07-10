@@ -222,9 +222,9 @@ class TelegramBotService {
       '3\\. Click "Link Telegram" and enter your Telegram ID: `{telegramId}`\n\n' +
       'Or use this direct link: {linkUrl}\n\n' +
       'Once linked, you can:\n' +
-      '• /workout \- Generate today\'s workout\n' +
-      '• /coach \- Chat with your AI coach\n' +
-      '• /help \- Show this help',
+      '• /workout \\- Generate today\'s workout\n' +
+      '• /coach \\- Chat with your AI coach\n' +
+      '• /help \\- Show this help',
       { frontendUrl: process.env.FRONTEND_URL, telegramId, linkUrl }
     );
   }
