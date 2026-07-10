@@ -5,8 +5,7 @@
 
 const crypto = require('crypto');
 const TelegramBot = require('node-telegram-bot-api').default || require('node-telegram-bot-api');
-const SwimmerProfile = require('../models/SwimmerProfile');
-const CoachSession = require('../models/CoachSession');
+const { SwimmerProfile, CoachSession } = require('../models');
 const { generateWorkout } = require('../services/workout-generator');
 const { chat: coachChat } = require('../services/coach/coach-agent');
 
