@@ -1,4 +1,4 @@
-# Render config Sat Jul  4 09:54:52 EDT 2026
+# Render config
 services:
   - type: web
     name: swimcoach
@@ -11,3 +11,43 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: GOOGLE_CALLBACK_URL
+        value: https://swimcoachai.onrender.com/api/auth/google/callback
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://swimcoachai.onrender.com
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: poolside/laguna-m.1:free
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_URL
+        value: https://swimcoachai.onrender.com/api/telegram
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        value: SwimCoachAIBot
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPEN_NOTEBOOK_URL
+        sync: false
+      - key: OPEN_NOTEBOOK_API_KEY
+        sync: false
+      - key: SYSTEM_USER_ID
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: nvidia/llama-nemotron-embed-vl-1b-v2:free
+      - key: OPEN_NOTEBOOK_ENCRYPTION_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://swimcoachai.onrender.com
