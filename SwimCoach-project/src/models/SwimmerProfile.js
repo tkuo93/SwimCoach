@@ -276,4 +276,4 @@ swimmerProfileSchema.index({ experienceLevel: 1 });
 // Create and export the model
 const SwimmerProfile = mongoose.model('SwimmerProfile', swimmerProfileSchema);
 
-module.exports = SwimmerProfile;
+module.exports = SwimmerProfile;// force rebuild
