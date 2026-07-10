@@ -1,0 +1,8 @@
+const fs = require('fs');
+let content = fs.readFileSync('src/services/telegram-bot.js', 'utf8');
+const lines = content.split('\n');
+
+lines.splice(227, 1); // Remove line 227 (0-indexed)
+
+fs.writeFileSync('src/services/telegram-bot.js', lines.join('\n'));
+console.log('Done');
