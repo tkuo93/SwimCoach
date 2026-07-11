@@ -1,0 +1,37 @@
+- generic [ref=f15e2]:
+  - generic [ref=f15e34]:
+    - generic [ref=f15e35]:
+      - generic [ref=f15e36] [cursor=pointer]: ←
+      - heading "New Profile" [level=1] [ref=f15e37]
+    - generic [ref=f15e38]:
+      - generic [ref=f15e39]: 🏊
+      - heading "Hey, I'm your coach." [level=2] [ref=f15e40]
+      - paragraph [ref=f15e41]: I'll build personalized workouts for you. Let's start with the basics — you can always adjust later.
+    - generic [ref=f15e43]: What's your primary goal? Select all that apply.
+    - generic [ref=f15e45]:
+      - button "Improve event time Drop seconds from your best" [active] [ref=f15e46] [cursor=pointer]:
+        - text: Improve event time
+        - generic [ref=f15e47]: Drop seconds from your best
+      - button "Build endurance Swim longer without stopping" [ref=f15e48] [cursor=pointer]:
+        - text: Build endurance
+        - generic [ref=f15e49]: Swim longer without stopping
+      - button "Maintain fitness Stay in shape, feel good" [ref=f15e50] [cursor=pointer]:
+        - text: Maintain fitness
+        - generic [ref=f15e51]: Stay in shape, feel good
+      - button "Technique work Improve form and efficiency" [ref=f15e52] [cursor=pointer]:
+        - text: Technique work
+        - generic [ref=f15e53]: Improve form and efficiency
+      - button "✓ Continue" [ref=f15e54] [cursor=pointer]
+  - navigation [ref=f15e20]:
+    - generic [ref=f15e21] [cursor=pointer]:
+      - generic [ref=f15e22]: 📋
+      - generic [ref=f15e23]: Today
+    - generic [ref=f15e24] [cursor=pointer]:
+      - generic [ref=f15e25]: 📅
+      - generic [ref=f15e26]: Week
+    - generic [ref=f15e27] [cursor=pointer]:
+      - generic [ref=f15e28]: 📊
+      - generic [ref=f15e29]: History
+    - generic [ref=f15e30] [cursor=pointer]:
+      - generic [ref=f15e31]: 👤
+      - generic [ref=f15e32]: Profile

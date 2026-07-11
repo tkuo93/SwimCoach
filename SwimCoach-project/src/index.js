@@ -87,12 +87,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Serve login page for root if not authenticated, otherwise serve app
-app.get('/', (req, res, next) => {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return next(); // Continue to static file serving
-  }
-  res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
+// Serve index.html for root (client handles auth state)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 // Serve frontend static files

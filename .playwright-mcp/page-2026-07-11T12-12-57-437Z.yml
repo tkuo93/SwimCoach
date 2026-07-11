@@ -1,0 +1,91 @@
+- generic [ref=f13e2]:
+  - generic [ref=f13e34]:
+    - generic [ref=f13e35]:
+      - generic [ref=f13e36] [cursor=pointer]: ←
+      - heading "Today" [level=1] [ref=f13e37]
+      - button "✏️" [ref=f13e38] [cursor=pointer]
+      - button "💬" [ref=f13e39] [cursor=pointer]
+    - generic [ref=f13e40]:
+      - generic [ref=f13e41]: 2026-07-11
+      - generic [ref=f13e42]: Workout
+    - generic [ref=f13e43]:
+      - generic [ref=f13e44]:
+        - generic [ref=f13e45]: "0"
+        - generic [ref=f13e46]: meters
+      - generic [ref=f13e47]:
+        - generic [ref=f13e48]: "60"
+        - generic [ref=f13e49]: minutes
+      - generic [ref=f13e50]:
+        - generic [ref=f13e51]: moderate
+        - generic [ref=f13e52]: intensity
+    - generic [ref=f13e54]:
+      - generic [ref=f13e55]:
+        - generic [ref=f13e56]: 0m
+        - generic [ref=f13e57]: total distance
+      - generic [ref=f13e58]:
+        - generic [ref=f13e59]: ~60 min
+        - generic [ref=f13e60]: duration
+    - generic [ref=f13e62]:
+      - button "💬 Coach" [ref=f13e63] [cursor=pointer]
+      - button "▶ Start Workout" [ref=f13e64] [cursor=pointer]
+    - generic [ref=f13e66]:
+      - heading "📝 How was this workout?" [level=4] [ref=f13e67]
+      - generic [ref=f13e68]:
+        - generic [ref=f13e69]: Rating
+        - generic [ref=f13e70]:
+          - generic [ref=f13e71] [cursor=pointer]: ★
+          - generic [ref=f13e72] [cursor=pointer]: ★
+          - generic [ref=f13e73] [cursor=pointer]: ★
+          - generic [ref=f13e74] [cursor=pointer]: ★
+          - generic [ref=f13e75] [cursor=pointer]: ★
+      - generic [ref=f13e76]:
+        - generic [ref=f13e77]: Difficulty
+        - combobox [ref=f13e78]:
+          - option "Select…" [selected]
+          - option "too easy"
+          - option "easy"
+          - option "just right"
+          - option "hard"
+          - option "too hard"
+      - generic [ref=f13e79]:
+        - generic [ref=f13e80]: Enjoyment
+        - combobox [ref=f13e81]:
+          - option "Select…" [selected]
+          - option "did not enjoy"
+          - option "neutral"
+          - option "enjoyed"
+          - option "loved"
+      - generic [ref=f13e82]:
+        - generic [ref=f13e83]: Quality
+        - combobox [ref=f13e84]:
+          - option "Select…" [selected]
+          - option "poor"
+          - option "below average"
+          - option "average"
+          - option "good"
+          - option "excellent"
+      - generic [ref=f13e85]:
+        - generic [ref=f13e86]: Accuracy
+        - combobox [ref=f13e87]:
+          - option "Select…" [selected]
+          - option "way off"
+          - option "close but off"
+          - option "mostly accurate"
+          - option "spot on"
+      - generic [ref=f13e88]:
+        - generic [ref=f13e89]: Comments (optional)
+        - textbox "What worked? What didn't?" [ref=f13e90]
+      - button "Submit Feedback" [ref=f13e91] [cursor=pointer]
+  - navigation [ref=f13e20]:
+    - generic [ref=f13e21] [cursor=pointer]:
+      - generic [ref=f13e22]: 📋
+      - generic [ref=f13e23]: Today
+    - generic [ref=f13e24] [cursor=pointer]:
+      - generic [ref=f13e25]: 📅
+      - generic [ref=f13e26]: Week
+    - generic [ref=f13e27] [cursor=pointer]:
+      - generic [ref=f13e28]: 📊
+      - generic [ref=f13e29]: History
+    - generic [ref=f13e30] [cursor=pointer]:
+      - generic [ref=f13e31]: 👤
+      - generic [ref=f13e32]: Profile

@@ -1,0 +1,22 @@
+- generic [ref=f11e2]:
+  - generic [ref=f11e4]:
+    - generic [ref=f11e5]:
+      - generic [ref=f11e6] [cursor=pointer]: 🏊
+      - heading "SwimCoach" [level=2] [ref=f11e7]
+      - paragraph [ref=f11e8]: Personalized swim and gym workouts, plus an AI coach powered by sports science research.
+    - generic [ref=f11e9]:
+      - button "Create New Profile" [ref=f11e10] [cursor=pointer]
+      - button "Quick Workout" [ref=f11e11]
+  - navigation [ref=f11e12]:
+    - generic [ref=f11e13] [cursor=pointer]:
+      - generic [ref=f11e14]: 📋
+      - generic [ref=f11e15]: Today
+    - generic [ref=f11e16] [cursor=pointer]:
+      - generic [ref=f11e17]: 📅
+      - generic [ref=f11e18]: Week
+    - generic [ref=f11e19] [cursor=pointer]:
+      - generic [ref=f11e20]: 📊
+      - generic [ref=f11e21]: History
+    - generic [ref=f11e22] [cursor=pointer]:
+      - generic [ref=f11e23]: 👤
+      - generic [ref=f11e24]: Profile

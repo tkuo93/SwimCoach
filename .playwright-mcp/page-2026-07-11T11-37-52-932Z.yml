@@ -1,0 +1,18 @@
+- generic [ref=f2e2]:
+  - generic [ref=f2e3]:
+    - generic [ref=f2e4]: 9:41
+    - generic [ref=f2e5]: ●●●●○
+  - generic [ref=f2e7]:
+    - generic [ref=f2e8]:
+      - generic [ref=f2e9] [cursor=pointer]: 🏊
+      - heading "SwimCoach" [level=2] [ref=f2e10]
+      - paragraph [ref=f2e11]: Personalized swim and gym workouts, plus an AI coach powered by sports science research.
+    - generic [ref=f2e12]:
+      - generic [ref=f2e13]: Select a profile
+      - button "TK Teddy Kuo butterfly 200yards · advanced →" [ref=f2e14] [cursor=pointer]:
+        - generic [ref=f2e15]: TK
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]: Teddy Kuo
+          - generic [ref=f2e18]: butterfly 200yards · advanced
+        - generic [ref=f2e19]: →
+    - button "Create New Profile" [ref=f2e21] [cursor=pointer]

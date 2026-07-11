@@ -1,0 +1,84 @@
+- generic [ref=f13e2]:
+  - generic [ref=f13e93]:
+    - generic [ref=f13e94]:
+      - generic [ref=f13e95] [cursor=pointer]: ←
+      - heading "Profile" [level=1] [ref=f13e96]
+      - button "⚙️" [ref=f13e97] [cursor=pointer]
+      - button "💬" [ref=f13e98] [cursor=pointer]
+    - generic [ref=f13e100]:
+      - generic [ref=f13e101]: Guest
+      - button "Delete Profile" [ref=f13e102] [cursor=pointer]
+    - generic [ref=f13e103]:
+      - generic [ref=f13e104]:
+        - generic [ref=f13e105]: Identity
+        - generic [ref=f13e106]:
+          - generic [ref=f13e107]: Name
+          - generic [ref=f13e108]: Guest
+        - generic [ref=f13e109]:
+          - generic [ref=f13e110]: Email
+          - generic [ref=f13e111]: guest_anon_1783771769889_a0fductbd@swimcoach.local
+        - generic [ref=f13e112]:
+          - generic [ref=f13e113]: Date of Birth
+          - generic [ref=f13e114]: —
+        - generic [ref=f13e115]:
+          - generic [ref=f13e116]: Gender
+          - generic [ref=f13e117]: prefer-not-to-say
+        - generic [ref=f13e118]:
+          - generic [ref=f13e119]: Experience Level
+          - generic [ref=f13e120]: intermediate
+      - generic [ref=f13e121]:
+        - generic [ref=f13e122]: Training
+        - generic [ref=f13e123]:
+          - generic [ref=f13e124]: Goals
+          - generic [ref=f13e125]: improve
+        - generic [ref=f13e126]:
+          - generic [ref=f13e127]: Events you train for
+          - generic [ref=f13e128]: Free 100m
+        - generic [ref=f13e129]:
+          - generic [ref=f13e130]: Training Focus
+          - generic [ref=f13e131]: —
+        - generic [ref=f13e132]:
+          - generic [ref=f13e133]: Target Improvement
+          - generic [ref=f13e134]: —
+        - generic [ref=f13e135]:
+          - generic [ref=f13e136]: Session Duration
+          - generic [ref=f13e137]: 60 min
+      - generic [ref=f13e138]:
+        - generic [ref=f13e139]: Schedule
+        - generic [ref=f13e140]:
+          - generic [ref=f13e141]: Pool sessions/week
+          - generic [ref=f13e142]: "3"
+        - generic [ref=f13e143]:
+          - generic [ref=f13e144]: Gym sessions/week
+          - generic [ref=f13e145]: "2"
+        - generic [ref=f13e146]:
+          - generic [ref=f13e147]: Pool days
+          - generic [ref=f13e148]: monday, wednesday, friday
+        - generic [ref=f13e149]:
+          - generic [ref=f13e150]: Gym days
+          - generic [ref=f13e151]: tuesday, thursday
+      - generic [ref=f13e152]:
+        - generic [ref=f13e153]: Equipment
+        - generic [ref=f13e154]:
+          - generic [ref=f13e155]: Pool
+          - generic [ref=f13e156]: —
+        - generic [ref=f13e157]:
+          - generic [ref=f13e158]: Gym
+          - generic [ref=f13e159]: —
+      - generic [ref=f13e160]:
+        - generic [ref=f13e161]: Best Times
+        - generic [ref=f13e162]: None recorded
+      - button "✏️ Edit Profile" [ref=f13e165] [cursor=pointer]
+  - navigation [ref=f13e20]:
+    - generic [ref=f13e21] [cursor=pointer]:
+      - generic [ref=f13e22]: 📋
+      - generic [ref=f13e23]: Today
+    - generic [ref=f13e24] [cursor=pointer]:
+      - generic [ref=f13e25]: 📅
+      - generic [ref=f13e26]: Week
+    - generic [ref=f13e27] [cursor=pointer]:
+      - generic [ref=f13e28]: 📊
+      - generic [ref=f13e29]: History
+    - generic [ref=f13e30] [cursor=pointer]:
+      - generic [ref=f13e31]: 👤
+      - generic [ref=f13e32]: Profile

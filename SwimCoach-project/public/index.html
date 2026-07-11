@@ -29,17 +29,19 @@
   --rs: 12px;
   --rf: 100px;
   --sh: 0 4px 16px rgba(0,0,0,0.06);
+  --cream-warm: #fdfaf6;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px;color:var(--text);-webkit-font-smoothing:antialiased}
-.phone{width:375px;height:750px;background:var(--cream);border-radius:48px;box-shadow:0 12px 40px rgba(0,0,0,0.08);position:relative;display:flex;flex-direction:column}
-.phone-content{flex:1;overflow-y:auto;overflow-x:hidden}
-.status-bar{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-family:var(--font-m);font-size:12px;font-weight:500;color:var(--text-sec)}
+html{height:100%}
+body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:var(--text);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+.app{flex:1;display:flex;flex-direction:column;max-width:100%}
 .screen{display:none;flex-direction:column;flex:1;animation:fadeUp .4s cubic-bezier(.16,1,.3,1);min-height:0}
 .screen.active{display:flex}
-.screen-content{flex:1;overflow-y:auto;min-height:0}
+.screen-content{flex:1;overflow-y:auto;min-height:0;padding-bottom:calc(70px + env(safe-area-inset-bottom, 0))}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.top-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;gap:12px}
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;gap:12px;background:var(--surface);border-bottom:1px solid var(--border-light);position:sticky;top:0;z-index:10}
 .top-bar h1{font-family:var(--font-d);font-size:18px;font-weight:600;letter-spacing:-.01em;flex:1}
 .top-back{font-size:20px;color:var(--text-mut);cursor:pointer;padding:6px 8px;margin-left:-8px;border-radius:8px;transition:all .15s}
 .top-back:hover{background:var(--surface);color:var(--text)}
@@ -60,7 +62,13 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 .landing-profile-name{font-family:var(--font-d);font-size:16px;font-weight:600}
 .landing-profile-detail{font-family:var(--font-m);font-size:11px;color:var(--text-mut)}
 .landing-profile-arrow{color:var(--text-mut);font-size:18px}
-.landing-actions{width:100%}
+.landing-actions{width:100%;display:flex;flex-direction:column;gap:12px}
+.landing-actions .btn-primary,
+.landing-actions .btn-outline{width:100%;padding:18px;font-family:var(--font-d);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-radius:var(--r);cursor:pointer;transition:all .2s}
+.landing-actions .btn-primary{background:var(--coral);color:#fff;border:none;box-shadow:0 4px 20px rgba(232,101,74,.2)}
+.landing-actions .btn-outline{background:transparent;color:var(--text-sec);border:1.5px solid var(--border)}
+.landing-actions .btn-primary:active,
+.landing-actions .btn-outline:active{transform:scale(.97)}
 
 /* Onboarding */
 .onboarding{flex:1;display:flex;flex-direction:column}
@@ -242,19 +250,18 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 .empty-btn:active{transform:scale(.96)}
 
 /* Nav */
-.nav-bar{background:var(--surface);border-top:1px solid var(--border-light);display:flex;padding:8px 0 20px;flex-shrink:0}
+.nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border-light);display:flex;padding:8px 0 20px;flex-shrink:0;z-index:50;padding-bottom:calc(20px + env(safe-area-inset-bottom, 0));transform:translateY(100%);transition:transform .3s cubic-bezier(.16,1,.3,1)}
+.nav-bar.visible{transform:translateY(0)}
 .nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;cursor:pointer;color:var(--text-mut);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;transition:color .15s}
 .nav-tab.active{color:var(--sage)}
 .nav-tab .icon{font-size:20px}
 
 /* Coach */
-/* Overlay is absolutely positioned inside .phone so it fills the phone frame
-   like a native mobile modal, not the whole browser viewport. */
-.coach-overlay{display:none;position:absolute;inset:0;z-index:200;background:var(--cream);border-radius:48px;overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+/* Overlay is fixed to viewport for full-screen mobile modal */
+.coach-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--cream);overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
 .coach-overlay.active{display:flex;flex-direction:column;transform:translateY(0)}
-/* Modal is absolutely positioned inside .phone so it overlays the app frame
-   like a native mobile modal, not the whole browser viewport. */
-#generateModal{display:none;position:absolute;inset:0;z-index:300;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px)}
+/* Modal is fixed to viewport for full-screen overlay */
+#generateModal{display:none;position:fixed;inset:0;z-index:300;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px)}
 .modal-overlay{position:absolute;inset:0}
 .modal-content{position:relative;margin:auto;background:var(--cream);border-radius:var(--r);width:300px;max-width:90%;max-height:85%;overflow-y:auto;box-shadow:var(--shadow-lg)}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border-light)}
@@ -268,7 +275,7 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 .coach-header h1{flex:1;font-family:var(--font-d);font-size:16px;font-weight:600}
 .coach-back,.coach-close{background:none;border:none;font-size:18px;color:var(--text-sec);cursor:pointer;padding:6px 10px;border-radius:6px;line-height:1}
 .coach-back:hover,.coach-close:hover{background:var(--cream-warm);color:var(--text)}
-.coach-history-view{position:absolute;inset:0;background:var(--cream);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);z-index:10}
+.coach-history-view{position:fixed;inset:0;background:var(--cream);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.16,1,.3,1);z-index:10}
 .coach-history-view.open{transform:translateX(0)}
 .coach-history-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border-light)}
 .coach-history-header h1{font-family:var(--font-d);font-size:16px;font-weight:600}
@@ -311,8 +318,7 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
 </head>
 <body>
 
-<div class="phone">
-  <div class="status-bar"><span>9:41</span><span style="color:var(--sage)">●●●●○</span></div>
+<div class="app">
 
   <!-- LANDING / LOGIN -->
   <div class="screen active" id="s-landing">
@@ -325,6 +331,7 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
       <div class="landing-profiles" id="landingProfiles"></div>
       <div class="landing-actions">
         <button class="btn-primary" onclick="startOnboard()">Create New Profile</button>
+        <button class="btn-outline" onclick="startQuickWorkout()">Quick Workout</button>
       </div>
     </div>
   </div>
@@ -367,7 +374,6 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
       <div class="workout-actions"><div class="btn-row"><button class="btn btn-outline" style="flex:1" onclick="openCoachWithWorkout()">💬 Coach</button><button class="btn btn-coral" style="flex:2" onclick="goExecute()">▶ Start Workout</button></div></div>
       <div id="feedbackSection"></div>
     </div>
-    <div class="nav-bar"><div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div><div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div><div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div><div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div></div>
   </div>
 
   <!-- EXECUTE -->
@@ -409,7 +415,6 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
       <div class="timeline" id="weekTimeline"></div>
       <div class="workout-actions" id="weekActions" style="display:none"><button class="btn btn-coral" onclick="generateWeek()">Generate Week</button></div>
     </div>
-    <div class="nav-bar"><div class="nav-tab" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div><div class="nav-tab active" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div><div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div><div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div></div>
   </div>
 
   <!-- HISTORY -->
@@ -418,7 +423,6 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
       <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="coach-fab" onclick="openCoach()">💬</button></div>
       <div class="history-list" id="historyList"></div>
     </div>
-    <div class="nav-bar"><div class="nav-tab" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div><div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div><div class="nav-tab active" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div><div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div></div>
   </div>
 
   <!-- PROFILE -->
@@ -428,7 +432,6 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
       <div class="profile-switcher" id="profileSwitcher"></div>
       <div id="profileSections"></div>
     </div>
-    <div class="nav-bar"><div class="nav-tab" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div><div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div><div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div><div class="nav-tab active" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div></div>
   </div>
 
   <!-- SETTINGS -->
@@ -447,8 +450,15 @@ body{font-family:var(--font-b);background:#f0ebe3;display:flex;justify-content:c
   <div class="screen" id="s-empty">
     <div class="top-bar"><h1>SwimCoach</h1></div>
     <div class="empty-view"><div class="empty-illustration">🏊</div><div class="empty-title">Ready to train?</div><div class="empty-desc">Generate a personalized workout for today.</div><button class="empty-btn" onclick="genNewWorkout()">Generate Today's Workout</button></div>
-    <div class="nav-bar"><div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div><div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div><div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div><div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div></div>
   </div>
+
+  <!-- Global Nav Bar (fixed at bottom) -->
+  <nav class="nav-bar" id="globalNavBar">
+    <div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div>
+    <div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div>
+    <div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div>
+    <div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div>
+  </nav>
 
   <!-- COACH -->
   <div class="coach-overlay" id="s-coach">
@@ -592,21 +602,92 @@ function showQ(i){
 function confirmEvent(){answers['event']={stroke:document.getElementById('evStroke').value,distance:parseInt(document.getElementById('evDist').value),unit:document.getElementById('evUnit').value};advanceQ()}
 function submitInp(){const inp=document.getElementById('inp'),q=Q[qIdx];if(!inp.value.trim())return;answers[q.id]=inp.value.trim();advanceQ()}
 function advanceQ(){qIdx++;if(qIdx<Q.length){setTimeout(()=>showQ(qIdx),400)}else{const b=document.createElement('div');b.className='bubble bubble-coach';b.textContent="Great! Ready to build your first workout?";document.getElementById('conv').appendChild(b);document.getElementById('opts').style.display='none';document.getElementById('inpWrap').style.display='none';document.getElementById('cta').style.display='block';document.querySelectorAll('.progress-dot').forEach(d=>{d.classList.add('done');d.classList.remove('now')})}}
-function startOnboard(){qIdx=0;answers={};document.getElementById('conv').innerHTML='';showScreen('s-onboard');showQ(0)}
-function finishOnboard(){
-  const allProfiles=JSON.parse(localStorage.getItem('sc_all_profiles')||'[]');
-  const existingIdx=allProfiles.findIndex(p=>p.email===answers.email);
-  if(existingIdx>=0){allProfiles[existingIdx]=answers}else{allProfiles.push(answers)}
-  localStorage.setItem('sc_all_profiles',JSON.stringify(allProfiles));
-  profile=answers;
-  localStorage.setItem('sc_profile',JSON.stringify(profile));
+let isQuickWorkout = false;
+
+function startOnboard(skipProfileQuestions = false) {
+  qIdx = skipProfileQuestions ? 2 : 0;
+  answers = {};
+  document.getElementById('conv').innerHTML = '';
+  showScreen('s-onboard');
+  showQ(qIdx);
+}
+
+function startQuickWorkout() {
+  isQuickWorkout = true;
+  startOnboard(true);
+}
+
+function finishOnboard() {
+  const allProfiles = JSON.parse(localStorage.getItem('sc_all_profiles') || '[]');
+
+  if (isQuickWorkout) {
+    // Create anonymous profile - use crypto.randomUUID for secure ID generation
+    const anonId = 'anon_' + crypto.randomUUID();
+    const anonProfile = {
+      _id: anonId,
+      firstName: 'Guest',
+      lastName: '',
+      email: 'guest_' + anonId + '@swimcoach.local',
+      dateOfBirth: null,
+      gender: 'prefer-not-to-say',
+      experienceLevel: answers.level || 'intermediate',
+      goals: {
+        outcomes: answers.goal || ['maintain'],
+        primaryEvents: answers.event ? [{ stroke: answers.event.stroke, distance: answers.event.distance }] : [],
+        trainingFocus: [],
+        targetImprovement: ''
+      },
+      trainingSchedule: {
+        sessionDuration: parseInt(answers.duration) || 60,
+        weeklyPoolSessions: 3,
+        weeklyGymSessions: 2,
+        poolDays: ['monday', 'wednesday', 'friday'],
+        gymDays: ['tuesday', 'thursday']
+      },
+      equipment: {
+        poolLength: { value: 25, unit: 'meters' },
+        poolEquipment: {},
+        gymEquipment: {}
+      },
+      weightInventory: [],
+      bestTimes: []
+    };
+
+    // Merge onboarding answers
+    Object.assign(anonProfile, answers);
+
+    const existingIdx = allProfiles.findIndex(p => p._id === anonId);
+    if (existingIdx >= 0) {
+      allProfiles[existingIdx] = anonProfile;
+    } else {
+      allProfiles.push(anonProfile);
+    }
+    localStorage.setItem('sc_all_profiles', JSON.stringify(allProfiles));
+    localStorage.setItem('sc_anon_profile', JSON.stringify(anonProfile));
+    profile = anonProfile;
+    localStorage.setItem('sc_profile', JSON.stringify(profile));
+    isQuickWorkout = false;
+  } else {
+    const existingIdx = allProfiles.findIndex(p => p.email === answers.email);
+    if (existingIdx >= 0) { allProfiles[existingIdx] = answers } else { allProfiles.push(answers) }
+    localStorage.setItem('sc_all_profiles', JSON.stringify(allProfiles));
+    profile = answers;
+    localStorage.setItem('sc_profile', JSON.stringify(profile));
+  }
+
   showScreen('s-loading');
-  setTimeout(()=>{
-    const w=genWorkout(answers);w.isToday=true;w.date=new Date().toISOString().split('T')[0];
-    workouts=[w];currentWorkout=w;
-    localStorage.setItem('sc_workouts_'+profile.email,JSON.stringify(workouts));
-    renderToday();showScreen('s-today');
-  },1200);
+  setTimeout(() => {
+    const w = genWorkout(profile);
+    w.isToday = true;
+    w.date = new Date().toISOString().split('T')[0];
+    workouts = [w];
+    currentWorkout = w;
+    // Use profile._id as storage key for anonymous profiles, email for regular
+    const storageKey = profile._id && profile._id.startsWith('anon_') ? profile._id : (profile.email || 'guest');
+    localStorage.setItem('sc_workouts_' + storageKey, JSON.stringify(workouts));
+    renderToday();
+    showScreen('s-today');
+  }, 1200);
 }
 
 // === WORKOUT GENERATION ===
@@ -921,7 +1002,7 @@ function renderWeek(){
     const isGym=w&&w.gymWorkout?.mainSet?.length>0;
     const dist=w?(w.poolWorkout?.totalDistance||0):0;
     const meta=w
-      ? (isGym?'<div class="week-day-check">🏋 gym</div>':'<div class="week-day-check">✓ '+dist+unit+'</div>')
+      ? (isGym?'<div class="week-day-check">🏋 gym</div>':'<div class="week-day-check">🏊 '+dist+unit+'</div>')
       : '';
     div.innerHTML=`<div class="week-day-name">${dayNames[i]}</div><div class="week-day-num">${d.getUTCDate()}</div>${meta}`;
     div.onclick=()=>{if(w){currentWorkout=w;renderToday();showScreen('s-today')}};
@@ -1519,11 +1600,31 @@ document.getElementById('coachInp').addEventListener('keypress',function(e){
 });
 
 // === NAV ===
+const screensWithNav = ['s-today', 's-week', 's-history', 's-profile', 's-empty'];
+const navTabMap = {
+  's-today': 0,
+  's-week': 1,
+  's-history': 2,
+  's-profile': 3,
+  's-empty': 0
+};
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('s-coach').classList.remove('active');
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+
+  // Show/hide global nav bar
+  const navBar = document.getElementById('globalNavBar');
+  if (screensWithNav.includes(id)) {
+    navBar.classList.add('visible');
+    // Update active tab
+    document.querySelectorAll('.nav-tab').forEach((t, i) => {
+      t.classList.toggle('active', i === navTabMap[id]);
+    });
+  } else {
+    navBar.classList.remove('visible');
+  }
+
   if(id==='s-week')renderWeek();
   if(id==='s-history')renderHistory();
   if(id==='s-profile')renderProfile();
@@ -1552,22 +1653,49 @@ function genNewWorkout(){
   showScreen('s-loading');
   setLoadingProgress(0,1,'Building your workout…');
   startLoadingTimer();
-  // Use real API generation
-  api.workouts.generate({}).then(res=>{
-    stopLoadingTimer();
-    if(res.success&&res.data){
-      const w=res.data;
-      workouts.push(w);currentWorkout=w;
-      renderToday();showScreen('s-today');
-    }else{
-      alert('Failed: '+(res.error||'Unknown'));
-      showScreen('s-empty');
-    }
-  }).catch(()=>{stopLoadingTimer();alert('Failed to generate');showScreen('s-empty')});
+
+  // Check if anonymous profile (fake email domain)
+  const isAnon = profile.email && profile.email.endsWith('@swimcoach.local');
+
+  if (isAnon) {
+    // Use local workout generation for anonymous users
+    setTimeout(() => {
+      const w = genWorkout(profile);
+      w.isToday = true;
+      w.date = new Date().toISOString().split('T')[0];
+      workouts.push(w);
+      currentWorkout = w;
+      // Use profile._id as storage key for anonymous profiles
+      const storageKey = profile._id && profile._id.startsWith('anon_') ? profile._id : (profile.email || 'guest');
+      localStorage.setItem('sc_workouts_' + storageKey, JSON.stringify(workouts));
+      stopLoadingTimer();
+      renderToday();
+      showScreen('s-today');
+    }, 1200);
+  } else {
+    // Use real API generation for authenticated users
+    api.workouts.generate({}).then(res=>{
+      stopLoadingTimer();
+      if(res.success&&res.data){
+        const w=res.data;
+        workouts.push(w);currentWorkout=w;
+        renderToday();showScreen('s-today');
+      }else{
+        alert('Failed: '+(res.error||'Unknown'));
+        showScreen('s-empty');
+      }
+    }).catch(()=>{stopLoadingTimer();alert('Failed to generate');showScreen('s-empty')});
+  }
 }
 
 // === STORAGE ===
-function saveWorkouts(){if(profile&&profile.email){localStorage.setItem('sc_workouts_'+profile.email,JSON.stringify(workouts))}}
+function saveWorkouts(){
+  if(profile){
+    // Use profile._id for anonymous, email for regular
+    const storageKey = profile._id && profile._id.startsWith('anon_') ? profile._id : (profile.email || 'guest');
+    localStorage.setItem('sc_workouts_' + storageKey, JSON.stringify(workouts));
+  }
+}
 
 // === LANDING ===
 function renderLanding(){
@@ -1585,6 +1713,33 @@ function renderLanding(){
   });
 }
 function loadProfile(id){
+  // Check if it's an anonymous profile (starts with 'anon_')
+  if (id && id.startsWith('anon_')) {
+    // SECURITY: Verify this anonymous profile exists in current browser's localStorage
+    // This prevents IDOR where someone could guess/load another user's anon profile
+    const storedAnonProfile = JSON.parse(localStorage.getItem('sc_anon_profile') || 'null');
+    if (!storedAnonProfile || storedAnonProfile._id !== id) {
+      console.warn('Attempted to load anonymous profile not owned by this browser:', id);
+      return;
+    }
+
+    const anonProfile = allProfiles.find(p => p._id === id);
+    if (anonProfile) {
+      profile = anonProfile;
+      localStorage.setItem('sc_profile', JSON.stringify(profile));
+      selectedSwimmerId = profile._id;
+      // Find today's workout from localStorage
+      const today = new Date().toISOString().split('T')[0];
+      // Use profile._id as storage key for anonymous profiles
+      const storageKey = profile._id && profile._id.startsWith('anon_') ? profile._id : (profile.email || 'guest');
+      const storedWorkouts = JSON.parse(localStorage.getItem('sc_workouts_' + storageKey) || '[]');
+      workouts = storedWorkouts;
+      currentWorkout = workouts.find(w => workoutLocalDate(w) === today) || null;
+      if (currentWorkout) { renderToday(); showScreen('s-today') } else { showScreen('s-empty') }
+      return;
+    }
+  }
+
   api.profiles.get(id).then(res=>{
     if(res.data){
       profile=res.data;localStorage.setItem('sc_profile',JSON.stringify(profile));selectedSwimmerId=profile._id;
@@ -1607,22 +1762,29 @@ function showDebugEntry(){showScreen('s-debug')}
 
 // === INIT ===
 async function init(){
-  // Check authentication status
+  // Check for anonymous profile in localStorage FIRST (before auth check)
+  const anonProfile = JSON.parse(localStorage.getItem('sc_anon_profile') || 'null');
+  if (anonProfile) {
+    allProfiles.push(anonProfile);
+    profile = anonProfile;
+    localStorage.setItem('sc_profile', JSON.stringify(profile));
+    console.log('Loaded anonymous profile:', anonProfile._id);
+  }
+
+  // Check authentication status - but don't redirect, just fetch profiles if authenticated
   try {
     const authRes = await fetch('/api/auth/me', { credentials: 'include' });
     const authData = await authRes.json();
 
-    if (!authData.authenticated) {
-      // Not authenticated - redirect to login
-      window.location.href = '/login.html';
-      return;
+    if (authData.authenticated) {
+      // Authenticated - fetch profiles
+      const fetchRes = await fetch('/api/profiles', { credentials: 'include' });
+      const data = await fetchRes.json();
+      console.log('API response:', data);
+      if (data.data) { allProfiles = data.data; console.log('Loaded', allProfiles.length, 'profiles') }
+    } else {
+      console.log('Not authenticated - showing landing page');
     }
-
-    // Authenticated - fetch profiles
-    const fetchRes = await fetch('/api/profiles', { credentials: 'include' });
-    const data = await fetchRes.json();
-    console.log('API response:', data);
-    if (data.data) { allProfiles = data.data; console.log('Loaded', allProfiles.length, 'profiles') }
   } catch (e) {
     console.log('API error:', e.message);
   }

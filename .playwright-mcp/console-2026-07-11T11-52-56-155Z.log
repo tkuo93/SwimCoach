@@ -1,0 +1,3 @@
+[      36ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:3000/api/auth/me:0
+[      37ms] [LOG] Not authenticated - showing landing page @ http://localhost:3000/:1766
+[      37ms] [LOG] Total profiles for landing: 0 @ http://localhost:3000/:1778

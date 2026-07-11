@@ -1,0 +1,38 @@
+- generic [ref=f12e2]:
+  - generic [ref=f12e26]:
+    - generic [ref=f12e27]:
+      - generic [ref=f12e28] [cursor=pointer]: ←
+      - heading "New Profile" [level=1] [ref=f12e29]
+    - generic [ref=f12e30]:
+      - generic [ref=f12e31]: 🏊
+      - heading "Hey, I'm your coach." [level=2] [ref=f12e32]
+      - paragraph [ref=f12e33]: I'll build personalized workouts for you. Let's start with the basics — you can always adjust later.
+    - generic [ref=f12e35]:
+      - generic [ref=f12e36]: What's your primary goal? Select all that apply.
+      - generic [ref=f12e47]: What's your primary event?
+    - generic [ref=f12e37]:
+      - generic [ref=f12e48]:
+        - combobox [ref=f12e49]:
+          - option "Free" [selected]
+          - option "Back"
+          - option "Breast"
+          - option "Fly"
+          - option "IM"
+        - spinbutton [ref=f12e50]: "100"
+        - combobox [ref=f12e51]:
+          - option "m" [selected]
+          - option "yd"
+      - button "✓ Continue" [ref=f12e52] [cursor=pointer]
+  - navigation [ref=f12e12]:
+    - generic [ref=f12e13] [cursor=pointer]:
+      - generic [ref=f12e14]: 📋
+      - generic [ref=f12e15]: Today
+    - generic [ref=f12e16] [cursor=pointer]:
+      - generic [ref=f12e17]: 📅
+      - generic [ref=f12e18]: Week
+    - generic [ref=f12e19] [cursor=pointer]:
+      - generic [ref=f12e20]: 📊
+      - generic [ref=f12e21]: History
+    - generic [ref=f12e22] [cursor=pointer]:
+      - generic [ref=f12e23]: 👤
+      - generic [ref=f12e24]: Profile

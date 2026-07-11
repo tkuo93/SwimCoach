@@ -1,0 +1,4 @@
+[      38ms] [LOG] Loaded anonymous profile: anon_ca8a8525-7272-4fb1-b4ca-cf75486bba2b @ http://localhost:3000/:1770
+[      45ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:3000/api/auth/me:0
+[      46ms] [LOG] Not authenticated - showing landing page @ http://localhost:3000/:1785
+[      47ms] [LOG] Total profiles for landing: 2 @ http://localhost:3000/:1797

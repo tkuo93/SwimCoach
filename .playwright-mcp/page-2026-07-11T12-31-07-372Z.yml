@@ -1,0 +1,17 @@
+- generic [ref=f15e2]:
+  - generic [ref=f15e85]:
+    - generic [ref=f15e87]: Building your workout…
+    - generic [ref=f15e88]: 0s
+  - navigation [ref=f15e20]:
+    - generic [ref=f15e21] [cursor=pointer]:
+      - generic [ref=f15e22]: 📋
+      - generic [ref=f15e23]: Today
+    - generic [ref=f15e24] [cursor=pointer]:
+      - generic [ref=f15e25]: 📅
+      - generic [ref=f15e26]: Week
+    - generic [ref=f15e27] [cursor=pointer]:
+      - generic [ref=f15e28]: 📊
+      - generic [ref=f15e29]: History
+    - generic [ref=f15e30] [cursor=pointer]:
+      - generic [ref=f15e31]: 👤
+      - generic [ref=f15e32]: Profile

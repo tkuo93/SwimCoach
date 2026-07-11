@@ -1,0 +1,18 @@
+- generic [ref=f7e2]:
+  - generic [ref=f7e3]:
+    - generic [ref=f7e4]: 9:41
+    - generic [ref=f7e5]: ●●●●○
+  - generic [ref=f7e7]:
+    - generic [ref=f7e8]:
+      - generic [ref=f7e9]: 🏊
+      - heading "SwimCoach" [level=2] [ref=f7e10]
+      - paragraph [ref=f7e11]: Personalized swim and gym workouts, plus an AI coach powered by sports science research.
+    - button "Continue with Google" [ref=f7e13] [cursor=pointer]
+    - paragraph [ref=f7e21]:
+      - text: By continuing, you agree to our
+      - link "Privacy Policy" [ref=f7e22] [cursor=pointer]:
+        - /url: /privacy.html
+      - text: and
+      - link "Terms of Service" [ref=f7e23] [cursor=pointer]:
+        - /url: /terms.html
+      - text: .

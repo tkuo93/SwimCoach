@@ -1,0 +1,29 @@
+- generic [ref=f15e2]:
+  - generic [ref=f15e34]:
+    - generic [ref=f15e35]:
+      - generic [ref=f15e36] [cursor=pointer]: ←
+      - heading "New Profile" [level=1] [ref=f15e37]
+    - generic [ref=f15e38]:
+      - generic [ref=f15e39]: 🏊
+      - heading "Hey, I'm your coach." [level=2] [ref=f15e40]
+      - paragraph [ref=f15e41]: I'll build personalized workouts for you. Let's start with the basics — you can always adjust later.
+    - generic [ref=f15e43]:
+      - generic [ref=f15e44]: What's your primary goal? Select all that apply.
+      - generic [ref=f15e55]: What's your primary event?
+      - generic [ref=f15e61]: What's your experience level?
+      - generic [ref=f15e77]: How long is a typical session?
+      - generic [ref=f15e81]: Great! Ready to build your first workout?
+    - button "Build My First Workout →" [ref=f15e83] [cursor=pointer]
+  - navigation [ref=f15e20]:
+    - generic [ref=f15e21] [cursor=pointer]:
+      - generic [ref=f15e22]: 📋
+      - generic [ref=f15e23]: Today
+    - generic [ref=f15e24] [cursor=pointer]:
+      - generic [ref=f15e25]: 📅
+      - generic [ref=f15e26]: Week
+    - generic [ref=f15e27] [cursor=pointer]:
+      - generic [ref=f15e28]: 📊
+      - generic [ref=f15e29]: History
+    - generic [ref=f15e30] [cursor=pointer]:
+      - generic [ref=f15e31]: 👤
+      - generic [ref=f15e32]: Profile

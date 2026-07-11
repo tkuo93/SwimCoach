@@ -10,6 +10,10 @@ services:
       - OPEN_NOTEBOOK_MODEL=${OPEN_NOTEBOOK_MODEL:-model:cpommq6fi21btio7l5ru}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - PORT=3000
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
+      - FRONTEND_URL=${FRONTEND_URL:?FRONTEND_URL must be set}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET must be set}
     depends_on:
       mongodb:
         condition: service_healthy

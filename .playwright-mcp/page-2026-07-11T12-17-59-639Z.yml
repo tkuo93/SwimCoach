@@ -1,0 +1,26 @@
+- generic [ref=f14e2]:
+  - generic [ref=f14e34]:
+    - generic [ref=f14e35]:
+      - generic [ref=f14e36] [cursor=pointer]: ←
+      - heading "New Profile" [level=1] [ref=f14e37]
+    - generic [ref=f14e38]:
+      - generic [ref=f14e39]: 🏊
+      - heading "Hey, I'm your coach." [level=2] [ref=f14e40]
+      - paragraph [ref=f14e41]: I'll build personalized workouts for you. Let's start with the basics — you can always adjust later.
+    - generic [ref=f14e43]: What's your name?
+    - generic [ref=f14e45]:
+      - textbox "Your name" [active] [ref=f14e46]
+      - button "→" [ref=f14e47] [cursor=pointer]
+  - navigation [ref=f14e20]:
+    - generic [ref=f14e21] [cursor=pointer]:
+      - generic [ref=f14e22]: 📋
+      - generic [ref=f14e23]: Today
+    - generic [ref=f14e24] [cursor=pointer]:
+      - generic [ref=f14e25]: 📅
+      - generic [ref=f14e26]: Week
+    - generic [ref=f14e27] [cursor=pointer]:
+      - generic [ref=f14e28]: 📊
+      - generic [ref=f14e29]: History
+    - generic [ref=f14e30] [cursor=pointer]:
+      - generic [ref=f14e31]: 👤
+      - generic [ref=f14e32]: Profile

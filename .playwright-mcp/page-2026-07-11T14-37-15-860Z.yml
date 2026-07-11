@@ -1,0 +1,36 @@
+- generic [ref=f16e2]:
+  - generic [ref=f16e4]:
+    - generic [ref=f16e5]:
+      - generic [ref=f16e6] [cursor=pointer]: 🏊
+      - heading "SwimCoach" [level=2] [ref=f16e7]
+      - paragraph [ref=f16e8]: Personalized swim and gym workouts, plus an AI coach powered by sports science research.
+    - generic [ref=f16e9]:
+      - generic [ref=f16e10]: Select a profile
+      - button "G Guest Free 100meters · intermediate →" [ref=f16e11] [cursor=pointer]:
+        - generic [ref=f16e12]: G
+        - generic [ref=f16e13]:
+          - generic [ref=f16e14]: Guest
+          - generic [ref=f16e15]: Free 100meters · intermediate
+        - generic [ref=f16e16]: →
+      - button "G Guest Free 100meters · intermediate →" [ref=f16e17] [cursor=pointer]:
+        - generic [ref=f16e18]: G
+        - generic [ref=f16e19]:
+          - generic [ref=f16e20]: Guest
+          - generic [ref=f16e21]: Free 100meters · intermediate
+        - generic [ref=f16e22]: →
+    - generic [ref=f16e23]:
+      - button "Create New Profile" [ref=f16e24] [cursor=pointer]
+      - button "Quick Workout" [ref=f16e25] [cursor=pointer]
+  - navigation [ref=f16e26]:
+    - generic [ref=f16e27] [cursor=pointer]:
+      - generic [ref=f16e28]: 📋
+      - generic [ref=f16e29]: Today
+    - generic [ref=f16e30] [cursor=pointer]:
+      - generic [ref=f16e31]: 📅
+      - generic [ref=f16e32]: Week
+    - generic [ref=f16e33] [cursor=pointer]:
+      - generic [ref=f16e34]: 📊
+      - generic [ref=f16e35]: History
+    - generic [ref=f16e36] [cursor=pointer]:
+      - generic [ref=f16e37]: 👤
+      - generic [ref=f16e38]: Profile
