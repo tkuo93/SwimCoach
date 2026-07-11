@@ -402,7 +402,7 @@ class TelegramBotService {
     await this.getCoachSession(chatId, profile);
 
     await safeSendMessage(this.bot, chatId,
-      '💬 \\*Coach Chat Started\\*\n\nAsk me anything about your training\\!\n\nType your question, or /cancel to end.'
+      '💬 \\*Coach Chat Started\\*\n\nAsk me anything about your training\\!\n\nType your question, or /cancel to end\\.'
     );
   }
 
