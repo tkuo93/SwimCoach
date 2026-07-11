@@ -240,14 +240,14 @@ class TelegramBotService {
       });
 
       if (!profile) {
-        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link token.');
+        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link token\\.');
         return;
       }
 
       // Check if this Telegram ID is already linked to another account
       const existingLink = await SwimmerProfile.findOne({ telegramId });
       if (existingLink && existingLink._id.toString() !== profile._id.toString()) {
-        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile.');
+        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile\\.');
         return;
       }
 
@@ -257,11 +257,11 @@ class TelegramBotService {
       profile.telegramLinkExpires = undefined;
       await profile.save();
 
-      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}!', { name: profile.firstName });
+      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}\\!', { name: profile.firstName });
       await this.sendMainMenu(chatId);
     } catch (err) {
       console.error('Telegram link error:', err);
-      await safeSendMessage(this.bot, chatId, '❌ Failed to link account.');
+      await safeSendMessage(this.bot, chatId, '❌ Failed to link account\\.');
     }
   }
 
@@ -279,14 +279,14 @@ class TelegramBotService {
       });
 
       if (!profile) {
-        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link code.');
+        await safeSendMessage(this.bot, chatId, '❌ Invalid or expired link code\\.');
         return;
       }
 
       // Check if this Telegram ID is already linked to another account
       const existingLink = await SwimmerProfile.findOne({ telegramId });
       if (existingLink && existingLink._id.toString() !== profile._id.toString()) {
-        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile.');
+        await safeSendMessage(this.bot, chatId, '❌ This Telegram account is already linked to another SwimCoach profile\\.');
         return;
       }
 
@@ -298,11 +298,11 @@ class TelegramBotService {
       profile.telegramLinkExpires = undefined;
       await profile.save();
 
-      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}!', { name: profile.firstName });
+      await safeSendMessage(this.bot, chatId, '✅ Linked to {name}\\!', { name: profile.firstName });
       await this.sendMainMenu(chatId);
     } catch (err) {
       console.error('Telegram link by code error:', err);
-      await safeSendMessage(this.bot, chatId, '❌ Failed to link account.');
+      await safeSendMessage(this.bot, chatId, '❌ Failed to link account\\.');
     }
   }
 
@@ -315,18 +315,18 @@ class TelegramBotService {
 
     const profile = await SwimmerProfile.findOne({ telegramId });
     if (!profile) {
-      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first.');
+      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first\\.');
       return;
     }
 
-    await safeSendMessage(this.bot, chatId, '🏋️ Generating your workout...');
+    await safeSendMessage(this.bot, chatId, '🏋️ Generating your workout\\.\\.\\.');
 
     try {
       const workout = await generateWorkout(profile, {}, { mode: 'direct' });
       await this.sendWorkout(chatId, workout);
     } catch (err) {
       console.error('Telegram workout error:', err);
-      await safeSendMessage(this.bot, chatId, '❌ Failed to generate workout. Try again later.');
+      await safeSendMessage(this.bot, chatId, '❌ Failed to generate workout. Try again later\\.');
     }
   }
 
@@ -381,7 +381,7 @@ class TelegramBotService {
       text += '\n';
     }
 
-    // Send with MarkdownV2 parsing
+    // Send with MarkdownV2 parsing - text is already fully escaped
     await this.bot.sendMessage(chatId, text, { parse_mode: 'MarkdownV2' });
   }
 
@@ -394,7 +394,7 @@ class TelegramBotService {
 
     const profile = await SwimmerProfile.findOne({ telegramId });
     if (!profile) {
-      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first.');
+      await safeSendMessage(this.bot, chatId, '❌ Account not linked. Use /start first\\.');
       return;
     }
 
@@ -402,7 +402,7 @@ class TelegramBotService {
     await this.getCoachSession(chatId, profile);
 
     await safeSendMessage(this.bot, chatId,
-      '💬 *Coach Chat Started*\n\nAsk me anything about your training\\!\n\nType your question, or /cancel to end.'
+      '💬 \\*Coach Chat Started\\*\n\nAsk me anything about your training\\!\n\nType your question, or /cancel to end.'
     );
   }
 
@@ -451,7 +451,7 @@ class TelegramBotService {
       }
     } catch (err) {
       console.error('Telegram coach error:', err);
-      await safeSendMessage(this.bot, chatId, '❌ Coach error. Try again.');
+      await safeSendMessage(this.bot, chatId, '❌ Coach error. Try again\\.');
     }
   }
 
@@ -463,7 +463,7 @@ class TelegramBotService {
     const detail = escapeMarkdown(action.detail || '');
 
     await safeSendMessage(this.bot, chatId,
-      '🤔 *Coach suggests:* {desc}\n\n{detail}',
+      '🤔 \\*Coach suggests:\\* {desc}\n\n{detail}',
       { desc, detail },
       {
         reply_markup: {
@@ -486,13 +486,13 @@ class TelegramBotService {
     await this.bot.answerCallbackQuery(query.id);
 
     if (data === 'dismiss') {
-      await this.bot.editMessageText('Dismissed.', { chat_id: chatId, message_id: query.message.message_id });
+      await this.bot.editMessageText('Dismissed\\.', { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'MarkdownV2' });
       return;
     }
 
     // Handle apply actions
     if (data.startsWith('apply_')) {
-      await this.bot.editMessageText('✅ Applied!', { chat_id: chatId, message_id: query.message.message_id });
+      await this.bot.editMessageText('✅ Applied\\!', { chat_id: chatId, message_id: query.message.message_id, parse_mode: 'MarkdownV2' });
     }
   }
 
@@ -502,12 +502,12 @@ class TelegramBotService {
   async handleHelp(msg) {
     const chatId = msg.chat.id;
     await safeSendMessage(this.bot, chatId,
-      '🏊 *SwimCoach Bot Commands*\n\n' +
+      '🏊 \\*SwimCoach Bot Commands\\*\n\n' +
       '/start \\- Link your account\n' +
-      '/workout \\- Generate today\'s workout\n' +
+      '/workout \\- Generate today\\'s workout\n' +
       '/coach \\- Chat with your AI coach\n' +
       '/help \\- Show this help\n\n' +
-      '*In coach chat:* Just type naturally\\!\n' +
+      '\\*In coach chat:\\* Just type naturally\\!\n' +
       'Type /cancel to exit coach mode.'
     );
   }
@@ -517,7 +517,7 @@ class TelegramBotService {
    */
   async sendMainMenu(chatId, text = '') {
     const safeText = escapeMarkdown(text);
-    await safeSendMessage(this.bot, chatId, safeText || '🏊 *SwimCoach Menu*', {}, {
+    await safeSendMessage(this.bot, chatId, safeText || '🏊 \\*SwimCoach Menu\\*', {}, {
       reply_markup: {
         keyboard: [
           ['🏊 Workout', '💬 Coach'],
