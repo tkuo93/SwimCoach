@@ -502,13 +502,13 @@ class TelegramBotService {
   async handleHelp(msg) {
     const chatId = msg.chat.id;
     await safeSendMessage(this.bot, chatId,
-      '🏊 \\*SwimCoach Bot Commands\\*\n\n' +
-      '/start \\- Link your account\n' +
-      '/workout \\- Generate today\\'s workout\n' +
-      '/coach \\- Chat with your AI coach\n' +
-      '/help \\- Show this help\n\n' +
-      '\\*In coach chat:\\* Just type naturally\\!\n' +
-      'Type /cancel to exit coach mode.'
+      "🏊 \\*SwimCoach Bot Commands\\*\n\n" +
+      "/start \\- Link your account\n" +
+      "/workout \\- Generate today's workout\n" +
+      "/coach \\- Chat with your AI coach\n" +
+      "/help \\- Show this help\n\n" +
+      "\\*In coach chat:\\* Just type naturally\\!\n" +
+      "Type /cancel to exit coach mode."
     );
   }
 
