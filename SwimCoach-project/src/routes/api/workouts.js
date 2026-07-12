@@ -226,7 +226,7 @@ router.post('/:id/feedback', async (req, res) => {
 
 // POST /api/workouts/:id/chat
 // Body: { message: string, messages: Array<{role: 'user'|'coach', text: string}> }
-// Returns: { reply: string, actions: Array, workout?: Workout }
+// Returns: { reply: string, actions: Array, workout?: Workout, conversationId?: string }
 router.post('/:id/chat', async (req, res) => {
   try {
     const { message, messages = [], llmModel } = req.body;
@@ -271,11 +271,34 @@ router.post('/:id/chat', async (req, res) => {
       }
     }
 
+    // Find or create conversation for this workout and save messages
+    const Conversation = require('../../models/Conversation');
+    let conversation = await Conversation.findOne({
+      swimmerId: req.user._id,
+      contextWorkoutId: req.params.id,
+    });
+
+    if (!conversation) {
+      conversation = new Conversation({
+        swimmerId: req.user._id,
+        title: 'Workout chat',
+        messages: [],
+        contextWorkoutId: req.params.id,
+      });
+    }
+
+    conversation.messages.push(
+      { role: 'user', text: message },
+      { role: 'coach', text: result.reply }
+    );
+    await conversation.save();
+
     res.json({
       success: true,
       data: {
         reply: result.reply,
         actions: processedActions,
+        conversationId: conversation._id,
         ...(regeneratedWorkout && { workout: regeneratedWorkout }),
       },
     });

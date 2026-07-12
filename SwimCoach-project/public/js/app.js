@@ -330,6 +330,18 @@ function collectProfileFormData() {
     }
   });
 
+  // Collect one-rep maxes
+  const oneRepMaxes = [];
+  form.querySelectorAll('.one-rep-max-row').forEach(row => {
+    const exercise = row.querySelector('.orm-exercise').value;
+    const weight = parseFloat(row.querySelector('.orm-weight').value);
+    const unit = row.querySelector('.orm-unit').value;
+    const estimated = row.querySelector('.orm-estimated')?.checked || false;
+    if (exercise && weight) {
+      oneRepMaxes.push({ exercise, weight, unit, estimated });
+    }
+  });
+
   return {
     firstName: fd.get('firstName'),
     lastName: fd.get('lastName'),
@@ -358,6 +370,7 @@ function collectProfileFormData() {
       weightInventory,
     },
     bestTimes,
+    oneRepMaxes,
   };
 }
 
@@ -479,6 +492,9 @@ function fillProfileForm(profile) {
 
   // Best times
   renderBestTimes(profile.bestTimes || []);
+
+  // One-Rep Maxes
+  renderOneRepMaxes(profile.oneRepMaxes || []);
 
   // Show delete button when editing existing profile
   const deleteBtn = document.getElementById('btn-delete-profile');
@@ -635,6 +651,53 @@ function addGenWeightInventoryRow(existing = null) {
   container.appendChild(row);
 }
 
+// ─── Generate Form One-Rep Max UI ───
+
+function renderGenOneRepMaxes(items) {
+  const container = document.getElementById('gen-one-rep-max-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(item => addGenOneRepMaxRow(item));
+}
+
+function addGenOneRepMaxRow(existing = null) {
+  const container = document.getElementById('gen-one-rep-max-list');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'gen-one-rep-max-row one-rep-max-row';
+  row.style.cssText = 'display:flex;gap:var(--space-sm);align-items:center;margin-bottom:var(--space-sm);';
+
+  const exercises = [
+    { value: 'squat', label: 'Back Squat' },
+    { value: 'clean', label: 'Power Clean' },
+    { value: 'strict-overhead-press', label: 'Strict Overhead Press' },
+    { value: 'bench-press', label: 'Bench Press' },
+    { value: 'deadlift', label: 'Deadlift' },
+    { value: 'front-squat', label: 'Front Squat' },
+    { value: 'push-press', label: 'Push Press' },
+    { value: 'pull-up', label: 'Weighted Pull-up' },
+  ];
+
+  row.innerHTML = `
+    <select class="gen-orm-exercise" required style="width:200px;">
+      <option value="">Exercise…</option>
+      ${exercises.map(e => `<option value="${e.value}" ${existing?.exercise === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}
+    </select>
+    <input type="number" class="gen-orm-weight" min="0" step="0.5" placeholder="Weight" value="${existing?.weight || ''}" style="width:100px;">
+    <select class="gen-orm-unit" style="width:70px;">
+      <option value="lbs" ${existing?.unit === 'lbs' || !existing?.unit ? 'selected' : ''}>lbs</option>
+      <option value="kg" ${existing?.unit === 'kg' ? 'selected' : ''}>kg</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem;">
+      <input type="checkbox" class="gen-orm-estimated" ${existing?.estimated ? 'checked' : ''}> Est.
+    </label>
+    <button type="button" class="btn btn-sm btn-secondary btn-remove-gen-orm" title="Remove">✕</button>
+  `;
+  row.querySelector('.btn-remove-gen-orm').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
+
 // ─── Competition Date Ranges UI ───
 
 function renderCompetitionDates(ranges) {
@@ -738,6 +801,53 @@ function addBestTimeRow(existing = null) {
   `;
 
   row.querySelector('.btn-remove-bt').addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
+
+// ─── One-Rep Max UI ───
+
+function renderOneRepMaxes(items) {
+  const container = document.getElementById('one-rep-max-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!items.length) return;
+  items.forEach(item => addOneRepMaxRow(item));
+}
+
+function addOneRepMaxRow(existing = null) {
+  const container = document.getElementById('one-rep-max-list');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'one-rep-max-row';
+  row.style.cssText = 'display:flex;gap:var(--space-sm);align-items:center;margin-bottom:var(--space-sm);';
+
+  const exercises = [
+    { value: 'squat', label: 'Back Squat' },
+    { value: 'clean', label: 'Power Clean' },
+    { value: 'strict-overhead-press', label: 'Strict Overhead Press' },
+    { value: 'bench-press', label: 'Bench Press' },
+    { value: 'deadlift', label: 'Deadlift' },
+    { value: 'front-squat', label: 'Front Squat' },
+    { value: 'push-press', label: 'Push Press' },
+    { value: 'pull-up', label: 'Weighted Pull-up' },
+  ];
+
+  row.innerHTML = `
+    <select class="orm-exercise" required style="width:200px;">
+      <option value="">Exercise…</option>
+      ${exercises.map(e => `<option value="${e.value}" ${existing?.exercise === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}
+    </select>
+    <input type="number" class="orm-weight" min="0" step="0.5" placeholder="Weight" value="${existing?.weight || ''}" style="width:100px;">
+    <select class="orm-unit" style="width:70px;">
+      <option value="lbs" ${existing?.unit === 'lbs' || !existing?.unit ? 'selected' : ''}>lbs</option>
+      <option value="kg" ${existing?.unit === 'kg' ? 'selected' : ''}>kg</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:4px;font-size:0.85rem;">
+      <input type="checkbox" class="orm-estimated" ${existing?.estimated ? 'checked' : ''}> Est.
+    </label>
+    <button type="button" class="btn btn-sm btn-secondary btn-remove-orm" title="Remove">✕</button>
+  `;
+  row.querySelector('.btn-remove-orm').addEventListener('click', () => row.remove());
   container.appendChild(row);
 }
 
@@ -1024,6 +1134,9 @@ function prefillGenerateForm() {
   // Prefill weight inventory from profile (stored under equipment)
   renderGenWeightInventory(p.equipment?.weightInventory || []);
 
+  // Prefill one-rep maxes from profile
+  renderGenOneRepMaxes(p.oneRepMaxes || []);
+
   if (p.goals?.trainingFocus) {
     const workoutTypeSelect = document.getElementById('workoutType');
     const tf = Array.isArray(p.goals.trainingFocus) ? p.goals.trainingFocus : [p.goals.trainingFocus];
@@ -1144,6 +1257,21 @@ function collectGenerateFormData(form) {
     data.weightInventory = genWeightInventory;
   }
 
+  // Collect one-rep maxes from generate form
+  const genOneRepMaxes = [];
+  form.querySelectorAll('.gen-one-rep-max-row').forEach(row => {
+    const exercise = row.querySelector('.gen-orm-exercise').value;
+    const weight = parseFloat(row.querySelector('.gen-orm-weight').value);
+    const unit = row.querySelector('.gen-orm-unit').value;
+    const estimated = row.querySelector('.gen-orm-estimated')?.checked || false;
+    if (exercise && weight) {
+      genOneRepMaxes.push({ exercise, weight, unit, estimated });
+    }
+  });
+  if (genOneRepMaxes.length) {
+    data.oneRepMaxes = genOneRepMaxes;
+  }
+
   return data;
 }
 
@@ -1165,6 +1293,7 @@ async function loadWorkoutPage(workoutId, editMode = false) {
       container.innerHTML = buildWorkoutCard(workout);
       container.innerHTML += `
         <div class="workout-actions-bar">
+          <button type="button" class="btn btn-secondary btn-back-to-history" data-id="${workoutId}">← Back to History</button>
           <button type="button" class="btn btn-secondary btn-edit-workout-page" data-id="${workoutId}">✏️ Edit</button>
           <button type="button" class="btn btn-danger btn-delete-workout-page" data-id="${workoutId}">🗑 Delete</button>
         </div>`;
@@ -1177,6 +1306,9 @@ async function loadWorkoutPage(workoutId, editMode = false) {
       // Click date badge to open edit mode
       container.querySelector('.badge-date')?.addEventListener('click', () => {
         loadWorkoutPage(workoutId, true);
+      });
+      container.querySelector('.btn-back-to-history').addEventListener('click', () => {
+        navigateTo('history');
       });
       container.querySelector('.btn-edit-workout-page').addEventListener('click', () => {
         loadWorkoutPage(workoutId, true);
@@ -1419,21 +1551,6 @@ async function getWorkoutConversation(workoutId) {
   return created.data;
 }
 
-function persistChatRound(conversationId, userText, coachText) {
-  // Fire-and-forget: save to MongoDB. Failures are non-fatal —
-  // the in-memory copy still renders.
-  if (!conversationId) return;
-  const swimmerId = state.currentProfile?._id;
-  api.conversations.addMessages(
-    conversationId,
-    [
-      { role: 'user', text: userText },
-      { role: 'coach', text: coachText },
-    ],
-    swimmerId,
-  ).catch(() => {});
-}
-
 async function initChatHandler(workoutId) {
   // Load (or create) the persistent conversation for this workout
   const conversation = await getWorkoutConversation(workoutId);
@@ -1478,13 +1595,15 @@ async function initChatHandler(workoutId) {
 
       removeTypingIndicator(typingId);
 
-      const { reply, actions, workout: newWorkout } = result.data;
+      const { reply, actions, workout: newWorkout, conversationId } = result.data;
 
       // Add coach reply
       conv.push({ role: 'coach', text: reply });
 
-      // Persist the conversation round to MongoDB
-      persistChatRound(conversation._id, text, reply);
+      // Update conversation ID if backend returned a new one
+      if (conversationId) {
+        conversation._id = conversationId;
+      }
 
       renderConversation(workoutId, conv);
 
@@ -1497,7 +1616,6 @@ async function initChatHandler(workoutId) {
           newConversation._id,
           conv.map(m => ({ role: m.role, text: m.text })),
         );
-        persistChatRound(newConversation._id, text, reply);
         // Clean up stale old-workout conversation
         await api.conversations.delete(oldConvId).catch(() => {});
 
@@ -1994,10 +2112,11 @@ function renderCoachChat(conversationId) {
       const result = await api.coach.chat({
         message,
         messages: conv.messages.slice(0, -1).map(m => ({ role: m.role, text: m.text })),
+        conversationId: conv._id,
         ...(llmModel && { llmModel }),
       }, swimmerId);
 
-           typingEl.remove();
+      typingEl.remove();
 
       // Show coach reply
       const coachEl = document.createElement('div');
@@ -2010,27 +2129,23 @@ function renderCoachChat(conversationId) {
       // Store in conversation (in-memory)
       conv.messages.push({ role: 'coach', text: result.data.reply });
 
-      // Persist the round to MongoDB
-      api.conversations.addMessages(
-        conv._id,
-        [
-          { role: 'user', text: message },
-          { role: 'coach', text: result.data.reply },
-        ],
-      ).catch(() => {});
+      // Update conversation ID if backend returned a new one (e.g., for proposals)
+      if (result.data.conversationId) {
+        conv._id = result.data.conversationId;
+      }
 
       // Handle action proposals
       if (result.data.actions?.length > 0) {
         for (let i = 0; i < result.data.actions.length; i++) {
           const action = result.data.actions[i];
           if (action.proposal) {
-            const proposalEl = buildActionProposal(action, result.data.conversationId, i);
+            const proposalEl = buildActionProposal(action, result.data.conversationId || conv._id, i);
             if (proposalEl) {
               messagesDiv.appendChild(proposalEl);
               messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-              proposalEl.querySelector('.btn-confirm-proposal')?.addEventListener('click', () => confirmCoachAction(result.data.conversationId, i));
-              proposalEl.querySelector('.btn-dismiss-proposal')?.addEventListener('click', () => dismissCoachAction(result.data.conversationId, i, proposalEl));
+              proposalEl.querySelector('.btn-confirm-proposal')?.addEventListener('click', () => confirmCoachAction(result.data.conversationId || conv._id, i));
+              proposalEl.querySelector('.btn-dismiss-proposal')?.addEventListener('click', () => dismissCoachAction(result.data.conversationId || conv._id, i, proposalEl));
             }
           }
         }
