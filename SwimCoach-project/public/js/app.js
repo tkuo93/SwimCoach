@@ -1541,12 +1541,21 @@ async function deleteWorkout(workoutId) {
 async function getWorkoutConversation(workoutId) {
   // Try to load an existing conversation for this workout
   const swimmerId = state.currentProfile?._id;
-  const res = await api.conversations.findForWorkout(workoutId, swimmerId);
+  let res;
+  try {
+    res = await api.conversations.findForWorkout(workoutId);
+  } catch (err) {
+    // 404 = no conversation exists yet
+    if (err.message.includes('404') || err.message.includes('No conversation')) {
+      res = { success: false };
+    } else {
+      throw err;
+    }
+  }
   if (res.success) return res.data;
   // No existing conversation — create one tied to this workout
   const created = await api.conversations.create(
     { title: 'Workout chat', contextWorkoutId: workoutId },
-    swimmerId,
   );
   return created.data;
 }
@@ -1591,7 +1600,7 @@ async function initChatHandler(workoutId) {
         messages: conv.map(m => ({ role: m.role, text: m.text })),
       };
       if (state.globalLlm) chatBody.llmModel = state.globalLlm;
-      const result = await api.workouts.chat(workoutId, chatBody, state.currentProfile?._id);
+      const result = await api.workouts.chat(workoutId, chatBody);
 
       removeTypingIndicator(typingId);
 
@@ -1972,10 +1981,8 @@ async function loadCoachConversations() {
 }
 
 async function startNewCoachConversation() {
-  const swimmerId = state.currentProfile?._id;
   const created = await api.conversations.create(
     { title: 'New conversation' },
-    swimmerId,
   );
   coachState.conversations.unshift(created.data);
   coachState.activeConversationId = created.data._id;
@@ -2107,14 +2114,13 @@ function renderCoachChat(conversationId) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
     try {
-      const swimmerId = state.currentProfile?._id;
       const llmModel = state.globalLlm || null;
       const result = await api.coach.chat({
         message,
         messages: conv.messages.slice(0, -1).map(m => ({ role: m.role, text: m.text })),
         conversationId: conv._id,
         ...(llmModel && { llmModel }),
-      }, swimmerId);
+      });
 
       typingEl.remove();
 
