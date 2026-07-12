@@ -33,9 +33,9 @@ router.post('/chat', async (req, res) => {
 
     // Store any proposal actions in Conversation DB for later confirmation
     const proposals = result.actions.filter(a => a.proposal);
-    let finalConversationId = conversationId;
+    let finalConversationId = null;
 
-    // If there's a conversationId provided, append messages to it
+    // If conversationId provided, try to find and append to existing conversation
     if (conversationId) {
       const conversation = await Conversation.findById(conversationId);
       if (conversation && conversation.swimmerId.toString() === req.user._id.toString()) {
@@ -55,10 +55,11 @@ router.post('/chat', async (req, res) => {
         // Conversation exists but belongs to different user
         return res.status(403).json({ success: false, error: 'Access denied to this conversation' });
       }
-      // If conversation not found, fall through to create new one below
+      // If conversation not found, fall through to create new one below (only if proposals exist)
     }
 
-    // If no conversationId provided or conversation not found, create new for proposals
+    // If no valid conversationId found and there are proposals, create new conversation
+    // with SERVER-GENERATED ID (never use client-provided ID for creation)
     if (!finalConversationId && proposals.length > 0) {
       finalConversationId = crypto.randomUUID();
       await Conversation.create({
@@ -75,6 +76,9 @@ router.post('/chat', async (req, res) => {
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
       });
     }
+
+    // Note: If no conversationId provided and no proposals, no conversation is created here.
+    // The frontend creates conversations via POST /api/conversations before first message.
 
     res.json({
       success: true,
