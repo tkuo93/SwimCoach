@@ -119,8 +119,11 @@ document.getElementById('googleBtn').addEventListener('click', () => {
   btn.classList.add('btn-loading');
   btn.disabled = true;
 
-  // Redirect to Google OAuth
-  window.location.href = '/api/auth/google?redirect=/';
+  // Redirect to Google OAuth with validated redirect
+  const allowedRedirects = ['/', '/today', '/week', '/history', '/profile', '/settings', '/debug'];
+  const currentPath = window.location.pathname || '/';
+  const redirect = allowedRedirects.includes(currentPath) ? currentPath : '/';
+  window.location.href = '/api/auth/google?redirect=' + encodeURIComponent(redirect);
 });
 
 checkAuth();

@@ -728,7 +728,11 @@ function startQuickWorkout() {
 
 function signInWithGoogle() {
   // Redirect to Google OAuth with redirect back to the app
-  window.location.href = '/api/auth/google?redirect=/';
+  // Validate redirect against allowlist to prevent open redirect
+  const allowedRedirects = ['/', '/today', '/week', '/history', '/profile', '/settings', '/debug'];
+  const currentPath = window.location.pathname || '/';
+  const redirect = allowedRedirects.includes(currentPath) ? currentPath : '/';
+  window.location.href = '/api/auth/google?redirect=' + encodeURIComponent(redirect);
 }
 
 function finishOnboard() {
