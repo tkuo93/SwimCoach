@@ -70,6 +70,13 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .landing-actions .btn-primary:active,
 .landing-actions .btn-outline:active{transform:scale(.97)}
 
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px;background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:var(--r);font-family:var(--font-d);font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;transition:all .2s}
+.btn-google:hover{border-color:var(--sage);background:var(--sage-light)}
+.btn-google:active{transform:scale(.97)}
+
+.login-divider{display:flex;align-items:center;gap:12px;color:var(--text-mut);font-size:12px;margin:4px 0}
+.login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
 /* Onboarding */
 .onboarding{flex:1;display:flex;flex-direction:column}
 .coach-hero{padding:48px 32px 24px;text-align:center}
@@ -110,6 +117,21 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .loading-progress{width:200px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:0 auto}
 .loading-progress-bar{height:100%;background:var(--sage);transition:width .3s ease;border-radius:2px}
 .loading-progress-text{font-family:var(--font-m);font-size:11px;color:var(--text-mut);margin-top:8px}
+
+/* Onboarding Privacy Modal */
+.onboarding-modal-overlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:24px}
+.onboarding-modal-overlay.active{display:flex}
+.onboarding-modal{background:var(--surface);border-radius:var(--r);max-width:380px;width:100%;box-shadow:var(--shadow-lg);animation:modalIn .3s cubic-bezier(.16,1,.3,1)}
+@keyframes modalIn{from{opacity:0;transform:translateY(-20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.onboarding-modal-header{padding:24px 24px 12px;text-align:center}
+.onboarding-modal-icon{font-size:40px;margin-bottom:12px}
+.onboarding-modal-title{font-family:var(--font-d);font-size:22px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px;color:var(--text)}
+.onboarding-modal-text{font-size:14px;color:var(--text-sec);line-height:1.6}
+.onboarding-modal-list{padding:0 24px;margin:8px 0 16px}
+.onboarding-modal-list li{font-size:13px;color:var(--text);line-height:1.8;padding-left:8px}
+.onboarding-modal-footer{display:flex;justify-content:center;padding:16px 24px 24px;border-top:1px solid var(--border-light)}
+.onboarding-modal-btn{padding:14px 32px;background:var(--sage);color:#fff;border:none;border-radius:var(--rf);font-family:var(--font-d);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;transition:all .2s;box-shadow:0 2px 8px rgba(91,122,94,.3)}
+.onboarding-modal-btn:active{transform:scale(.97)}
 
 /* Today / Timeline */
 .workout-date{padding:20px 24px 0}
@@ -320,6 +342,27 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 
 <div class="app">
 
+  <!-- Onboarding Privacy Modal -->
+  <div class="onboarding-modal-overlay" id="onboardingModal">
+    <div class="onboarding-modal">
+      <div class="onboarding-modal-header">
+        <div class="onboarding-modal-icon">🔒</div>
+        <h3 class="onboarding-modal-title">Your Privacy Matters</h3>
+        <p class="onboarding-modal-text">This app uses AI services that may use your conversations for model training. Please avoid sharing:</p>
+        <ul class="onboarding-modal-list">
+          <li>• Sensitive personal information</li>
+          <li>• Health or medical details</li>
+          <li>• Financial information</li>
+          <li>• Any data you're not comfortable being used for AI training</li>
+        </ul>
+        <p class="onboarding-modal-text" style="margin-top:12px;font-size:13px">By continuing, you agree to our <a href="/privacy-policy.html" target="_blank" style="color:var(--sage);text-decoration:underline">Privacy Policy</a> and <a href="/terms-of-use.html" target="_blank" style="color:var(--sage);text-decoration:underline">Terms of Use</a>.</p>
+      </div>
+      <div class="onboarding-modal-footer">
+        <button class="onboarding-modal-btn" onclick="acknowledgePrivacy()">Acknowledge & Continue</button>
+      </div>
+    </div>
+  </div>
+
   <!-- LANDING / LOGIN -->
   <div class="screen active" id="s-landing">
     <div class="landing-view">
@@ -330,8 +373,23 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
       </div>
       <div class="landing-profiles" id="landingProfiles"></div>
       <div class="landing-actions">
+        <button class="btn-google" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+        <div class="login-divider"><span>or</span></div>
         <button class="btn-primary" onclick="startOnboard()">Create New Profile</button>
         <button class="btn-outline" onclick="startQuickWorkout()">Quick Workout</button>
+      </div>
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-mut);text-align:center">
+        <a href="/privacy-policy.html" target="_blank" style="color:var(--sage);text-decoration:underline;margin:0 8px">Privacy Policy</a>
+        <a href="/terms-of-use.html" target="_blank" style="color:var(--sage);text-decoration:underline;margin:0 8px">Terms of Use</a>
+        <a href="/cookie-policy.html" target="_blank" style="color:var(--sage);text-decoration:underline;margin:0 8px">Cookie Policy</a>
       </div>
     </div>
   </div>
@@ -554,6 +612,10 @@ function esc(s){return String(s===null||s===undefined?'':s).replace(/[&<>"']/g,f
 
 // === ONBOARDING ===
 const Q = [
+  {id:'ageGate',type:'single',q:'Are you 18 or older?',opts:[
+    {v:'yes',l:'Yes, I am 18+',s:'Required to use SwimCoach'},
+    {v:'no',l:'No, I am under 18',s:'Sorry, SwimCoach is for adults only'}
+  ]},
   {id:'name',type:'txt',q:'What\'s your name?',ph:'Your name'},
   {id:'email',type:'txt',q:'And your email? I\'ll use this to identify you.',ph:'you@example.com'},
   {id:'goal',type:'multi',q:'What\'s your primary goal? Select all that apply.',opts:[
@@ -576,6 +638,18 @@ let qIdx = 0; let answers = {};
 function showQ(i){
   const q=Q[i], conv=document.getElementById('conv'), opts=document.getElementById('opts'), inpW=document.getElementById('inpWrap'), cta=document.getElementById('cta');
   const b=document.createElement('div'); b.className='bubble bubble-coach'; b.textContent=q.q; conv.appendChild(b); conv.scrollTop=conv.scrollHeight;
+
+  // Show 18+ notice for Quick Workout (skips age gate)
+  if (isQuickWorkout && q.id === 'goal') {
+    const notice = document.createElement('div');
+    notice.className = 'bubble bubble-coach';
+    notice.style.fontSize = '12px';
+    notice.style.opacity = '0.7';
+    notice.textContent = "⚠️ SwimCoach is for adults 18+. By continuing, you confirm you're 18+.";
+    conv.appendChild(notice);
+    conv.scrollTop = conv.scrollHeight;
+  }
+
   opts.innerHTML=''; opts.style.display='none'; inpW.style.display='none'; cta.style.display='none';
   if(q.type==='txt'){
     inpW.style.display='flex';
@@ -601,11 +675,46 @@ function showQ(i){
 
 function confirmEvent(){answers['event']={stroke:document.getElementById('evStroke').value,distance:parseInt(document.getElementById('evDist').value),unit:document.getElementById('evUnit').value};advanceQ()}
 function submitInp(){const inp=document.getElementById('inp'),q=Q[qIdx];if(!inp.value.trim())return;answers[q.id]=inp.value.trim();advanceQ()}
-function advanceQ(){qIdx++;if(qIdx<Q.length){setTimeout(()=>showQ(qIdx),400)}else{const b=document.createElement('div');b.className='bubble bubble-coach';b.textContent="Great! Ready to build your first workout?";document.getElementById('conv').appendChild(b);document.getElementById('opts').style.display='none';document.getElementById('inpWrap').style.display='none';document.getElementById('cta').style.display='block';document.querySelectorAll('.progress-dot').forEach(d=>{d.classList.add('done');d.classList.remove('now')})}}
+function advanceQ(){
+  // Handle age gate
+  if (Q[qIdx]?.id === 'ageGate') {
+    const selected = document.querySelector('.option-btn.selected');
+    if (!selected) return;
+    const ageAnswer = selected.dataset.v;
+    if (ageAnswer === 'no') {
+      // Show rejection message and disable continue
+      const conv = document.getElementById('conv');
+      const b = document.createElement('div');
+      b.className = 'bubble bubble-coach';
+      b.textContent = "Sorry, SwimCoach is for adults 18+. You can't create a profile, but you're welcome to browse the public pages.";
+      conv.appendChild(b);
+      conv.scrollTop = conv.scrollHeight;
+      document.getElementById('opts').style.display = 'none';
+      document.getElementById('cta').style.display = 'none';
+      // Hide progress dots
+      document.getElementById('progDots').style.display = 'none';
+      return;
+    }
+    // ageAnswer === 'yes' - continue normally
+  }
+  qIdx++;
+  if (qIdx < Q.length) {
+    setTimeout(() => showQ(qIdx), 400);
+  } else {
+    const b = document.createElement('div');
+    b.className = 'bubble bubble-coach';
+    b.textContent = "Great! Ready to build your first workout?";
+    document.getElementById('conv').appendChild(b);
+    document.getElementById('opts').style.display = 'none';
+    document.getElementById('inpWrap').style.display = 'none';
+    document.getElementById('cta').style.display = 'block';
+    document.querySelectorAll('.progress-dot').forEach(d => { d.classList.add('done'); d.classList.remove('now'); });
+  }
+}
 let isQuickWorkout = false;
 
 function startOnboard(skipProfileQuestions = false) {
-  qIdx = skipProfileQuestions ? 2 : 0;
+  qIdx = skipProfileQuestions ? 3 : 0;
   answers = {};
   document.getElementById('conv').innerHTML = '';
   showScreen('s-onboard');
@@ -615,6 +724,11 @@ function startOnboard(skipProfileQuestions = false) {
 function startQuickWorkout() {
   isQuickWorkout = true;
   startOnboard(true);
+}
+
+function signInWithGoogle() {
+  // Redirect to Google OAuth with redirect back to the app
+  window.location.href = '/api/auth/google?redirect=/';
 }
 
 function finishOnboard() {
@@ -1229,6 +1343,8 @@ function renderProfile(){
   const gymEq=Object.entries(profile.equipment?.gymEquipment||{}).filter(([k,v])=>v).map(([k])=>k).join(', ')||'—';
   const bestTimes=(profile.bestTimes||[]).map(bt=>`<div class="profile-field"><span class="profile-field-label">${esc(bt.stroke)} ${esc(bt.distance)}${esc(bt.poolLength)}</span><span class="profile-field-value">${esc(bt.time)}</span></div>`).join('')||'<div class="profile-field"><span class="profile-field-value">None recorded</span></div>';
 
+  const oneRepMaxes=(profile.oneRepMaxes||[]).map(orm=>`<div class="profile-field"><span class="profile-field-label">${esc(orm.exercise.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()))}${orm.estimated?' (est.)':''}</span><span class="profile-field-value">${esc(orm.weight)}${esc(orm.unit)}</span></div>`).join('')||'<div class="profile-field"><span class="profile-field-value">None recorded</span></div>';
+
   const allEvents=(profile.goals?.primaryEvents||[]).map(e=>`${esc(e.stroke)} ${esc(e.distance)}${profile.equipment?.poolLength?.unit==='yards'?'yd':'m'}`).join(', ')||'—';
 
   if(!profileEditMode){
@@ -1259,6 +1375,7 @@ function renderProfile(){
         <div class="profile-field"><span class="profile-field-label">Gym</span><span class="profile-field-value">${esc(gymEq)}</span></div>
       </div>
       <div class="profile-section"><div class="profile-section-title">Best Times</div>${bestTimes}</div>
+      <div class="profile-section"><div class="profile-section-title">Strength Baselines (1-Rep Maxes)</div>${oneRepMaxes}</div>
       <div style="padding:0 24px 24px"><button class="btn btn-outline" onclick="toggleProfileEdit()" style="width:100%">✏️ Edit Profile</button></div>`;
   } else {
     // Edit mode
@@ -1307,6 +1424,10 @@ function renderProfile(){
         <div id="edit-besttimes"></div>
         <button class="history-action-btn" onclick="addBestTimeField()" style="margin-top:8px">+ Add Best Time</button>
       </div>
+      <div class="profile-section"><div class="profile-section-title">Strength Baselines (1-Rep Maxes)</div>
+        <div id="edit-onerepmaxes"></div>
+        <button class="history-action-btn" onclick="addOneRepMaxField()" style="margin-top:8px">+ Add 1RM</button>
+      </div>
       <div style="padding:0 24px 24px;display:flex;gap:10px">
         <button class="btn btn-outline" onclick="toggleProfileEdit()" style="flex:1">Cancel</button>
         <button class="btn btn-coral" onclick="saveProfile()" style="flex:2">Save Changes</button>
@@ -1314,6 +1435,7 @@ function renderProfile(){
     renderEventFields();
     renderWeightFields();
     renderBestTimeFields();
+    renderOneRepMaxFields();
   }
 }
 function toggleProfileEdit(){profileEditMode=!profileEditMode;renderProfile()}
@@ -1361,6 +1483,25 @@ function addBestTimeField(){
   div.innerHTML=`<select class="bt-stroke edit-input" style="flex:1">${strokes.map(s=>`<option value="${s}">${s}</option>`).join('')}</select><input type="number" class="bt-dist edit-input" style="width:70px" placeholder="Dist"><select class="bt-pool edit-input" style="width:60px"><option value="scy">SCY</option><option value="scm">SCM</option><option value="lcm">LCM</option></select><input type="text" class="bt-time edit-input" style="width:80px" placeholder="Time"><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--coral);cursor:pointer;font-size:16px">×</button>`;
   c.appendChild(div);
 }
+function renderOneRepMaxFields(){
+  const c=document.getElementById('edit-onerepmaxes');if(!c)return;
+  const orms=profile.oneRepMaxes||[];
+  const exercises=['squat','clean','strict-overhead-press','bench-press','deadlift','front-squat','push-press','pull-up'];
+  const formatExercise=ex=>ex.replace(/-/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+  if(!orms.length){
+    c.innerHTML='<div class="orm-row" style="display:flex;gap:6px;margin-bottom:8px;align-items:center"><select class="orm-exercise edit-input" style="flex:1">'+exercises.map(e=>`<option value="${e}">${formatExercise(e)}</option>`).join('')+'</select><input type="number" class="orm-weight edit-input" step="0.5" style="width:80px" placeholder="Weight"><select class="orm-unit edit-input" style="width:60px"><option value="lbs">lbs</option><option value="kg">kg</option></select><label style="font-size:13px;display:flex;align-items:center;gap:4px"><input type="checkbox" class="orm-estimated"> Est.</label><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--coral);cursor:pointer;font-size:16px">×</button></div>';
+    return
+  }
+  c.innerHTML=orms.map(orm=>`<div class="orm-row" style="display:flex;gap:6px;margin-bottom:8px;align-items:center"><select class="orm-exercise edit-input" style="flex:1">${exercises.map(e=>`<option value="${e}" ${orm.exercise===e?'selected':''}>${formatExercise(e)}</option>`).join('')}</select><input type="number" class="orm-weight edit-input" step="0.5" style="width:80px" value="${esc(orm.weight)}" placeholder="Weight"><select class="orm-unit edit-input" style="width:60px"><option value="lbs" ${orm.unit==='lbs'?'selected':''}>lbs</option><option value="kg" ${orm.unit==='kg'?'selected':''}>kg</option></select><label style="font-size:13px;display:flex;align-items:center;gap:4px"><input type="checkbox" class="orm-estimated" ${orm.estimated?'checked':''}> Est.</label><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--coral);cursor:pointer;font-size:16px">×</button></div>`).join('');
+}
+function addOneRepMaxField(){
+  const c=document.getElementById('edit-onerepmaxes');if(!c)return;
+  const exercises=['squat','clean','strict-overhead-press','bench-press','deadlift','front-squat','push-press','pull-up'];
+  const formatExercise=ex=>ex.replace(/-/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+  const div=document.createElement('div');div.className='orm-row';div.style.cssText='display:flex;gap:6px;margin-bottom:8px;align-items:center';
+  div.innerHTML=`<select class="orm-exercise edit-input" style="flex:1">${exercises.map(e=>`<option value="${e}">${formatExercise(e)}</option>`).join('')}</select><input type="number" class="orm-weight edit-input" step="0.5" style="width:80px" placeholder="Weight"><select class="orm-unit edit-input" style="width:60px"><option value="lbs">lbs</option><option value="kg">kg</option></select><label style="font-size:13px;display:flex;align-items:center;gap:4px"><input type="checkbox" class="orm-estimated"> Est.</label><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--coral);cursor:pointer;font-size:16px">×</button>`;
+  c.appendChild(div);
+}
 function saveProfile(){
   const getChecked=name=>Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i=>i.value);
   const splitList=s=>s.split(',').map(x=>x.trim()).filter(Boolean);
@@ -1404,6 +1545,12 @@ function saveProfile(){
       poolLength:row.querySelector('.bt-pool').value,
       time:row.querySelector('.bt-time').value,
     })).filter(bt=>bt.stroke&&bt.time),
+    oneRepMaxes:Array.from(document.querySelectorAll('.orm-row')).map(row=>({
+      exercise:row.querySelector('.orm-exercise').value,
+      weight:parseFloat(row.querySelector('.orm-weight').value)||0,
+      unit:row.querySelector('.orm-unit').value,
+      estimated:!!row.querySelector('.orm-estimated')?.checked,
+    })).filter(orm=>orm.exercise&&orm.weight>0),
   };
   fetch('/api/profiles/'+profile._id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)}).then(r=>r.json()).then(res=>{
     if(res.success){profile=updated;localStorage.setItem('sc_profile',JSON.stringify(profile));profileEditMode=false;renderProfile();}
@@ -1444,6 +1591,12 @@ function renderSettings(){
       <div class="settings-row" id="telegramLinked" style="display:none"><span class="settings-label">Linked</span><span class="settings-value success">✅ Connected</span></div>
       <div class="settings-row" id="telegramNotLinked" style="display:none"><span class="settings-label">Not Linked</span><button class="history-action-btn" onclick="linkTelegram()">Link Telegram</button></div>
     </div>
+    <div class="settings-section">
+      <div class="settings-row"><span class="settings-label">Legal</span></div>
+      <div class="settings-row"><span class="settings-label"></span><a href="/privacy-policy.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Privacy Policy</a></div>
+      <div class="settings-row"><span class="settings-label"></span><a href="/terms-of-use.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Terms of Use</a></div>
+      <div class="settings-row"><span class="settings-label"></span><a href="/cookie-policy.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Cookie Policy</a></div>
+    </div>
     <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn del" onclick="logout()">Log Out</button></div>`;
   const llm=localStorage.getItem('sc_llm')||'auto';
   document.getElementById('llmSelect').value=llm;
@@ -1456,10 +1609,11 @@ async function logout(){
     await api.auth.logout();
     localStorage.removeItem('sc_profile');
     localStorage.removeItem('sc_profile_id');
-    window.location.href = '/login.html';
+    localStorage.removeItem('sc_anon_profile');
+    window.location.href = '/';
   } catch (e) {
     console.error('Logout failed:', e);
-    window.location.href = '/login.html';
+    window.location.href = '/';
   }
 }
 function saveSetting(k,v){localStorage.setItem('sc_'+k,v);renderSettings()}
@@ -1760,8 +1914,68 @@ function handleLogoClick(){
 }
 function showDebugEntry(){showScreen('s-debug')}
 
+// === ONBOARDING PRIVACY MODAL ===
+function getPrivacyAcknowledgedKey() {
+  // Use user ID if authenticated, otherwise use anonymous session ID
+  const userId = profile?._id || localStorage.getItem('sc_session_id') || 'anonymous';
+  return `sc_privacy_ack_${userId}`;
+}
+
+function hasAcknowledgedPrivacy() {
+  const key = getPrivacyAcknowledgedKey();
+  return localStorage.getItem(key) === 'true';
+}
+
+function setPrivacyAcknowledged() {
+  const key = getPrivacyAcknowledgedKey();
+  localStorage.setItem(key, 'true');
+}
+
+async function acknowledgePrivacy() {
+  const modal = document.getElementById('onboardingModal');
+  modal.classList.remove('active');
+
+  // Track acknowledgment
+  setPrivacyAcknowledged();
+
+  // Send to analytics
+  try {
+    const userId = profile?._id || null;
+    const sessionId = localStorage.getItem('sc_session_id') || crypto.randomUUID();
+    if (!localStorage.getItem('sc_session_id')) {
+      localStorage.setItem('sc_session_id', sessionId);
+    }
+
+    await fetch('/api/analytics/onboarding-acknowledged', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        timestamp: new Date().toISOString(),
+        userId,
+        sessionId,
+        appVersion: '1.0.0' // Could be dynamically set from package.json
+      })
+    });
+  } catch (err) {
+    console.warn('Failed to send privacy acknowledgment analytics:', err);
+  }
+}
+
+function showPrivacyModalIfNeeded() {
+  if (!hasAcknowledgedPrivacy()) {
+    const modal = document.getElementById('onboardingModal');
+    modal.classList.add('active');
+  }
+}
+
 // === INIT ===
 async function init(){
+  // Generate or retrieve session ID for anonymous users
+  if (!localStorage.getItem('sc_session_id')) {
+    localStorage.setItem('sc_session_id', crypto.randomUUID());
+  }
+
   // Check for anonymous profile in localStorage FIRST (before auth check)
   const anonProfile = JSON.parse(localStorage.getItem('sc_anon_profile') || 'null');
   if (anonProfile) {
@@ -1812,6 +2026,9 @@ async function init(){
   renderLanding();
   // Always show landing page first so user can select or create a profile
   showScreen('s-landing');
+
+  // Show privacy modal on first visit
+  showPrivacyModalIfNeeded();
 }
 init();
 </script>
