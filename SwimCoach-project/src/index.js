@@ -99,8 +99,16 @@ app.get('/', (req, res) => {
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Catch-all: serve index.html for any non-API route (hash-based routing on the frontend)
+// Catch-all: serve index.html for any non-API, non-static route (client-side routing)
 app.get('*', (req, res) => {
+  // Skip API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  // Skip static files (files with extensions like .html, .css, .js, .svg, etc.)
+  if (req.path.includes('.')) {
+    return res.status(404).send('Not found');
+  }
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
