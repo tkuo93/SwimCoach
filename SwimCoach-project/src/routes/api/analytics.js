@@ -2,20 +2,20 @@ const express = require('express');
 const router = express.Router();
 
 // Simple in-memory rate limiter for public analytics endpoint
+// Uses fixed-size LRU with TTL to prevent unbounded growth
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 10; // 10 requests per minute per IP
+const MAX_IPS = 5000; // Hard cap on tracked IPs
 
 function rateLimiter(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW;
 
-  if (!rateLimitMap.has(ip)) {
-    rateLimitMap.set(ip, []);
-  }
-
-  const requests = rateLimitMap.get(ip).filter(t => t > windowStart);
+  // Evict expired entries for this IP
+  let requests = rateLimitMap.get(ip) || [];
+  requests = requests.filter(t => t > windowStart);
 
   if (requests.length >= RATE_LIMIT_MAX) {
     return res.status(429).json({
@@ -27,15 +27,15 @@ function rateLimiter(req, res, next) {
   requests.push(now);
   rateLimitMap.set(ip, requests);
 
-  // Clean up old entries periodically
-  if (rateLimitMap.size > 1000) {
-    for (const [key, timestamps] of rateLimitMap.entries()) {
-      const valid = timestamps.filter(t => t > windowStart);
-      if (valid.length === 0) {
-        rateLimitMap.delete(key);
-      } else {
-        rateLimitMap.set(key, valid);
-      }
+  // Global eviction: remove oldest IPs when cap reached
+  if (rateLimitMap.size > MAX_IPS) {
+    const entries = [...rateLimitMap.entries()];
+    // Sort by oldest request timestamp (ascending)
+    entries.sort((a, b) => a[1][0] - b[1][0]);
+    // Evict oldest 20%
+    const evictCount = Math.floor(MAX_IPS * 0.2);
+    for (let i = 0; i < evictCount; i++) {
+      rateLimitMap.delete(entries[i][0]);
     }
   }
 

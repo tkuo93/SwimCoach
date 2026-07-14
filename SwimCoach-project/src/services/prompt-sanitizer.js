@@ -137,14 +137,15 @@ const TRUST_SAFETY_CATEGORIES = {
   pii: 'PII Request',
 };
 
-// Map pattern to category for logging
+// Pattern-to-category mapping using pattern SOURCE STRINGS as keys (not RegExp objects)
+// This avoids Map key instability with RegExp instances
 const PATTERN_CATEGORIES = new Map();
-[...HATE_SPEECH_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'hate'));
-[...HARASSMENT_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'harassment'));
-[...SELF_HARM_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'selfHarm'));
-[...VIOLENCE_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'violence'));
-[...SEXUAL_CONTENT_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'sexual'));
-[...PII_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p, 'pii'));
+[...HATE_SPEECH_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'hate'));
+[...HARASSMENT_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'harassment'));
+[...SELF_HARM_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'selfHarm'));
+[...VIOLENCE_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'violence'));
+[...SEXUAL_CONTENT_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'sexual'));
+[...PII_PATTERNS].forEach(p => PATTERN_CATEGORIES.set(p.source, 'pii'));
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -157,6 +158,7 @@ function escapeForLog(str) {
   return str
     .replace(/`/g, '\\`')           // Escape backticks (template literal injection)
     .replace(/\$\{/g, '\\${')       // Escape template expressions
+    .replace(/"/g, '\\"')           // Escape double quotes (log injection)
     .replace(/\x1b\[[0-9;]*m/g, '') // Strip ANSI escape sequences
     .replace(/[\x00-\x1f\x7f]/g, '') // Strip control characters
     .replace(/\n/g, '\\n')          // Escape newlines
@@ -225,7 +227,7 @@ function sanitizeUserMessage(message, options = {}) {
   const trustSafetyViolations = [];
   for (const pattern of TRUST_SAFETY_PATTERNS) {
     if (pattern.test(cleaned)) {
-      const category = PATTERN_CATEGORIES.get(pattern) || 'unknown';
+      const category = PATTERN_CATEGORIES.get(pattern.source) || 'unknown';
       trustSafetyViolations.push({ pattern: pattern.source, category });
     }
   }
