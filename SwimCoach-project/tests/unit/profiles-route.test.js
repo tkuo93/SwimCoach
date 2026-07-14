@@ -9,9 +9,9 @@
 
 const mockSave = jest.fn();
 const mockFind = jest.fn();
-const mockFindById = jest.fn();
-const mockFindByIdAndUpdate = jest.fn();
-const mockFindByIdAndDelete = jest.fn();
+const mockFindOne = jest.fn();
+const mockFindOneAndUpdate = jest.fn();
+const mockFindOneAndDelete = jest.fn();
 
 jest.mock('../../src/models/SwimmerProfile', () => {
   const mockModel = jest.fn().mockImplementation((data) => ({
@@ -19,9 +19,9 @@ jest.mock('../../src/models/SwimmerProfile', () => {
     save: mockSave,
   }));
   mockModel.find = mockFind;
-  mockModel.findById = mockFindById;
-  mockModel.findByIdAndUpdate = mockFindByIdAndUpdate;
-  mockModel.findByIdAndDelete = mockFindByIdAndDelete;
+  mockModel.findOne = mockFindOne;
+  mockModel.findOneAndUpdate = mockFindOneAndUpdate;
+  mockModel.findOneAndDelete = mockFindOneAndDelete;
   return mockModel;
 });
 
@@ -35,6 +35,10 @@ function mockReq(overrides = {}) {
     params: {},
     query: {},
     body: {},
+    user: {
+      _id: '507f1f77bcf86cd799439011',
+      googleId: 'google-12345',
+    },
     ...overrides,
   };
 }
@@ -82,6 +86,7 @@ const validProfile = {
     poolEquipment: { fins: true, paddles: false },
     gymEquipment: { dumbbell: true, yogaMat: true },
   },
+  oneRepMaxes: [],
 };
 
 const mockProfileDoc = {
@@ -217,13 +222,17 @@ describe('GET /api/profiles/:id', () => {
   const handler = findHandler('get', '/:id');
 
   test('returns a single profile', async () => {
-    mockFindById.mockResolvedValueOnce(mockProfileDoc);
+    mockFindOne.mockResolvedValueOnce(mockProfileDoc);
 
     const req = mockReq({ params: { id: '507f1f77bcf86cd799439011' } });
     const res = mockRes();
 
     await handler(req, res);
 
+    expect(mockFindOne).toHaveBeenCalledWith({
+      _id: '507f1f77bcf86cd799439011',
+      googleId: 'google-12345',
+    });
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: mockProfileDoc,
@@ -231,7 +240,7 @@ describe('GET /api/profiles/:id', () => {
   });
 
   test('returns 404 when profile not found', async () => {
-    mockFindById.mockResolvedValueOnce(null);
+    mockFindOne.mockResolvedValueOnce(null);
 
     const req = mockReq({ params: { id: '507f1f77bcf86cd799439011' } });
     const res = mockRes();
@@ -246,7 +255,7 @@ describe('GET /api/profiles/:id', () => {
   });
 
   test('returns 500 on error', async () => {
-    mockFindById.mockRejectedValueOnce(new Error('DB error'));
+    mockFindOne.mockRejectedValueOnce(new Error('DB error'));
 
     const req = mockReq({ params: { id: 'bad-id' } });
     const res = mockRes();
@@ -262,7 +271,7 @@ describe('PUT /api/profiles/:id', () => {
 
   test('updates and returns profile', async () => {
     const updated = { ...mockProfileDoc, firstName: 'Janet' };
-    mockFindByIdAndUpdate.mockResolvedValueOnce(updated);
+    mockFindOneAndUpdate.mockResolvedValueOnce(updated);
 
     const req = mockReq({
       params: { id: '507f1f77bcf86cd799439011' },
@@ -272,8 +281,8 @@ describe('PUT /api/profiles/:id', () => {
 
     await handler(req, res);
 
-    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith(
-      '507f1f77bcf86cd799439011',
+    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: '507f1f77bcf86cd799439011', googleId: 'google-12345' },
       { firstName: 'Janet' },
       { new: true, runValidators: true },
     );
@@ -284,7 +293,7 @@ describe('PUT /api/profiles/:id', () => {
   });
 
   test('returns 404 when profile not found', async () => {
-    mockFindByIdAndUpdate.mockResolvedValueOnce(null);
+    mockFindOneAndUpdate.mockResolvedValueOnce(null);
 
     const req = mockReq({
       params: { id: '507f1f77bcf86cd799439011' },
@@ -302,7 +311,7 @@ describe('PUT /api/profiles/:id', () => {
       name: 'ValidationError',
       errors: { email: { message: 'Invalid email' } },
     };
-    mockFindByIdAndUpdate.mockRejectedValueOnce(validationError);
+    mockFindOneAndUpdate.mockRejectedValueOnce(validationError);
 
     const req = mockReq({
       params: { id: '507f1f77bcf86cd799439011' },
@@ -320,13 +329,17 @@ describe('DELETE /api/profiles/:id', () => {
   const handler = findHandler('delete', '/:id');
 
   test('deletes and returns profile', async () => {
-    mockFindByIdAndDelete.mockResolvedValueOnce(mockProfileDoc);
+    mockFindOneAndDelete.mockResolvedValueOnce(mockProfileDoc);
 
     const req = mockReq({ params: { id: '507f1f77bcf86cd799439011' } });
     const res = mockRes();
 
     await handler(req, res);
 
+    expect(mockFindOneAndDelete).toHaveBeenCalledWith({
+      _id: '507f1f77bcf86cd799439011',
+      googleId: 'google-12345',
+    });
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: mockProfileDoc,
@@ -334,7 +347,7 @@ describe('DELETE /api/profiles/:id', () => {
   });
 
   test('returns 404 when profile not found', async () => {
-    mockFindByIdAndDelete.mockResolvedValueOnce(null);
+    mockFindOneAndDelete.mockResolvedValueOnce(null);
 
     const req = mockReq({ params: { id: '507f1f77bcf86cd799439011' } });
     const res = mockRes();
@@ -342,10 +355,14 @@ describe('DELETE /api/profiles/:id', () => {
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: 'Profile not found',
+    });
   });
 
   test('returns 500 on error', async () => {
-    mockFindByIdAndDelete.mockRejectedValueOnce(new Error('DB error'));
+    mockFindOneAndDelete.mockRejectedValueOnce(new Error('DB error'));
 
     const req = mockReq({ params: { id: 'bad-id' } });
     const res = mockRes();

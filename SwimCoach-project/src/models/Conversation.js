@@ -38,6 +38,7 @@ conversationSchema.pre('save', function(next) {
 });
 
 conversationSchema.index({ swimmerId: 1, updatedAt: -1 });
+conversationSchema.index({ contextWorkoutId: 1 });
 conversationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Conversation', conversationSchema);

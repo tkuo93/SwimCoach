@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Policy — SwimCoach</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #faf8f4;
+      --surface: #ffffff;
+      --border: #e8e2d8;
+      --sage: #5b7a5e;
+      --sage-light: #e8efe6;
+      --sage-dark: #3d5440;
+      --coral: #e8654a;
+      --text: #1a1a1a;
+      --text-sec: #6b6560;
+      --text-mut: #9e978e;
+      --font-d: 'Fraunces', serif;
+      --font-b: 'Inter Tight', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      font-family: var(--font-b);
+      background: var(--cream);
+      min-height: 100vh;
+      color: var(--text);
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    h1 { font-family: var(--font-d); font-size: 32px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 8px; color: var(--text); }
+    .last-updated { font-size: 14px; color: var(--text-mut); margin-bottom: 32px; }
+    h2 { font-family: var(--font-d); font-size: 20px; font-weight: 600; letter-spacing: -.01em; margin: 32px 0 12px; color: var(--text); }
+    h3 { font-family: var(--font-d); font-size: 16px; font-weight: 600; margin: 20px 0 8px; color: var(--text); }
+    p { margin-bottom: 12px; color: var(--text); }
+    ul { margin: 8px 0 16px 24px; color: var(--text); }
+    li { margin-bottom: 6px; }
+    a { color: var(--sage); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .highlight-box {
+      background: var(--sage-light);
+      border: 1px solid var(--sage);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .highlight-box strong { color: var(--sage-dark); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    th, td {
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+    }
+    th { background: var(--sage-light); color: var(--sage-dark); font-weight: 600; }
+    .toc { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .toc a { display: block; padding: 6px 0; font-size: 14px; color: var(--text-sec); }
+    .toc a:hover { color: var(--sage); }
+    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-mut); text-align: center; }
+    .back-link { display: inline-block; margin-top: 24px; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Cookie Policy</h1>
+    <p class="last-updated">Last updated: July 12, 2026</p>
+
+    <nav class="toc">
+      <strong>Table of Contents</strong>
+      <a href="#what-are-cookies">1. What Are Cookies</a>
+      <a href="#how-we-use">2. How We Use Cookies</a>
+      <a href="#cookie-table">3. Cookies We Set</a>
+      <a href="#third-party">4. Third-Party Cookies</a>
+      <a href="#manage">5. Managing Cookies</a>
+      <a href="#contact">6. Contact</a>
+    </nav>
+
+    <section id="what-are-cookies">
+      <h2>1. What Are Cookies</h2>
+      <p>Cookies are small text files stored on your device (computer, phone, tablet) when you visit a website. They help websites remember your preferences, keep you logged in, and understand how you use the service.</p>
+      <p>Cookies can be "session" (deleted when you close your browser) or "persistent" (remain until they expire or you delete them). They can be "first-party" (set by the site you're visiting) or "third-party" (set by other domains).</p>
+    </section>
+
+    <section id="how-we-use">
+      <h2>2. How We Use Cookies</h2>
+      <p>SwimCoach uses cookies for the following purposes:</p>
+      <ul>
+        <li><strong>Authentication (Essential):</strong> Session cookies keep you logged in as you navigate the app. Without these, you'd need to sign in on every page.</li>
+        <li><strong>Security (Essential):</strong> CSRF protection and rate limiting.</li>
+        <li><strong>Preferences (Functional):</strong> Remembering your selected LLM model, UI preferences.</li>
+        <li><strong>Analytics (Optional):</strong> Understanding usage patterns (only with your consent via the onboarding acknowledgment).</li>
+      </ul>
+      <div class="highlight-box">
+        <strong>Note:</strong> We do not use advertising cookies, tracking pixels, or third-party marketing cookies. We do not sell your data to advertisers.
+      </div>
+    </section>
+
+    <section id="cookie-table">
+      <h2>3. Cookies We Set</h2>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>Purpose</th><th>Duration</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>connect.sid</code></td><td>First-party, Session</td><td>Session ID for authenticated users (stored in MongoDB, cookie is just the ID)</td><td>30 days (rolling)</td></tr>
+          <tr><td><code>sc_llm</code></td><td>First-party, Persistent (localStorage)</td><td>Selected AI model preference</td><td>Until cleared</td></tr>
+          <tr><td><code>sc_profile</code></td><td>First-party, Persistent (localStorage)</td><td>Current profile data for offline-first UX</td><td>Until logout/account deletion</td></tr>
+          <tr><td><code>sc_workouts_*</code></td><td>First-party, Persistent (localStorage)</td><td>Cached workout data per profile</td><td>Until cleared</td></tr>
+          <tr><td><code>sc_session_id</code></td><td>First-party, Persistent (localStorage)</td><td>Anonymous session identifier for analytics</td><td>Until cleared</td></tr>
+          <tr><td><code>sc_privacy_ack_*</code></td><td>First-party, Persistent (localStorage)</td><td>Records onboarding privacy acknowledgment per profile</td><td>Until cleared</td></tr>
+        </tbody>
+      </table>
+      <p><strong>Technical note:</strong> Most "cookies" listed above use <code>localStorage</code> (client-side only, not sent with HTTP requests). Only <code>connect.sid</code> is a true HTTP cookie, used for session authentication.</p>
+    </section>
+
+    <section id="third-party">
+      <h2>4. Third-Party Cookies</h2>
+      <p>We do not set third-party cookies directly. However, these third parties may set cookies when you use their services through SwimCoach:</p>
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Purpose</th><th>Policy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Google OAuth</td><td>Authentication (if you sign in with Google)</td><td><a href="https://policies.google.com/technologies/cookies" target="_blank">Google Cookie Policy</a></td></tr>
+          <tr><td>Telegram</td><td>Web App / Bot integration (if you link Telegram)</td><td><a href="https://telegram.org/privacy" target="_blank">Telegram Privacy</a></td></tr>
+          <tr><td>OpenRouter / AI Providers</td><td>API requests (server-to-server, no browser cookies)</td><td><a href="https://openrouter.ai/privacy" target="_blank">OpenRouter Privacy</a></td></tr>
+          <tr><td>MongoDB Atlas</td><td>Database hosting (server-side, no browser cookies)</td><td><a href="https://www.mongodb.com/legal/cookies" target="_blank">MongoDB Cookies</a></td></tr>
+          <tr><td>Render / Hosting Provider</td><td>Load balancing, DDoS protection</td><td>Provider-specific</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="manage">
+      <h2>5. Managing Cookies</h2>
+      <h3>5.1 Browser Controls</h3>
+      <p>You can control cookies through your browser settings:</p>
+      <ul>
+        <li><strong>Chrome:</strong> Settings → Privacy and security → Cookies and other site data</li>
+        <li><strong>Firefox:</strong> Settings → Privacy & Security → Cookies and Site Data</li>
+        <li><strong>Safari:</strong> Preferences → Privacy → Cookies and website data</li>
+        <li><strong>Edge:</strong> Settings → Cookies and site permissions → Manage and delete cookies</li>
+      </ul>
+      <p>Blocking essential cookies (<code>connect.sid</code>) will prevent you from staying logged in.</p>
+
+      <h3>5.2 localStorage Data</h3>
+      <p>To clear SwimCoach's localStorage data (profiles, workouts, preferences):</p>
+      <ul>
+        <li>Use the "Clear All Data" button in Settings → Debug (if enabled)</li>
+        <li>Or: DevTools → Application → Local Storage → <code>https://swimcoach.app</code> → Delete all</li>
+        <li>Or: Browser "Clear browsing data" → select "Cookies and other site data"</li>
+      </ul>
+
+      <h3>5.3 Opt-Out of Analytics</h3>
+      <p>Analytics tracking only occurs after you acknowledge the onboarding privacy modal. To opt out later, clear <code>sc_session_id</code> and <code>sc_privacy_ack_*</code> from localStorage.</p>
+    </section>
+
+    <section id="contact">
+      <h2>6. Contact</h2>
+      <p>Questions about this Cookie Policy?</p>
+      <ul>
+        <li>Email: <a href="mailto:privacy@swimcoach.app">privacy@swimcoach.app</a></li>
+        <li>See also our <a href="/privacy-policy.html">Privacy Policy</a> and <a href="/terms-of-use.html">Terms of Use</a></li>
+      </ul>
+    </section>
+
+    <div class="footer">
+      <p>SwimCoach — Personalized swim and gym workouts</p>
+      <a href="/privacy-policy.html" style="color:var(--sage);text-decoration:underline;margin:0 8px">Privacy Policy</a>
+      <a href="/terms-of-use.html" style="color:var(--sage);text-decoration:underline;margin:0 8px">Terms of Use</a>
+      <br><br>
+      <a href="/" class="back-link">← Back to SwimCoach</a>
+    </div>
+  </div>
+</body>
+</html>

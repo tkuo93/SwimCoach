@@ -2,6 +2,28 @@ const Workout = require('../models/Workout');
 const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
 
 /**
+ * Calculate working weight from 1RM percentage
+ * @param {number} oneRM - The 1-rep max weight
+ * @param {number} percent - Percentage (e.g., 80 for 80%)
+ * @returns {number} - Calculated working weight
+ */
+function calculateWeightFrom1RM(oneRM, percent) {
+  if (!oneRM || !percent) return 0;
+  return Math.round(oneRM * (percent / 100) * 2) / 2; // Round to nearest 0.5
+}
+
+/**
+ * Find 1RM for a given exercise reference
+ * @param {Array} oneRepMaxes - Array of 1RM objects from profile
+ * @param {string} ref - The oneRepMaxRef (e.g., 'squat', 'clean')
+ * @returns {Object|null} - The matching 1RM object or null
+ */
+function findOneRepMax(oneRepMaxes, ref) {
+  if (!oneRepMaxes || !oneRepMaxes.length || !ref) return null;
+  return oneRepMaxes.find(orm => orm.exercise === ref) || null;
+}
+
+/**
  * Generates a personalized workout for a swimmer.
  *
  * Uses a two-step approach:
@@ -65,29 +87,50 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
       trainingNotes: aiWorkout.poolWorkout?.trainingNotes || [],
     } : { warmUp: { duration: 0 }, mainSet: [], coolDown: { duration: 0 }, totalDistance: 0, trainingNotes: [] },
     gymWorkout: includeGym && aiWorkout.gymWorkout ? (() => {
-      const rawExercises = (aiWorkout.gymWorkout.exercises || []).map(ex => ({
-        exercise: ex.exercise || '',
-        sets: ex.sets || 3,
-        repetitions: ex.reps || 10,
-        weight: (() => {
-          if (!ex.weight) return 0;
-          if (typeof ex.weight === 'number') return ex.weight;
-          const match = String(ex.weight).match(/^(\d+(?:\.\d+)?)/);
-          return match ? parseFloat(match[1]) : 0;
-        })(),
-        weightUnit: (() => {
-          if (!ex.weight || typeof ex.weight === 'number') return null;
-          const str = String(ex.weight);
-          if (/kg/i.test(str)) return 'kg';
-          if (/lbs?/i.test(str) || /#/.test(str)) return 'lbs';
-          return null;
-        })(),
-        restTime: ex.restSeconds || 60,
-        equipment: ex.equipment || 'bodyweight',
-        muscleGroup: normalizeMuscleGroup(ex.muscleGroup),
-        focus: ex.focus || 'strength',
-        description: ex.notes || '',
-      }));
+      // Get 1RM data for percentage-based weight calculation
+      const oneRepMaxes = customization.oneRepMaxes || profile.oneRepMaxes || [];
+
+      const rawExercises = (aiWorkout.gymWorkout.exercises || []).map(ex => {
+        // Handle weight: use explicit weight, or calculate from percent1RM + oneRepMaxRef
+        let weight = 0;
+        let weightUnit = null;
+        let percent1RM = null;
+        let oneRepMaxRef = null;
+
+        if (ex.percent1RM && ex.oneRepMaxRef) {
+          // Calculate weight from 1RM percentage
+          const oneRM = findOneRepMax(oneRepMaxes, ex.oneRepMaxRef);
+          if (oneRM) {
+            weight = calculateWeightFrom1RM(oneRM.weight, ex.percent1RM);
+            weightUnit = oneRM.unit;
+            percent1RM = ex.percent1RM;
+            oneRepMaxRef = ex.oneRepMaxRef;
+          } else if (ex.weight) {
+            // Fallback to explicit weight if 1RM not found
+            weight = typeof ex.weight === 'number' ? ex.weight : parseFloat(String(ex.weight).match(/^(\d+(?:\.\d+)?)/)?.[1] || 0);
+            weightUnit = ex.weightUnit || 'lbs';
+          }
+        } else if (ex.weight) {
+          // Explicit weight provided
+          weight = typeof ex.weight === 'number' ? ex.weight : parseFloat(String(ex.weight).match(/^(\d+(?:\.\d+)?)/)?.[1] || 0);
+          weightUnit = ex.weightUnit || 'lbs';
+        }
+
+        return {
+          exercise: ex.exercise || '',
+          sets: ex.sets || 3,
+          repetitions: ex.reps || 10,
+          weight,
+          weightUnit,
+          percent1RM,
+          oneRepMaxRef,
+          restTime: ex.restSeconds || 60,
+          equipment: ex.equipment || 'bodyweight',
+          muscleGroup: normalizeMuscleGroup(ex.muscleGroup),
+          focus: ex.focus || 'strength',
+          description: ex.notes || '',
+        };
+      });
       // Filter out exercises requiring equipment the user doesn't have
       // Use customization equipment override if provided, otherwise profile defaults
       const { gymEquipment: resolvedGymEquip } = resolveEquipment(customization, profile);
@@ -125,6 +168,7 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
         intensityPreference: customization.intensity || null,
         strokePreference: customization.stroke || null,
         weightInventory: customization.weightInventory || profile.equipment?.weightInventory || [],
+        oneRepMaxes: customization.oneRepMaxes || profile.oneRepMaxes || [],
       },
     },
   });
@@ -343,12 +387,13 @@ function filterGymExercises(exercises, availableGymGear) {
  *   - Moderate (40-70% of prescribed): increase reps by ~50%
  *   - Light (<40% of prescribed): increase reps by ~100% and add a set
  * If no matching weight exists for the unit, remove the weight (bodyweight fallback).
+ * Preserves percent1RM and oneRepMaxRef fields for tracking.
  */
 function clampWeightsToInventory(exercises, availableWeights) {
   if (!exercises || !exercises.length) return [];
   if (!availableWeights || !availableWeights.length) {
     // No weights available — strip all weights, keep exercises as bodyweight
-    return exercises.map(ex => ({ ...ex, weight: 0, weightUnit: null }));
+    return exercises.map(ex => ({ ...ex, weight: 0, weightUnit: null, percent1RM: null, oneRepMaxRef: null }));
   }
 
   // Group available weights by unit for quick lookup
@@ -372,7 +417,7 @@ function clampWeightsToInventory(exercises, availableWeights) {
 
     if (!available || available.length === 0) {
       // No weights in this unit — strip weight, make it bodyweight
-      return { ...ex, weight: 0, weightUnit: null, description: `${ex.description} (no ${unit} weights available — bodyweight)` };
+      return { ...ex, weight: 0, weightUnit: null, percent1RM: null, oneRepMaxRef: null, description: `${ex.description} (no ${unit} weights available — bodyweight)` };
     }
 
     // Find the closest available weight that doesn't exceed the prescribed amount
@@ -411,6 +456,9 @@ function clampWeightsToInventory(exercises, availableWeights) {
       repetitions: adjustedReps,
       sets: adjustedSets,
       description: `${ex.description}${note}`,
+      // Preserve percent1RM and oneRepMaxRef for tracking
+      percent1RM: ex.percent1RM,
+      oneRepMaxRef: ex.oneRepMaxRef,
     };
   });
 }

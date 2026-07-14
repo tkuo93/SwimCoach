@@ -19,6 +19,9 @@ build/
 # Logs
 *.log
 
+# Playwright
+.playwright-mcp/
+
 # IDE
 .vscode/
 .idea/

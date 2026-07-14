@@ -1128,8 +1128,9 @@ function renderWeek(){
     strip.appendChild(div);
   });
   const weekWorkouts=workoutsInWeek(weekOffset);
-  const totalDist=weekWorkouts.reduce((s,w)=>s+(w.poolWorkout?.totalDistance||0),0);
-  document.getElementById('weekStats').innerHTML=`<div class="week-stat"><div class="week-stat-val">${totalDist.toLocaleString()} ${unit}</div><div class="week-stat-lbl">Total</div></div><div class="week-stat"><div class="week-stat-val">${weekWorkouts.length}</div><div class="week-stat-lbl">Workouts</div></div><div class="week-stat"><div class="week-stat-val">${weekWorkouts.length>0?Math.round(totalDist/weekWorkouts.length):0} ${unit}</div><div class="week-stat-lbl">Avg</div></div>`;
+  const swimWorkouts=weekWorkouts.filter(w=>w.poolWorkout?.totalDistance>0);
+  const totalDist=swimWorkouts.reduce((s,w)=>s+(w.poolWorkout?.totalDistance||0),0);
+  document.getElementById('weekStats').innerHTML=`<div class="week-stat"><div class="week-stat-val">${totalDist.toLocaleString()} ${unit}</div><div class="week-stat-lbl">Total</div></div><div class="week-stat"><div class="week-stat-val">${swimWorkouts.length}</div><div class="week-stat-lbl">Swim Workouts</div></div><div class="week-stat"><div class="week-stat-val">${swimWorkouts.length>0?Math.round(totalDist/swimWorkouts.length):0} ${unit}</div><div class="week-stat-lbl">Avg</div></div>`;
   document.getElementById('weekTimeline').innerHTML='';
   // Always show the generate button — it's how you populate an empty week.
   // When the week already has workouts, offer a regenerate instead.

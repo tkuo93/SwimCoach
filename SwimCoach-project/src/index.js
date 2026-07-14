@@ -18,6 +18,7 @@ const coachRoutes = require('./routes/api/coach');
 const conversationRoutes = require('./routes/api/conversations');
 const authRoutes = require('./routes/api/auth');
 const telegramRoutes = require('./routes/api/telegram');
+const analyticsRoutes = require('./routes/api/analytics');
 
 require('./auth/passport');
 const telegramBot = require('./services/telegram-bot');
@@ -74,6 +75,9 @@ app.use('/api/memory', requireAuth, memoryRoutes);
 app.use('/api/debug', requireAuth, debugRoutes);
 app.use('/api/coach', requireAuth, coachRoutes);
 app.use('/api/conversations', requireAuth, conversationRoutes);
+
+// Public analytics routes (no auth required)
+app.use('/api/analytics', analyticsRoutes);
 
 // Health endpoint (public)
 app.get('/health', (req, res) => {

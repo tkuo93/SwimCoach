@@ -331,7 +331,32 @@ const modifyWorkoutTool = {
   },
 };
 
-const regenerateWorkoutTool = {
+const resolveObservationTool = {
+  definition: {
+    type: 'function',
+    function: {
+      name: 'resolveObservation',
+      description: 'Mark an observation or injury as resolved so it expires from coaching memory. Use when an injury heals, sickness passes, or a temporary condition changes. This starts the 14-day expiry for injuries (vs 7 days if left unresolved).',
+      parameters: {
+        type: 'object',
+        properties: {
+          memoryId: { type: 'string', description: 'The _id of the CoachingMemory entry to resolve' },
+        },
+        required: ['memoryId'],
+      },
+    },
+  },
+  async execute({ memoryId }, { profile }) {
+    const mem = await CoachingMemory.findOneAndUpdate(
+      { _id: memoryId, swimmerId: profile._id },
+      { resolvedAt: new Date(), active: false },
+      { new: true }
+    );
+    if (!mem) return 'Memory entry not found or not yours.';
+    const ttlDays = mem.type === 'injury' ? 14 : 30;
+    return `Resolved: "${mem.content}" (type: ${mem.type}) — will expire in ${ttlDays} days.`;
+  },
+};
   definition: {
     type: 'function',
     function: {
@@ -391,6 +416,7 @@ const generalTools = [
   getProgressSummaryTool,
   getCoachingMemoryTool,
   addCoachingObservationTool,
+  resolveObservationTool,
 ];
 
 const workoutTools = [

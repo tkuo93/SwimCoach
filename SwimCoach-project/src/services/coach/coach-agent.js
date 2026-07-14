@@ -17,6 +17,7 @@ const path = require('path');
 const CoachingMemory = require('../../models/CoachingMemory');
 const { getToolDefinitions, executeTool } = require('./coach-tools');
 const { sanitizeModel } = require('../workout-ai');
+const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('../prompt-sanitizer');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -45,10 +46,24 @@ try {
  * @returns {Promise<{reply: string, actions: Array}>}
  */
 async function chat({ profile, workout, messages, userMessage, mode = 'general', modelOverride }) {
-  // 1. Assemble context
+  // 1. Sanitize user input
+  let safeUserMessage;
+  try {
+    safeUserMessage = sanitizeUserMessage(userMessage, { context: mode });
+  } catch (err) {
+    return {
+      reply: "I can't process that message — it appears to contain content that could be a prompt injection attempt. Please rephrase your question about swimming, training, or your workout.",
+      actions: []
+    };
+  }
+
+  // 2. Assemble context
   const coachingMemoryContext = await assembleCoachingMemory(profile);
-  const systemPrompt = buildSystemPrompt(profile, workout, coachingMemoryContext, mode);
-  const conversationHistory = buildConversationHistory(messages, userMessage);
+  const baseSystemPrompt = buildSystemPrompt(profile, workout, coachingMemoryContext, mode);
+  const systemPrompt = buildSafeSystemPrompt(baseSystemPrompt, mode);
+  const conversationHistory = buildConversationHistory(messages, safeUserMessage);
+  // Sanitize conversation history (user messages only)
+  const safeConversationHistory = sanitizeConversationHistory(conversationHistory, { context: mode });
   const tools = getToolDefinitions(mode);
   const model = sanitizeModel(modelOverride);
 

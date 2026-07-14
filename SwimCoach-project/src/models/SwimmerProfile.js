@@ -164,6 +164,33 @@ const swimmerProfileSchema = new mongoose.Schema({
     }
   }],
 
+  // Strength Baselines (1-Rep Maxes)
+  oneRepMaxes: [{
+    exercise: {
+      type: String,
+      enum: ['squat', 'clean', 'strict-overhead-press', 'bench-press', 'deadlift', 'front-squat', 'push-press', 'pull-up'],
+      required: true
+    },
+    weight: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    unit: {
+      type: String,
+      enum: ['lbs', 'kg'],
+      default: 'lbs'
+    },
+    dateRecorded: {
+      type: Date,
+      default: Date.now
+    },
+    estimated: {
+      type: Boolean,
+      default: false
+    }
+  }],
+
   // Equipment Availability
   equipment: {
     poolLength: {
@@ -272,6 +299,7 @@ swimmerProfileSchema.pre('save', function(next) {
 swimmerProfileSchema.index({ email: 1 });
 swimmerProfileSchema.index({ 'goals.primaryEvents.stroke': 1, 'goals.primaryEvents.distance': 1 });
 swimmerProfileSchema.index({ experienceLevel: 1 });
+swimmerProfileSchema.index({ 'oneRepMaxes.exercise': 1 });
 
 // Create and export the model
 const SwimmerProfile = mongoose.model('SwimmerProfile', swimmerProfileSchema);

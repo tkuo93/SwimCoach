@@ -504,6 +504,7 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
   const trainingFoci = profile.goals?.trainingFocus || [];
   const { poolEquipment, gymEquipment } = resolveEquipment(customization, profile);
   const weightInventory = customization.weightInventory || profile.equipment?.weightInventory || [];
+  const oneRepMaxes = customization.oneRepMaxes || profile.oneRepMaxes || [];
   const events = resolvePrimaryEvents(profile, customization);
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const poolLength = resolvePoolLength(customization, profile);
@@ -554,6 +555,19 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
 
   if (profile.bestTimes?.length) {
     parts.push(`- Best times: ${profile.bestTimes.map(t => `${t.distance}${distUnit} ${t.stroke} (${t.poolLength}): ${t.time}`).join(', ')}`);
+  }
+
+  // 1-Rep Maxes for percentage-based strength programming
+  if (oneRepMaxes && oneRepMaxes.length > 0) {
+    const oneRMDesc = oneRepMaxes.map(orm => {
+      const exerciseLabel = orm.exercise.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const est = orm.estimated ? ' (est.)' : '';
+      return `${exerciseLabel}: ${orm.weight}${orm.unit}${est}`;
+    }).join(', ');
+    parts.push(`- 1-Rep Maxes: ${oneRMDesc}`);
+    parts.push('- PRESCRIBE WEIGHTS USING 1RM PERCENTAGES: For main lifts (squat, clean, press variations, deadlift), specify both absolute weight AND percent1RM field (e.g., weight: 180, weightUnit: "lbs", percent1RM: 80, oneRepMaxRef: "squat").');
+    parts.push('- Choose appropriate %1RM based on training focus: strength/power (80-90%), hypertrophy (65-80%), endurance (50-65%).');
+    parts.push('- If available weights don\'t match exact %1RM, round to nearest available weight and note the actual %1RM in notes.');
   }
 
   if (profile.goals?.targetImprovement) {
@@ -639,6 +653,14 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
     parts.push('- If only one weight is available, adjust reps and sets to match the training focus — do not always prescribe the same 3x10 for everything.');
   }
 
+  // 1RM percentage guidance
+  if (oneRepMaxes && oneRepMaxes.length > 0) {
+    parts.push('- USE 1RM PERCENTAGES: For exercises matching a known 1RM (squat, clean, press variations, deadlift), include percent1RM and oneRepMaxRef fields.');
+    parts.push('- Strength/power focus: 80-90% 1RM, 3-5 sets x 3-6 reps, 90-120s rest');
+    parts.push('- Hypertrophy focus: 65-80% 1RM, 3-4 sets x 8-12 reps, 60-90s rest');
+    parts.push('- Endurance/mobility focus: 50-65% 1RM, 2-3 sets x 12-20 reps, 30-60s rest');
+  }
+
   parts.push('');
 
   // Notebook notes (pre-generated insights — primary knowledge source)
@@ -693,6 +715,16 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
     parts.push('');
   }
 
+  // Inject active injury/recovery notes as explicit constraints
+  const activePhysicalNotes = extractActivePhysicalNotes(coachingObservations);
+  if (activePhysicalNotes.length > 0) {
+    parts.push('## ⚠️ Active Physical Notes — Adjust Workout Accordingly');
+    parts.push('The following recent observations may affect this workout. Modify exercises, strokes, volume, or intensity to accommodate:');
+    parts.push('');
+    activePhysicalNotes.forEach(note => parts.push(`- ${note}`));
+    parts.push('');
+  }
+
   const sessionType = customization.sessionType || 'both';
   const includePool = sessionType === 'both' || sessionType === 'pool';
   const includeGym = sessionType === 'both' || sessionType === 'gym';
@@ -711,6 +743,10 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
     if (weightInventory && weightInventory.length > 0) {
       parts.push('- EVERY exercise using weights MUST include the exact weight from the available weights list. Do NOT leave weight as 0 or omit the field. Choose the appropriate weight based on the exercise and training focus.');
       parts.push('- Rep ranges must match the weight: heavy (4-6 reps), moderate (8-12 reps), light (12-20 reps). Adjust sets and rest accordingly.');
+    }
+    if (oneRepMaxes && oneRepMaxes.length > 0) {
+      parts.push('- For exercises matching a known 1RM, include: weight (absolute), weightUnit, percent1RM (number), oneRepMaxRef (which 1RM exercise this references).');
+      parts.push('- Example: "exercise": "Back Squat", "weight": 180, "weightUnit": "lbs", "percent1RM": 80, "oneRepMaxRef": "squat"');
     }
   }
   if (includePool) {
@@ -760,7 +796,7 @@ function buildSystemPrompt(includePool, includeGym) {
   "gymWorkout": {
     "warmUp": { "description": "Gym warm-up", "duration": number },
     "exercises": [
-      { "exercise": "name", "sets": number, "reps": number, "weight": "REQUIRED — specify exact weight with unit (e.g. 25lbs, 10kg) from available weights, or 'bodyweight' if no weight used", "restSeconds": number, "muscleGroup": "one of: arms, legs, core, chest, back, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, glutes, calves, hip-flexors, adductors, abductors, rotator-cuff, lower-back, obliques, full-body", "notes": "form cues and weight selection rationale — do not reference equipment not listed as available" }
+      { "exercise": "name", "sets": number, "reps": number, "weight": number, "weightUnit": "lbs|kg", "percent1RM": number (percentage of 1RM, e.g., 80), "oneRepMaxRef": "string (which 1RM this references: squat, clean, strict-overhead-press, bench-press, deadlift, front-squat, push-press, pull-up)", "restSeconds": number, "muscleGroup": "one of: arms, legs, core, chest, back, shoulders, biceps, triceps, forearms, quadriceps, hamstrings, glutes, calves, hip-flexors, adductors, abductors, rotator-cuff, lower-back, obliques, full-body", "notes": "form cues and weight selection rationale — do not reference equipment not listed as available" }
     ],
     "coolDown": { "description": "Stretching", "duration": number },
     "trainingNotes": [
@@ -816,6 +852,31 @@ async function getCoachingObservations(swimmerId) {
   }
 }
 
+function extractActivePhysicalNotes(coachingObservations) {
+  if (!coachingObservations) return [];
+
+  const notes = [];
+  const lines = coachingObservations.split('\n');
+
+  for (const line of lines) {
+    // Match injury or recovery-related observations
+    if (line.includes('[injury/') || line.includes('[observation/recovery/')) {
+      // Extract the content after the metadata prefix
+      // Format: "- [type/category] (source, confidence: X) content"
+      const contentMatch = line.match(/\]\s*\([^)]+\)\s*(.+)/);
+      if (contentMatch) {
+        notes.push(contentMatch[1].trim());
+      } else {
+        // Fallback: just take everything after the first "]"
+        const afterBracket = line.split(']')[1];
+        if (afterBracket) notes.push(afterBracket.trim());
+      }
+    }
+  }
+
+  return notes;
+}
+
 module.exports = {
   generateWorkout,
   getTrainingInsights,
@@ -831,4 +892,5 @@ module.exports = {
   resolvePrimaryEvents,
   sanitizeModel,
   getCoachingObservations,
+  extractActivePhysicalNotes,
 };

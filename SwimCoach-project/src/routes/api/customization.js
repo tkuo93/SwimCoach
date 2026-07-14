@@ -111,6 +111,17 @@ router.get('/options', (req, res) => {
         { value: 'weekly', label: 'Weekly Block', description: 'Part of a week-long progression' },
         { value: 'monthly', label: 'Monthly Plan', description: 'Part of a month-long training cycle' },
       ],
+      // 1-Rep Max exercise types for strength baselines
+      oneRepMaxExercises: [
+        { value: 'squat', label: 'Back Squat', description: 'Barbell back squat 1RM' },
+        { value: 'clean', label: 'Power Clean', description: 'Power clean 1RM' },
+        { value: 'strict-overhead-press', label: 'Strict Overhead Press', description: 'Strict press 1RM' },
+        { value: 'bench-press', label: 'Bench Press', description: 'Bench press 1RM' },
+        { value: 'deadlift', label: 'Deadlift', description: 'Deadlift 1RM' },
+        { value: 'front-squat', label: 'Front Squat', description: 'Front squat 1RM' },
+        { value: 'push-press', label: 'Push Press', description: 'Push press 1RM' },
+        { value: 'pull-up', label: 'Weighted Pull-up', description: 'Weighted pull-up 1RM' },
+      ],
     },
   });
 });

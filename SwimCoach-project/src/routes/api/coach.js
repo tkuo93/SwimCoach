@@ -8,10 +8,10 @@ const { chat: coachChat } = require('../../services/coach/coach-agent');
 const { regenerateWorkout } = require('../../services/workout-generator');
 
 // POST /api/coach/chat
-// Body: { messages: Array<{role, text}>, message: string, llmModel?, conversationId? }
+// Body: { messages: Array<{role, text}>, message: string, llmModel?, conversationId?, workoutId? }
 router.post('/chat', async (req, res) => {
   try {
-    const { message, messages = [], llmModel, conversationId } = req.body;
+    const { message, messages = [], llmModel, conversationId, workoutId } = req.body;
 
     if (!message) {
       return res.status(400).json({ success: false, error: 'message is required' });
@@ -22,12 +22,24 @@ router.post('/chat', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
 
+    // Optional: load workout if workoutId provided
+    let workout = null;
+    let mode = 'general';
+    if (workoutId) {
+      workout = await Workout.findById(workoutId);
+      if (workout && workout.swimmerId.toString() === req.user._id.toString()) {
+        mode = 'workout';
+      } else {
+        workout = null; // invalid workoutId — fall back to general
+      }
+    }
+
     const result = await coachChat({
       profile,
-      workout: null,
+      workout,
       messages,
       userMessage: message,
-      mode: 'general',
+      mode,
       modelOverride: llmModel,
     });
 
@@ -48,6 +60,10 @@ router.post('/chat', async (req, res) => {
           conversation.proposals = [...(conversation.proposals || []), ...proposals];
           // Set expiry for proposals (10 min from now)
           conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+          // Update contextWorkoutId if provided and not already set
+          if (workoutId && !conversation.contextWorkoutId) {
+            conversation.contextWorkoutId = workoutId;
+          }
         }
         await conversation.save();
         finalConversationId = conversationId;
@@ -70,7 +86,7 @@ router.post('/chat', async (req, res) => {
           { role: 'user', text: message },
           { role: 'coach', text: result.reply }
         ],
-        contextWorkoutId: null,
+        contextWorkoutId: workoutId || null,
         proposals: proposals,
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL

@@ -11,6 +11,7 @@
 
 const axios = require('axios');
 const { resolveTrainingFocus, resolvePoolLength, isPoolYards, sanitizeModel } = require('./workout-ai');
+const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('./prompt-sanitizer');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -26,8 +27,23 @@ const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-5
  * @returns {Promise<{reply: string, regenerate: boolean, customizationOverrides: Object}>}
  */
 async function chat(profile, workout, messages, userMessage, modelOverride) {
+  // Sanitize user input
+  let safeUserMessage;
+  try {
+    safeUserMessage = sanitizeUserMessage(userMessage, { context: 'workout' });
+  } catch (err) {
+    return {
+      reply: "I can't process that message — it appears to contain content that could be a prompt injection attempt. Please rephrase your question about your workout.",
+      regenerate: false,
+      overrides: {}
+    };
+  }
+
   const systemPrompt = buildChatSystemPrompt(profile, workout);
-  const conversationHistory = buildConversationHistory(messages, userMessage, workout);
+  const safeSystemPrompt = buildSafeSystemPrompt(systemPrompt, 'workout');
+  const conversationHistory = buildConversationHistory(messages, safeUserMessage, workout);
+  // Sanitize conversation history (user messages only)
+  const safeConversationHistory = sanitizeConversationHistory(conversationHistory, { context: 'workout' });
 
   // Sanitize user-supplied model to prevent injection into outbound API calls
   const model = sanitizeModel(modelOverride);
@@ -37,8 +53,8 @@ async function chat(profile, workout, messages, userMessage, modelOverride) {
     {
       model,
       messages: [
-        { role: 'system', content: systemPrompt },
-        ...conversationHistory,
+        { role: 'system', content: safeSystemPrompt },
+        ...safeConversationHistory,
       ],
       temperature: 0.7,
       max_tokens: 2048,
