@@ -852,7 +852,7 @@ function renderToday(){
   document.getElementById('dateLbl').textContent=w.date||w.createdAt;
   document.getElementById('wTitle').textContent=w.workoutName||w.workoutType||'Workout';
 
-  document.getElementById('statsRow').innerHTML=`<div class="stat-item"><div class="stat-value">${(pool.totalDistance||0).toLocaleString()}</div><div class="stat-label">meters</div></div><div class="stat-item"><div class="stat-value">${w.duration||60}</div><div class="stat-label">minutes</div></div><div class="stat-item"><div class="stat-value">${esc(w.intensity||'moderate')}</div><div class="stat-label">intensity</div></div>`;
+  document.getElementById('statsRow').innerHTML=`<div class="stat-item"><div class="stat-value">${(pool.totalDistance||0).toLocaleString()}</div><div class="stat-label">${unit}</div></div><div class="stat-item"><div class="stat-value">${w.duration||60}</div><div class="stat-label">minutes</div></div><div class="stat-item"><div class="stat-value">${esc(w.intensity||'moderate')}</div><div class="stat-label">intensity</div></div>`;
   document.getElementById('totDist').textContent=(pool.totalDistance||0).toLocaleString()+unit;
   document.getElementById('totDur').textContent='~'+(w.duration||60)+' min';
 
