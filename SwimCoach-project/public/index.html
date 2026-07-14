@@ -1286,12 +1286,44 @@ function renderHistory(){
     const sorted=(res.data||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
     if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">No workouts yet. Generate your first one!</div>';return}
     list.innerHTML='';
-    sorted.forEach((w,i)=>{
-      const card=document.createElement('div');card.className='history-card';
-      const stars=[1,2,3,4,5].map(s=>`<span class="star ${w.userFeedback?.rating&&w.userFeedback.rating>=s?'filled':''}" onclick="rateWorkout('${w._id}',${s})">★</span>`).join('');
-      const dist=(w.poolWorkout?.totalDistance||0);
-      card.innerHTML=`<div class="history-card-head"><h4>${esc(w.workoutName||w.workoutType)}</h4><span class="date">${esc(w.date||w.createdAt)}</span></div><div class="history-meta"><span>${dist.toLocaleString()}m</span><span>·</span><span>${esc(w.duration)}min</span><span>·</span><span>${esc(w.intensity||'moderate')}</span></div><div class="history-feedback"><div class="star-rating">${stars}</div></div><div class="history-actions"><button class="history-action-btn" onclick="viewHistoryWorkout('${w._id}')">View</button><button class="history-action-btn" onclick="deleteWorkout('${w._id}')">Delete</button></div>`;
-      list.appendChild(card);
+
+    // Group workouts by week (Monday-Sunday)
+    const workoutsByWeek = {};
+    sorted.forEach(w => {
+      const date = new Date(w.date || w.createdAt);
+      // Get Monday of that week
+      const day = date.getUTCDay(); // 0=Sun ... 6=Sat
+      const monday = new Date(date);
+      monday.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+      monday.setUTCHours(0,0,0,0);
+      const weekKey = monday.toISOString().split('T')[0];
+      if (!workoutsByWeek[weekKey]) workoutsByWeek[weekKey] = [];
+      workoutsByWeek[weekKey].push(w);
+    });
+
+    // Render weeks in descending order (most recent first)
+    Object.keys(workoutsByWeek).sort().reverse().forEach(weekKey => {
+      const weekWorkouts = workoutsByWeek[weekKey];
+      const monday = new Date(weekKey + 'T00:00:00Z');
+      const sunday = new Date(monday);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const weekLabel = `${monthNames[monday.getUTCMonth()]} ${monday.getUTCDate()} - ${monthNames[sunday.getUTCMonth()]} ${sunday.getUTCDate()}, ${monday.getUTCFullYear()}`;
+
+      // Week header
+      const weekHeader = document.createElement('div');
+      weekHeader.style.cssText = 'padding:16px 24px 8px;font-family:var(--font-d);font-size:14px;font-weight:600;color:var(--sage);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border-light);margin-bottom:8px';
+      weekHeader.textContent = weekLabel;
+      list.appendChild(weekHeader);
+
+      // Workouts in this week
+      weekWorkouts.forEach(w => {
+        const card=document.createElement('div');card.className='history-card';
+        const stars=[1,2,3,4,5].map(s=>`<span class="star ${w.userFeedback?.rating&&w.userFeedback.rating>=s?'filled':''}" onclick="rateWorkout('${w._id}',${s})">★</span>`).join('');
+        const dist=(w.poolWorkout?.totalDistance||0);
+        card.innerHTML=`<div class="history-card-head"><h4>${esc(w.workoutName||w.workoutType)}</h4><span class="date">${esc(w.date||w.createdAt)}</span></div><div class="history-meta"><span>${dist.toLocaleString()}m</span><span>·</span><span>${esc(w.duration)}min</span><span>·</span><span>${esc(w.intensity||'moderate')}</span></div><div class="history-feedback"><div class="star-rating">${stars}</div></div><div class="history-actions"><button class="history-action-btn" onclick="viewHistoryWorkout('${w._id}')">View</button><button class="history-action-btn" onclick="deleteWorkout('${w._id}')">Delete</button></div>`;
+        list.appendChild(card);
+      });
     });
   }).catch(()=>{list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">Failed to load workouts</div>'});
 }
@@ -1603,7 +1635,7 @@ function renderSettings(){
       <div class="settings-row"><span class="settings-label"></span><a href="/terms-of-use.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Terms of Use</a></div>
       <div class="settings-row"><span class="settings-label"></span><a href="/cookie-policy.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Cookie Policy</a></div>
     </div>
-    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn del" onclick="logout()">Log Out</button></div>`;
+    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="logout()">Log Out</button></div>`;
   const llm=localStorage.getItem('sc_llm')||'auto';
   document.getElementById('llmSelect').value=llm;
   document.getElementById('currentLlm').textContent=llm;
