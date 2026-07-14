@@ -7,6 +7,7 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 10; // 10 requests per minute per IP
 const MAX_IPS = 5000; // Hard cap on tracked IPs
+const EVICTION_BATCH = 100; // Evict this many random entries when cap reached
 
 function rateLimiter(req, res, next) {
   const ip = req.ip || req.connection.remoteAddress;
@@ -27,15 +28,13 @@ function rateLimiter(req, res, next) {
   requests.push(now);
   rateLimitMap.set(ip, requests);
 
-  // Global eviction: remove oldest IPs when cap reached
+  // Global eviction: remove random entries when cap reached (O(1) per eviction)
   if (rateLimitMap.size > MAX_IPS) {
-    const entries = [...rateLimitMap.entries()];
-    // Sort by oldest request timestamp (ascending)
-    entries.sort((a, b) => a[1][0] - b[1][0]);
-    // Evict oldest 20%
-    const evictCount = Math.floor(MAX_IPS * 0.2);
-    for (let i = 0; i < evictCount; i++) {
-      rateLimitMap.delete(entries[i][0]);
+    const keys = rateLimitMap.keys();
+    for (let i = 0; i < EVICTION_BATCH; i++) {
+      const { done, value } = keys.next();
+      if (done) break;
+      rateLimitMap.delete(value);
     }
   }
 

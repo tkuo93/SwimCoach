@@ -151,7 +151,9 @@ const PATTERN_CATEGORIES = new Map();
 
 /**
  * Escape string for safe logging - prevents log injection/XSS in web log viewers
- * Escapes backticks, newlines, ANSI escape sequences, and control characters
+ * Escapes backticks, newlines, ANSI escape sequences, and control characters.
+ * NOTE: This is defense-in-depth for console.log. For structured logging pipelines,
+ * use a JSON logger (pino/winston) with object serialization instead of string interpolation.
  */
 function escapeForLog(str) {
   if (typeof str !== 'string') return String(str);
@@ -167,10 +169,17 @@ function escapeForLog(str) {
 }
 
 /**
- * Escape array of strings for safe logging
+ * Structured log helper - returns object for JSON-safe logging
+ * Use with console.log(JSON.stringify(logEvent)) in structured pipelines
  */
-function escapeArrayForLog(arr) {
-  return arr.map(escapeForLog).join(', ');
+function createLogEvent(level, message, context, extra = {}) {
+  return {
+    level,
+    message,
+    context,
+    timestamp: new Date().toISOString(),
+    ...extra,
+  };
 }
 
 // ─── Core Functions ────────────────────────────────────────────────────
@@ -215,8 +224,8 @@ function sanitizeUserMessage(message, options = {}) {
   }
 
   if (detectedPatterns.length > 0) {
-    const msg = `Prompt injection attempt detected: ${escapeArrayForLog(detectedPatterns)}`;
-    console.warn(`[PromptSanitizer] ${escapeForLog(msg)} | Context: ${escapeForLog(context)} | Message: "${escapeForLog(cleaned.slice(0, 100))}..."`);
+    const msg = `Prompt injection attempt detected: ${detectedPatterns.join(', ')}`;
+    console.warn(JSON.stringify(createLogEvent('warn', msg, context, { messagePreview: cleaned.slice(0, 100) })));
 
     if (strictMode) {
       throw new Error('Message rejected: Potential prompt injection detected. Please rephrase your question.');
@@ -234,8 +243,8 @@ function sanitizeUserMessage(message, options = {}) {
 
   if (trustSafetyViolations.length > 0) {
     const categories = [...new Set(trustSafetyViolations.map(v => TRUST_SAFETY_CATEGORIES[v.category] || v.category))];
-    const msg = `Trust & Safety violation detected: ${escapeArrayForLog(categories)}`;
-    console.warn(`[PromptSanitizer] ${escapeForLog(msg)} | Context: ${escapeForLog(context)} | Message: "${escapeForLog(cleaned.slice(0, 100))}..."`);
+    const msg = `Trust & Safety violation detected: ${categories.join(', ')}`;
+    console.warn(JSON.stringify(createLogEvent('warn', msg, context, { messagePreview: cleaned.slice(0, 100) })));
 
     if (strictMode) {
       throw new Error('Message rejected: Content violates safety guidelines. Please keep conversations respectful and on-topic.');
@@ -248,7 +257,8 @@ function sanitizeUserMessage(message, options = {}) {
   );
 
   if (foundKeywords.length >= 3) {  // Multiple suspicious keywords = higher risk
-    console.warn(`[PromptSanitizer] High suspicious keyword count (${foundKeywords.length}): ${escapeArrayForLog(foundKeywords)} | Context: ${escapeForLog(context)}`);
+    const msg = `High suspicious keyword count (${foundKeywords.length}): ${foundKeywords.join(', ')}`;
+    console.warn(JSON.stringify(createLogEvent('warn', msg, context, { keywords: foundKeywords })));
   }
 
   return cleaned;
@@ -274,7 +284,7 @@ function sanitizeConversationHistory(messages, options = {}) {
         };
       } catch (err) {
         // Replace rejected messages with a placeholder
-        console.warn(`[PromptSanitizer] Rejected user message in history: ${escapeForLog(err.message)}`);
+        console.warn(JSON.stringify(createLogEvent('warn', 'Rejected user message in history', 'general', { error: err.message })));
         return {
           ...msg,
           text: '[Message rejected by safety filter]'
@@ -359,7 +369,7 @@ module.exports = {
   buildSafeSystemPrompt,
   isOnTopic,
   escapeForLog,
-  escapeArrayForLog,
+  createLogEvent,
   MAX_MESSAGE_LENGTH,
   INJECTION_PATTERNS,
   SUSPICIOUS_KEYWORDS,
