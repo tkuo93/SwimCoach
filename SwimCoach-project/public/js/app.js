@@ -1760,7 +1760,7 @@ async function initChatHandler(workoutId) {
       }
     } catch (err) {
       removeTypingIndicator(typingId);
-      const errorMsg = { role: 'coach', text: `Sorry, I couldn't process that: ${err.message}` };
+      const errorMsg = { role: 'coach', text: `Sorry, I couldn't process that: ${escapeHtml(err.message)}` };
       conv.push(errorMsg);
       renderConversation(workoutId, conv);
       // Save error message to database (doesn't go through backend chat endpoint)
@@ -1983,7 +1983,7 @@ async function loadHistoryPage() {
     hideLoading();
   } catch (err) {
     hideLoading();
-    container.innerHTML = `<div class="empty-state"><p>Error loading workouts: ${err.message}</p></div>`;
+    container.innerHTML = `<div class="empty-state"><p>Error loading workouts: ${escapeHtml(err.message)}</p></div>`;
   }
 }
 
