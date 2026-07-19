@@ -374,7 +374,7 @@ async function generateWorkout(profile, customization, opts = {}) {
   const systemMessage = { role: 'system', content: systemPrompt };
   const userMessage = { role: 'user', content: userPrompt };
 
-  let result = await callLLM(model, systemMessage, userMessage, 8192);
+  let result = await callLLM(model, systemMessage, userMessage, 12288);
   if (!result.content) throw new Error('No response from OpenRouter');
 
   let parsed = parseWorkoutJSON(result.content);
@@ -482,21 +482,96 @@ function repairTruncatedJSON(content) {
     if (braceMatch) s = braceMatch[0];
     else s = '{' + s;
   }
-  // Close open string literals, then close brackets/braces from inside out.
+
   let repaired = s;
-  // If we're inside a string (odd number of unescaped quotes), close it.
-  let quotes = 0;
-  for (const ch of repaired) { if (ch === '"') quotes++; }
-  if (quotes % 2 !== 0) repaired += '"';
-  // Close open arrays then objects.
-  let depth = 0; let inStr = false;
-  for (const ch of repaired) {
-    if (ch === '"' && (depth === 0 || repaired[repaired.indexOf(ch) - 1] !== '\\')) inStr = !inStr;
-    if (inStr) continue;
+
+  // First pass: find the last complete key-value pair at depth 1 (top-level properties)
+  // or complete array elements (depth 2 for arrays inside objects)
+  let depth = 0;
+  let inStr = false;
+  let escaped = false;
+  let lastCompletePos = -1;
+  let lastCompleteDepth = 0;
+
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (ch === '"' && !escaped) inStr = !inStr;
+    if (inStr) {
+      escaped = (ch === '\\' && !escaped);
+      continue;
+    }
     if (ch === '{' || ch === '[') depth++;
-    if (ch === '}' || ch === ']') depth = Math.max(0, depth - 1);
+    if (ch === '}' || ch === ']') {
+      depth = Math.max(0, depth - 1);
+      // Mark complete positions at depth 0 (root), 1 (top-level props), or 2 (array elements)
+      if ((depth === 0 || depth === 1 || depth === 2) && i > 0) {
+        lastCompletePos = i;
+        lastCompleteDepth = depth;
+      }
+    }
   }
-  for (let i = 0; i < depth; i++) repaired += '}';
+
+  // If we have a complete position and the string ends incomplete, truncate to the last complete element
+  if (lastCompletePos > 0 && lastCompletePos < repaired.length - 1) {
+    const remainder = repaired.substring(lastCompletePos + 1);
+    let remQuotes = 0;
+    let remEscaped = false;
+    let remDepth = 0;
+    let remInStr = false;
+    for (const ch of remainder) {
+      if (ch === '"' && !remEscaped) remInStr = !remInStr;
+      if (remInStr) {
+        remEscaped = (ch === '\\' && !remEscaped);
+        continue;
+      }
+      if (ch === '{' || ch === '[') remDepth++;
+      if (ch === '}' || ch === ']') remDepth = Math.max(0, remDepth - 1);
+      if (ch === '"' && !remEscaped) remQuotes++;
+      remEscaped = (ch === '\\' && !remEscaped);
+    }
+    // If remainder has unclosed quotes or unclosed braces/brackets, truncate
+    if (remQuotes % 2 !== 0 || remDepth > 0 || remInStr) {
+      // Include trailing comma if present (common after array elements)
+      let truncatePos = lastCompletePos + 1;
+      if (truncatePos < repaired.length && repaired[truncatePos] === ',') {
+        truncatePos++;
+      }
+      repaired = repaired.substring(0, truncatePos);
+    }
+  }
+
+  // Remove trailing commas before closing braces/brackets (must be after truncation)
+  // Matches comma followed by whitespace and either closing bracket/brace or end of string
+  repaired = repaired.replace(/,\s*([}\]])?\s*$/g, '$1');
+
+  // Close open string literals
+  let quotes = 0;
+  escaped = false;
+  for (const ch of repaired) {
+    if (ch === '"' && !escaped) quotes++;
+    escaped = (ch === '\\' && !escaped);
+  }
+  if (quotes % 2 !== 0) repaired += '"';
+
+  // Close open arrays and objects (track separately)
+  depth = 0; inStr = false; escaped = false;
+  let openArrays = 0;
+  let openObjects = 0;
+  for (let i = 0; i < repaired.length; i++) {
+    const ch = repaired[i];
+    if (ch === '"' && !escaped) inStr = !inStr;
+    if (inStr) {
+      escaped = (ch === '\\' && !escaped);
+      continue;
+    }
+    if (ch === '{') { depth++; openObjects++; }
+    if (ch === '[') { depth++; openArrays++; }
+    if (ch === '}') { depth = Math.max(0, depth - 1); openObjects = Math.max(0, openObjects - 1); }
+    if (ch === ']') { depth = Math.max(0, depth - 1); openArrays = Math.max(0, openArrays - 1); }
+  }
+  for (let i = 0; i < openArrays; i++) repaired += ']';
+  for (let i = 0; i < openObjects; i++) repaired += '}';
+
   try { return JSON.parse(repaired); } catch { return null; }
 }
 
