@@ -18,6 +18,80 @@ import {
   escapeHtml,
 } from '/js/components.js';
 
+// ─── Helper Functions for Safe DOM Creation ───
+
+function createInput(type, className, attributes = {}) {
+  const input = document.createElement('input');
+  input.type = type;
+  input.className = className;
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (key === 'value') {
+      input.value = value;
+    } else {
+      input.setAttribute(key, value);
+    }
+  });
+  return input;
+}
+
+function createCell(input) {
+  const td = document.createElement('td');
+  td.appendChild(input);
+  return td;
+}
+
+function createButton(className, title, textContent, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = className;
+  btn.title = title;
+  btn.textContent = textContent;
+  if (onClick) btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function createPoolSetRow(idx) {
+  const row = document.createElement('tr');
+  row.className = 'edit-set-row';
+  row.dataset.setIndex = idx;
+  row.dataset.setType = 'pool';
+
+  row.appendChild(createCell(createInput('number', 'edit-input edit-reps', { value: 1, min: 1 })));
+  row.appendChild(createCell(createInput('number', 'edit-input edit-distance', { value: 100, min: 0 })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-stroke', { value: 'freestyle' })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-sendoff', { placeholder: '2:00' })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-targetpace', { placeholder: '1:35' })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-rest', { placeholder: '25s' })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-focus', { placeholder: 'technique' })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-set-notes', {})));
+
+  const removeTd = document.createElement('td');
+  removeTd.appendChild(createButton('btn btn-sm btn-danger btn-remove-set', 'Remove set', '✕', (e) => e.target.closest('tr').remove()));
+  row.appendChild(removeTd);
+
+  return row;
+}
+
+function createGymSetRow(idx) {
+  const row = document.createElement('tr');
+  row.className = 'edit-set-row';
+  row.dataset.setIndex = idx;
+  row.dataset.setType = 'gym';
+
+  row.appendChild(createCell(createInput('text', 'edit-input edit-exercise', { placeholder: 'Exercise name' })));
+  row.appendChild(createCell(createInput('number', 'edit-input edit-sets', { value: 3, min: 1 })));
+  row.appendChild(createCell(createInput('number', 'edit-input edit-reps', { value: 10, min: 1 })));
+  row.appendChild(createCell(createInput('number', 'edit-input edit-weight', { value: 0, min: 0 })));
+  row.appendChild(createCell(createInput('number', 'edit-input edit-rest', { value: 60, min: 0 })));
+  row.appendChild(createCell(createInput('text', 'edit-input edit-muscle', { placeholder: 'full-body' })));
+
+  const removeTd = document.createElement('td');
+  removeTd.appendChild(createButton('btn btn-sm btn-danger btn-remove-set', 'Remove', '✕', (e) => e.target.closest('tr').remove()));
+  row.appendChild(removeTd);
+
+  return row;
+}
+
 // ─── App State ───
 const state = {
   currentProfile: null,
@@ -1399,38 +1473,14 @@ function buildWorkoutViewWithActions(workout) {
         form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
           const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
           const idx = tbody.querySelectorAll('.edit-set-row').length;
-          const row = document.createElement('tr');
-          row.className = 'edit-set-row';
-          row.dataset.setIndex = idx;
-          row.dataset.setType = 'pool';
-          row.innerHTML =
-            '<td><input type="number" class="edit-input edit-reps" value="1" min="1"></td>' +
-            '<td><input type="number" class="edit-input edit-distance" value="100" min="0"></td>' +
-            '<td><input type="text" class="edit-input edit-stroke" value="freestyle"></td>' +
-            '<td><input type="text" class="edit-input edit-sendoff" placeholder="2:00"></td>' +
-            '<td><input type="text" class="edit-input edit-targetpace" placeholder="1:35"></td>' +
-            '<td><input type="text" class="edit-input edit-rest" placeholder="25s"></td>' +
-            '<td><input type="text" class="edit-input edit-focus" placeholder="technique"></td>' +
-            '<td><input type="text" class="edit-input edit-set-notes"></td>' +
-            '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">\u2715</button></td>';
+          const row = createPoolSetRow(idx);
           tbody.appendChild(row);
         });
 
 	  form.querySelector('.btn-add-set[data-pool="false"]')?.addEventListener('click', () => {
 	    const tbody = document.getElementById(`edit-gym-sets-${workoutId}`);
 	    const idx = tbody.querySelectorAll('.edit-set-row').length;
-	    const row = document.createElement('tr');
-	    row.className = 'edit-set-row';
-	    row.dataset.setIndex = idx;
-	    row.dataset.setType = 'gym';
-	    row.innerHTML =
-	      '<td><input type="text" class="edit-input edit-exercise" placeholder="Exercise name"></td>' +
-	      '<td><input type="number" class="edit-input edit-sets" value="3" min="1"></td>' +
-	      '<td><input type="number" class="edit-input edit-reps" value="10" min="1"></td>' +
-	      '<td><input type="number" class="edit-input edit-weight" value="0" min="0"></td>' +
-	      '<td><input type="number" class="edit-input edit-rest" value="60" min="0"></td>' +
-	      '<td><input type="text" class="edit-input edit-muscle" placeholder="full-body"></td>' +
-	      '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove">\u2715</button></td>';
+	    const row = createGymSetRow(idx);
 	    tbody.appendChild(row);
 	  });
 	}

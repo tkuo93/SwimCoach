@@ -1,5 +1,6 @@
 const Workout = require('../models/Workout');
 const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
+// interval-calculator.js is pure computation (no network I/O) - calculates swim intervals from CSS/race pace
 const { getCSS, validateAndCorrectIntervals, formatSecondsToSendOff } = require('../utils/interval-calculator');
 
 /**
