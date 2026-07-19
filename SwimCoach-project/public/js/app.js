@@ -1631,10 +1631,13 @@ async function initChatHandler(workoutId) {
   const conv = conversation.messages || [];
   // Seed welcome message if fresh
   if (conv.length === 0) {
-    conv.push({
+    const welcomeMsg = {
       role: 'coach',
       text: 'Need a change? Ask for a harder/easier version, swap exercises, adjust the duration, or just ask me anything about your workout.',
-    });
+    };
+    conv.push(welcomeMsg);
+    // Save the welcome message to the database (backend chat endpoint doesn't save it)
+    await api.conversations.addMessages(conversation._id, [welcomeMsg]);
   }
   renderConversation(workoutId, conv);
 
@@ -1651,8 +1654,9 @@ async function initChatHandler(workoutId) {
     const text = input.value.trim();
     if (!text) return;
 
-    // Add user message
-    conv.push({ role: 'user', text });
+    const userMsg = { role: 'user', text };
+    // Add user message to local conversation
+    conv.push(userMsg);
     renderConversation(workoutId, conv);
     input.value = '';
 
@@ -1671,8 +1675,9 @@ async function initChatHandler(workoutId) {
 
       const { reply, actions, workout: newWorkout, conversationId } = result.data;
 
-      // Add coach reply
-      conv.push({ role: 'coach', text: reply });
+      const coachMsg = { role: 'coach', text: reply };
+      // Add coach reply to local conversation
+      conv.push(coachMsg);
 
       // Update conversation ID if backend returned a new one
       if (conversationId) {
@@ -1680,6 +1685,9 @@ async function initChatHandler(workoutId) {
       }
 
       renderConversation(workoutId, conv);
+
+      // Note: Backend chat endpoint saves both user and coach messages to the database.
+      // We don't call addMessages here to avoid duplication.
 
       // If the agent already applied a regeneration, update the display
       if (newWorkout) {
@@ -1752,8 +1760,15 @@ async function initChatHandler(workoutId) {
       }
     } catch (err) {
       removeTypingIndicator(typingId);
-      conv.push({ role: 'coach', text: `Sorry, I couldn't process that: ${err.message}` });
+      const errorMsg = { role: 'coach', text: `Sorry, I couldn't process that: ${err.message}` };
+      conv.push(errorMsg);
       renderConversation(workoutId, conv);
+      // Save error message to database (doesn't go through backend chat endpoint)
+      try {
+        await api.conversations.addMessages(conversation._id, [errorMsg]);
+      } catch (e) {
+        console.warn('Failed to save error message:', e.message);
+      }
     }
   });
 }
