@@ -1,5 +1,6 @@
 const Workout = require('../models/Workout');
 const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
+const { getCSS, validateAndCorrectIntervals, formatSecondsToSendOff } = require('../utils/interval-calculator');
 
 /**
  * Calculate working weight from 1RM percentage
@@ -39,6 +40,14 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
   // Step 1+2: Get insights from knowledge base, then generate structured workout via OpenRouter
   const aiWorkout = await generateWorkoutAI(profile, customization, opts);
 
+  // Post-process: validate and correct swim intervals using calibrated intervals
+  if (aiWorkout.mainSet && aiWorkout.mainSet.length > 0) {
+    const cssPace = getCSS(profile);
+    if (cssPace) {
+      aiWorkout.mainSet = validateAndCorrectIntervals(aiWorkout.mainSet, profile);
+    }
+  }
+
   const workoutType = customization.workoutType || (Array.isArray(profile.goals?.trainingFocus) ? profile.goals.trainingFocus[0] : profile.goals?.trainingFocus) || 'endurance';
   const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
   const sessionType = customization.sessionType || 'both';
@@ -69,15 +78,64 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
         distance: aiWorkout.warmUp?.distance || 0,
         duration: aiWorkout.warmUp?.duration || Math.round(duration * 0.15),
       },
-      mainSet: (aiWorkout.mainSet || []).map(s => ({
-        distance: s.distancePerRep || s.distance || 0,
-        repetitions: s.reps || s.repetitions || 1,
-        stroke: s.stroke || 'freestyle',
-        interval: s.restInterval || s.interval || '',
-        focus: s.focus || '',
-        description: s.notes || s.description || '',
-        equipment: s.equipment || {},
-      })),
+      mainSet: (aiWorkout.mainSet || []).map(s => {
+        // Handle various interval formats from AI:
+        // 1. Full interval object: s.interval = { sendOff, targetPace, rest, type, progression }
+        // 2. Old string format: s.restInterval = "2:00" or s.interval = "2:00"
+        // 3. Flat fields: s.sendOff = "2:00", s.targetPace = "1:35"
+        // 4. Validated format (from validateAndCorrectIntervals): s.sendOff, s.targetPace, s.rest as numbers
+        let intervalDetail = null;
+        let intervalStr = '';
+
+        if (typeof s.interval === 'object' && s.interval.sendOff) {
+          // Format 1: Full interval object
+          intervalDetail = s.interval;
+          intervalStr = s.interval.sendOff;
+        } else if (typeof s.restInterval === 'object' && s.restInterval.sendOff) {
+          // Alternative: restInterval as object
+          intervalDetail = s.restInterval;
+          intervalStr = s.restInterval.sendOff;
+        } else if (s.interval && typeof s.interval === 'string') {
+          // Format 2: interval as string
+          intervalStr = s.interval;
+        } else if (s.restInterval && typeof s.restInterval === 'string') {
+          // Format 2: restInterval as string
+          intervalStr = s.restInterval;
+        } else if (s.sendOff || s.targetPace) {
+          // Format 3: Flat fields - construct interval object
+          intervalDetail = {
+            sendOff: s.sendOff,
+            targetPace: s.targetPace,
+            rest: s.rest,
+            type: s.intervalType || 'fixed',
+            progression: s.progression,
+          };
+          intervalStr = s.sendOff;
+        } else if (typeof s.sendOff === 'number' && typeof s.targetPace === 'number') {
+          // Format 4: Validated numeric fields
+          intervalDetail = {
+            sendOff: s.sendOff,
+            targetPace: s.targetPace,
+            rest: s.rest,
+            type: s.type || 'fixed',
+            progression: s.progression,
+            paceSource: s.paceSource,
+            safetyCapped: s.safetyCapped,
+          };
+          intervalStr = formatSecondsToSendOff(s.sendOff);
+        }
+
+        return {
+          distance: s.distancePerRep || s.distance || 0,
+          repetitions: s.reps || s.repetitions || 1,
+          stroke: s.stroke || 'freestyle',
+          interval: intervalStr,
+          intervalDetail: intervalDetail,
+          focus: s.focus || '',
+          description: s.notes || s.description || '',
+          equipment: s.equipment || {},
+        };
+      }),
       coolDown: {
         description: aiWorkout.coolDown?.description || '',
         distance: aiWorkout.coolDown?.distance || 0,

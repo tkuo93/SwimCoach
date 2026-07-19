@@ -1396,23 +1396,25 @@ function buildWorkoutViewWithActions(workout) {
 	    }
 	  });
 
-	  form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
-	    const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
-	    const idx = tbody.querySelectorAll('.edit-set-row').length;
-	    const row = document.createElement('tr');
-	    row.className = 'edit-set-row';
-	    row.dataset.setIndex = idx;
-	    row.dataset.setType = 'pool';
-	    row.innerHTML =
-	      '<td><input type="number" class="edit-input edit-reps" value="1" min="1"></td>' +
-	      '<td><input type="number" class="edit-input edit-distance" value="100" min="0"></td>' +
-	      '<td><input type="text" class="edit-input edit-stroke" value="freestyle"></td>' +
-	      '<td><input type="text" class="edit-input edit-interval" placeholder="1:30"></td>' +
-	      '<td><input type="text" class="edit-input edit-focus" placeholder="technique"></td>' +
-	      '<td><input type="text" class="edit-input edit-set-notes"></td>' +
-	      '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">\u2715</button></td>';
-	    tbody.appendChild(row);
-	  });
+        form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
+          const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
+          const idx = tbody.querySelectorAll('.edit-set-row').length;
+          const row = document.createElement('tr');
+          row.className = 'edit-set-row';
+          row.dataset.setIndex = idx;
+          row.dataset.setType = 'pool';
+          row.innerHTML =
+            '<td><input type="number" class="edit-input edit-reps" value="1" min="1"></td>' +
+            '<td><input type="number" class="edit-input edit-distance" value="100" min="0"></td>' +
+            '<td><input type="text" class="edit-input edit-stroke" value="freestyle"></td>' +
+            '<td><input type="text" class="edit-input edit-sendoff" placeholder="2:00"></td>' +
+            '<td><input type="text" class="edit-input edit-targetpace" placeholder="1:35"></td>' +
+            '<td><input type="text" class="edit-input edit-rest" placeholder="25s"></td>' +
+            '<td><input type="text" class="edit-input edit-focus" placeholder="technique"></td>' +
+            '<td><input type="text" class="edit-input edit-set-notes"></td>' +
+            '<td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">\u2715</button></td>';
+          tbody.appendChild(row);
+        });
 
 	  form.querySelector('.btn-add-set[data-pool="false"]')?.addEventListener('click', () => {
 	    const tbody = document.getElementById(`edit-gym-sets-${workoutId}`);
@@ -1448,14 +1450,27 @@ function buildWorkoutViewWithActions(workout) {
 	  const poolCoolDownDuration = parseInt(document.getElementById(`edit-pool-cd-dur-${workoutId}`).value, 10) || 0;
 	  const poolCoolDownDesc = document.getElementById(`edit-pool-cd-desc-${workoutId}`).value.trim();
 
-	  const poolMainSet = [];
-	  document.querySelectorAll(`#edit-pool-sets-${workoutId} .edit-set-row`).forEach(function(row) {
-	    poolMainSet.push({
-	      repetitions: parseInt(row.querySelector('.edit-reps').value, 10) || 1,
-	      distance: parseInt(row.querySelector('.edit-distance').value, 10) || 0,
-	      stroke: row.querySelector('.edit-stroke').value.trim() || 'freestyle',
-	      interval: row.querySelector('.edit-interval').value.trim(),
-	      focus: row.querySelector('.edit-focus').value.trim(),
+	    const poolMainSet = [];
+  document.querySelectorAll(`#edit-pool-sets-${workoutId} .edit-set-row`).forEach(function(row) {
+    const sendOff = row.querySelector('.edit-sendoff')?.value.trim() || '';
+    const targetPace = row.querySelector('.edit-targetpace')?.value.trim() || '';
+    const rest = row.querySelector('.edit-rest')?.value.trim() || '';
+    poolMainSet.push({
+      repetitions: parseInt(row.querySelector('.edit-reps').value, 10) || 1,
+      distance: parseInt(row.querySelector('.edit-distance').value, 10) || 0,
+      stroke: row.querySelector('.edit-stroke').value.trim() || 'freestyle',
+      interval: sendOff,
+      intervalDetail: (sendOff || targetPace || rest) ? {
+        sendOff: sendOff,
+        targetPace: targetPace,
+        rest: rest,
+        type: 'fixed',
+        progression: ''
+      } : null,
+      focus: row.querySelector('.edit-focus').value.trim(),
+      description: row.querySelector('.edit-set-notes').value.trim(),
+    });
+  });e.trim(),
 	      description: row.querySelector('.edit-set-notes').value.trim(),
 	    });
 	  });

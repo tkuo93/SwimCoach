@@ -59,7 +59,17 @@ const workoutSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
-      }, // e.g., "1:30", "on 1:45", "2:00 build"
+      }, // e.g., "1:30", "on 1:45", "2:00 build" (send-off)
+      // Structured interval detail (new format)
+      intervalDetail: {
+        sendOff: { type: String, trim: true },      // "2:00"
+        targetPace: { type: String, trim: true },   // "1:35"
+        rest: { type: String, trim: true },         // "25s"
+        type: { type: String, enum: ['fixed', 'descending', 'ascending', 'building'], default: 'fixed' },
+        progression: { type: String, trim: true },    // "-2s/round", "build to fast"
+        paceSource: { type: String, enum: ['race_pace', 'css_derived', 'css_with_stroke_adj', 'default', 'estimated'], trim: true },
+        safetyCapped: { type: Boolean, default: false }
+      },
       repetitions: { type: Number, required: true, min: 1 },
       stroke: {
         type: String,

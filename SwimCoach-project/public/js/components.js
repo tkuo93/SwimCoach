@@ -164,17 +164,25 @@ function buildWorkoutEditForm(workout) {
   const pool = w.poolWorkout || {};
   const gym = w.gymWorkout || {};
 
-  const poolMainSetRows = (pool.mainSet || []).map((set, i) => `
+  const poolMainSetRows = (pool.mainSet || []).map((set, i) => {
+    const intervalDetail = set.intervalDetail;
+    const sendOff = intervalDetail?.sendOff || set.interval || '';
+    const targetPace = intervalDetail?.targetPace || '';
+    const rest = intervalDetail?.rest || '';
+    return `
     <tr class="edit-set-row" data-set-index="${i}" data-set-type="pool">
       <td><input type="number" class="edit-input edit-reps" value="${set.repetitions || 1}" min="1" title="Reps"></td>
       <td><input type="number" class="edit-input edit-distance" value="${set.distance || 0}" min="0" title="Distance (${pool.poolUnit === 'yards' ? 'yd' : 'm'})"></td>
       <td><input type="text" class="edit-input edit-stroke" value="${escapeHtml(set.stroke || 'freestyle')}" title="Stroke"></td>
-      <td><input type="text" class="edit-input edit-interval" value="${escapeHtml(set.interval || '')}" title="Interval (e.g. 1:30)"></td>
+      <td><input type="text" class="edit-input edit-sendoff" value="${escapeHtml(sendOff)}" title="Send-Off (e.g. 2:00)"></td>
+      <td><input type="text" class="edit-input edit-targetpace" value="${escapeHtml(targetPace)}" title="Target Pace (e.g. 1:35)"></td>
+      <td><input type="text" class="edit-input edit-rest" value="${escapeHtml(rest)}" title="Rest (e.g. 25s)"></td>
       <td><input type="text" class="edit-input edit-focus" value="${escapeHtml(set.focus || '')}" title="Focus"></td>
       <td><input type="text" class="edit-input edit-set-notes" value="${escapeHtml(set.description || '')}" title="Notes"></td>
       <td><button type="button" class="btn btn-sm btn-danger btn-remove-set" title="Remove set">✕</button></td>
     </tr>
-  `).join('');
+    `;
+  }).join('');
 
   const gymMainSetRows = (gym.mainSet || []).map((ex, i) => `
     <tr class="edit-set-row" data-set-index="${i}" data-set-type="gym">
@@ -258,9 +266,9 @@ function buildWorkoutEditForm(workout) {
       <div class="edit-section">
         <h3>🏊 Pool — Main Sets</h3>
         <table class="interval-table edit-table">
-          <thead><tr><th>Reps</th><th>Dist (${pool.poolUnit === 'yards' ? 'yd' : 'm'})</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th><th></th></tr></thead>
+          <thead><tr><th>Reps</th><th>Dist (${pool.poolUnit === 'yards' ? 'yd' : 'm'})</th><th>Stroke</th><th>Send-Off</th><th>Target Pace</th><th>Rest</th><th>Focus</th><th>Notes</th><th></th></tr></thead>
           <tbody id="edit-pool-sets-${w._id}">
-            ${poolMainSetRows || '<tr><td colspan="7" class="text-muted">No sets — add one below</td></tr>'}
+            ${poolMainSetRows || '<tr><td colspan="9" class="text-muted">No sets — add one below</td></tr>'}
           </tbody>
         </table>
         <button type="button" class="btn btn-sm btn-secondary btn-add-set" data-pool="true" data-workout-id="${w._id}">+ Add Pool Set</button>
@@ -347,16 +355,32 @@ function buildPoolSection(pool) {
 
   const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
 
-  const mainSetRows = (pool.mainSet || []).map(set => `
-    <tr>
-      <td class="reps">${set.repetitions}&times;</td>
-      <td class="distance">${set.distance}${unit}</td>
-      <td>${escapeHtml(set.stroke || 'freestyle')}</td>
-      <td>${escapeHtml(set.interval || '—')}</td>
-      <td>${escapeHtml(set.focus || '—')}</td>
-      <td>${escapeHtml(set.description || '')}</td>
-    </tr>
-  `).join('');
+  const mainSetRows = (pool.mainSet || []).map(set => {
+    // Use structured intervalDetail if available, fall back to interval string
+    const intervalDetail = set.intervalDetail;
+    let intervalDisplay = escapeHtml(set.interval || '—');
+    let targetPaceDisplay = '—';
+    let restDisplay = '—';
+
+    if (intervalDetail) {
+      intervalDisplay = escapeHtml(intervalDetail.sendOff || set.interval || '—');
+      targetPaceDisplay = escapeHtml(intervalDetail.targetPace || '—');
+      restDisplay = escapeHtml(intervalDetail.rest || '—');
+    }
+
+    return `
+      <tr>
+        <td class="reps">${set.repetitions}&times;</td>
+        <td class="distance">${set.distance}${unit}</td>
+        <td>${escapeHtml(set.stroke || 'freestyle')}</td>
+        <td>${intervalDisplay}</td>
+        <td>${targetPaceDisplay}</td>
+        <td>${restDisplay}</td>
+        <td>${escapeHtml(set.focus || '—')}</td>
+        <td>${escapeHtml(set.description || '')}</td>
+      </tr>
+    `;
+  }).join('');
 
   return `
     <div class="workout-section">
@@ -364,7 +388,7 @@ function buildPoolSection(pool) {
       ${pool.warmUp?.description ? `<p style="margin-bottom:1rem;color:var(--gray-600);font-size:0.9rem;"><strong>Warm-up:</strong> ${escapeHtml(pool.warmUp.description)}${pool.warmUp.distance ? ` (${pool.warmUp.distance}${unit})` : ''}</p>` : ''}
       ${mainSetRows ? `
         <table class="interval-table">
-          <thead><tr><th>Reps</th><th>Dist</th><th>Stroke</th><th>Interval</th><th>Focus</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Reps</th><th>Dist</th><th>Stroke</th><th>Send-Off</th><th>Target Pace</th><th>Rest</th><th>Focus</th><th>Notes</th></tr></thead>
           <tbody>${mainSetRows}</tbody>
         </table>` : ''}
       <div class="section-summary">

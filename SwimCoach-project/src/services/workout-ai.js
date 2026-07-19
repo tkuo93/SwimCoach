@@ -10,6 +10,7 @@
 const axios = require('axios');
 const { getFeedbackSummary } = require('./memory');
 const CoachingMemory = require('../models/CoachingMemory');
+const { getCSS, formatSecondsToSendOff, formatSecondsToTime } = require('../utils/interval-calculator');
 
 // Use OpenRouter with free models as the default API endpoint
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
@@ -634,8 +635,7 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
 
   parts.push('');
 
-  // ── Gym constraints (CRITICAL — AI must follow these) ──
-  parts.push('## Gym Workout Constraints — STRICT');
+parts.push('## Gym Workout Constraints — STRICT');
   if (availableGymGear.length > 0) {
     parts.push(`- Gym equipment available: ${availableGymGear.join(', ')}`);
   } else {
@@ -730,6 +730,40 @@ function buildWorkoutPrompt(profile, customization, insights, feedbackSummary, c
   const includeGym = sessionType === 'both' || sessionType === 'gym';
 
   parts.push('## Output Requirements');
+  // ── CSS Calibration — Swimmer's calibrated paces for realistic intervals ──
+  const cssPace = getCSS(profile);
+  if (cssPace && includePool) {
+    const cssDisplay = formatSecondsToTime(cssPace);
+    parts.push('## Swimmer\'s Calibrated Paces (Critical Swim Speed)');
+    parts.push(`CSS = ${cssDisplay}/100${poolUnitAbbr} (derived from best times)`);
+    parts.push('Use these as reference for target paces — adjust by training focus:');
+    parts.push('- Speed / Power: CSS × 0.90–0.95');
+    parts.push('- Lactate Threshold: CSS × 0.95–1.02');
+    parts.push('- Endurance / Aerobic: CSS × 1.05–1.15');
+    parts.push('- Technique / Drill: CSS × 1.05–1.12');
+    parts.push('- Recovery / Mobility: CSS × 1.10–1.20');
+    parts.push('');
+    parts.push('MANDATORY INTERVAL FORMAT — Every main set MUST include:');
+    parts.push('  "interval": {');
+    parts.push('    "sendOff": "2:00",        // send-off interval (when to leave wall)');
+    parts.push('    "targetPace": "1:35",   // target swim time per rep');
+    parts.push('    "rest": "25s",          // calculated rest (sendOff - targetPace)');
+    parts.push('    "type": "fixed|descending|building",');
+    parts.push('    "progression": "-2s/round or build to fast"');
+    parts.push('  }');
+    parts.push('');
+    parts.push('MINIMUM REST REQUIREMENTS by focus:');
+    parts.push('- Speed/Power: ≥30s rest per rep');
+    parts.push('- Lactate Threshold: ≥20s rest per rep');
+    parts.push('- Endurance/Aerobic: ≥12s rest per rep');
+    parts.push('- Technique/Drill: ≥15s rest per rep');
+    parts.push('- Recovery/Mobility: ≥20s rest per rep');
+    parts.push('');
+    parts.push('If your calculated sendOff provides less than minimum rest, INCREASE the sendOff — do NOT make targetPace faster.');
+    parts.push('');
+  }
+
+
   parts.push(`- Total workout time: ${duration} minutes (including warm-up and cool-down)`);
   if (includePool) {
     parts.push(`- Pool workout for a ${poolLengthDisplay} ${poolUnit} pool`);
@@ -776,7 +810,13 @@ function buildSystemPrompt(includePool, includeGym) {
       "distancePerRep": number (per repetition — appropriate for the pool length and unit specified),
       "reps": number,
       "stroke": "freestyle|backstroke|breaststroke|butterfly|im|kick|drill",
-      "restInterval": "e.g., 1:30, 2:00, 15s",
+      "interval": {
+        "sendOff": "2:00",          // send-off interval (when to leave wall)
+        "targetPace": "1:35",       // target swim time per rep
+        "rest": "25s",              // rest per rep (sendOff - targetPace)
+        "type": "fixed|descending|building",
+        "progression": "-2s/round or build to fast"
+      },
       "focus": "e.g., technique, speed, endurance, power",
       "notes": "Additional instructions"
     }

@@ -225,6 +225,13 @@ const swimmerProfileSchema = new mongoose.Schema({
     }]
   },
 
+  // Critical Swim Speed (CSS) - threshold pace per 100yd/m
+  criticalSwimSpeed: {
+    pacePer100: { type: Number },           // seconds per 100 (e.g., 100 = 1:40)
+    updatedAt: { type: Date },
+    source: { type: String, enum: ['calculated', 'test', 'manual'] }
+  },
+
   // Experience Level
   experienceLevel: {
     type: String,
