@@ -390,20 +390,74 @@ const regenerateWorkoutTool = {
   async execute({ reason, overrides = {} }, { profile, workout }) {
     if (!workout) return 'No workout loaded to regenerate.';
 
+    // Validate reason field
+    if (typeof reason !== 'string' || reason.trim().length === 0) {
+      return 'Invalid reason: must be a non-empty string';
+    }
+    if (reason.length > 500) {
+      return 'Invalid reason: must be 500 characters or less';
+    }
+    // Strip control characters
+    const sanitizedReason = reason.replace(/[\x00-\x1F\x7F]/g, '');
+
     // Only allow known override keys — prevent injection of arbitrary fields
     const ALLOWED_OVERRIDES = new Set(['workoutType', 'duration', 'intensity', 'sessionType', 'stroke', 'poolLength']);
     const safeOverrides = {};
     for (const [key, value] of Object.entries(overrides)) {
-      if (ALLOWED_OVERRIDES.has(key)) {
-        safeOverrides[key] = value;
+      if (!ALLOWED_OVERRIDES.has(key)) continue;
+
+      // Validate each override value
+      let validatedValue;
+      switch (key) {
+        case 'workoutType':
+          if (typeof value !== 'string' || !['lactate', 'speed', 'endurance', 'technique', 'resistance-power', 'mobility', 'recovery'].includes(value)) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        case 'duration':
+          if (typeof value !== 'number' || !Number.isInteger(value) || value < 15 || value > 300) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        case 'intensity':
+          if (typeof value !== 'string' || !['easy', 'moderate', 'hard', 'very-hard'].includes(value)) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        case 'sessionType':
+          if (typeof value !== 'string' || !['pool', 'gym', 'both'].includes(value)) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        case 'stroke':
+          if (typeof value !== 'string' || !['freestyle', 'backstroke', 'breaststroke', 'butterfly', 'im', 'choice'].includes(value)) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        case 'poolLength':
+          if (typeof value !== 'object' || value === null ||
+              typeof value.value !== 'number' || !Number.isInteger(value.value) ||
+              !['meters', 'yards'].includes(value.unit)) {
+            continue; // Skip invalid values
+          }
+          validatedValue = value;
+          break;
+        default:
+          continue;
       }
+      safeOverrides[key] = validatedValue;
     }
 
     // Return a proposal — the route handler will execute regeneration after confirming
     return JSON.stringify({
       proposal: true,
       action: 'regenerateWorkout',
-      reason,
+      reason: sanitizedReason,
       overrides: safeOverrides,
       workoutId: workout._id.toString(),
     });
