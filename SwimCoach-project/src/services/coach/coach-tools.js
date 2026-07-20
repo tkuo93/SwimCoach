@@ -357,6 +357,8 @@ const resolveObservationTool = {
     return `Resolved: "${mem.content}" (type: ${mem.type}) — will expire in ${ttlDays} days.`;
   },
 };
+
+const regenerateWorkoutTool = {
   definition: {
     type: 'function',
     function: {
