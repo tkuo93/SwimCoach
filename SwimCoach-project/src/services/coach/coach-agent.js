@@ -381,7 +381,22 @@ async function extractConversationLearnings(profile, userMessage, coachReply, wo
 
 // ─── LLM Call ───────────────────────────────────────────────────────
 
-async function callLLM(model, messages, tools) {
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Call LLM with exponential backoff retry for 429 rate limit errors
+ * @param {string} model - Model to use
+ * @param {Array} messages - Conversation messages
+ * @param {Array} tools - Tool definitions
+ * @param {number} attempt - Current attempt number (for recursion)
+ * @returns {Promise<Object>} API response data
+ */
+async function callLLM(model, messages, tools, attempt = 1) {
   const body = {
     model,
     messages,
@@ -395,20 +410,53 @@ async function callLLM(model, messages, tools) {
     body.tool_choice = 'auto';
   }
 
-  const response = await axios.post(
-    `${OPENROUTER_BASE}/chat/completions`,
-    body,
-    {
-      headers: {
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://swimcoach.app',
-        'X-Title': 'SwimCoach',
-      },
-      timeout: 60_000,
-    },
-  );
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 seconds base delay
 
-  return response.data;
+  try {
+    const response = await axios.post(
+      `${OPENROUTER_BASE}/chat/completions`,
+      body,
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://swimcoach.app',
+          'X-Title': 'SwimCoach',
+        },
+        timeout: 60_000,
+      },
+    );
+
+    return response.data;
+  } catch (error) {
+    // Check if it's a 429 rate limit error
+    const isRateLimited = error.response?.status === 429;
+    const isRetryableError = isRateLimited || (error.response?.status >= 500 && error.response?.status < 600);
+
+    if (isRetryableError && attempt < maxRetries) {
+      // Calculate delay with exponential backoff + jitter
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      // Log the full error response for debugging
+      const errorDetail = error.response?.data?.error?.message || error.response?.data?.error || error.message;
+      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${JSON(error.response?.data)}. Retrying in ${Math.round(delay)}ms...`);
+      await sleep(delay);
+      return callLLM(model, messages, tools, attempt + 1);
+    }
+
+    // If we've exhausted retries or it's a non-retryable error, throw with full error details
+    const errorMsg = error.response?.data?.error?.message || error.response?.data?.error || error.message;
+    console.error(`LLM call failed after ${attempt} attempt(s): ${error.response?.status} ${error.response?.statusText}. Full error: ${errorJSON(error.response?.data)}`);
+    throw error;
+  }
+}
+
+// Helper to safely stringify error response data
+function errorJSON(data) {
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
 }
 
 module.exports = {

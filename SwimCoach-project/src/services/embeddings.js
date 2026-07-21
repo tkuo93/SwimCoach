@@ -1,5 +1,5 @@
 /**
- * OpenRouter Embeddings Service
+ * Embeddings Service
  * Uses nvidia/llama-nemotron-embed-vl-1b-v2:free (1024-dim vectors)
  */
 
@@ -121,6 +121,66 @@ async function getValidatedIps() {
 }
 
 /**
+ * Sleep utility for retry delays
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Make HTTP request with exponential backoff retry for 429/5xx errors
+ */
+async function fetchWithRetry(url, options, attempt = 1) {
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 seconds base delay
+
+  try {
+    const res = await fetch(url, options);
+
+    // Check for retryable status codes
+    const isRateLimited = res.status === 429;
+    const isServerError = res.status >= 500 && res.status < 600;
+    const isRetryableError = isRateLimited || isServerError;
+
+    if (isRetryableError && attempt < maxRetries) {
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      // Try to get error body for logging
+      let errorBody = '';
+      try {
+        const clonedRes = res.clone();
+        const errData = await clonedRes.json();
+        errorBody = errData.error?.message || errData.error || JSON.stringify(errData);
+      } catch {
+        errorBody = await res.text().catch(() => 'Unable to read error body');
+      }
+      console.warn(`Embedding request failed (attempt ${attempt}/${maxRetries}): ${res.status}. Error: ${errorBody}. Retrying in ${Math.round(delay)}ms...`);
+      await sleep(delay);
+      return fetchWithRetry(url, options, attempt + 1);
+    }
+
+    return res;
+  } catch (err) {
+    // Network errors - retry
+    if (attempt < maxRetries) {
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      console.warn(`Embedding request network error (attempt ${attempt}/${maxRetries}): ${err.message}. Retrying in ${Math.round(delay)}ms...`);
+      await sleep(delay);
+      return fetchWithRetry(url, options, attempt + 1);
+    }
+    throw err;
+  }
+}
+
+// Helper to safely stringify error response data
+function errorJSON(data) {
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
+}
+
+/**
  * Embed a single text with per-request DNS validation
  * @param {string} text
  * @returns {Promise<number[]>} 1024-dim vector
@@ -133,7 +193,7 @@ async function embed(text) {
   // Per-request DNS validation (cached)
   await getValidatedIps();
 
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await fetchWithRetry(OPENROUTER_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
@@ -167,7 +227,7 @@ async function embedBatch(texts) {
   const validInputs = texts.map((t, i) => ({ text: t?.trim() || ' ', index: i }));
   const inputs = validInputs.map(v => v.text);
 
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await fetchWithRetry(OPENROUTER_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${OPENROUTER_API_KEY}`,

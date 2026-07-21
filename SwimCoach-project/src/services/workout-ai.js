@@ -403,9 +403,20 @@ async function generateWorkout(profile, customization, opts = {}) {
 }
 
 /**
- * Single LLM call. Returns { content, truncated, finishReason }.
+ * Sleep utility for retry delays
  */
-async function callLLM(model, systemMessage, userMessage, maxTokens) {
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Single LLM call with exponential backoff retry for 429/5xx errors.
+ * Returns { content, truncated, finishReason }.
+ */
+async function callLLM(model, systemMessage, userMessage, maxTokens, attempt = 1) {
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 seconds base delay
+
   try {
     const response = await axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
@@ -431,9 +442,26 @@ async function callLLM(model, systemMessage, userMessage, maxTokens) {
     const finishReason = choice?.finish_reason;
     return { content, finishReason };
   } catch (err) {
+    // Check if it's a retryable error (429 rate limit or 5xx server errors)
+    const isRateLimited = err.response?.status === 429;
+    const isServerError = err.response?.status >= 500 && err.response?.status < 600;
+    const isRetryableError = isRateLimited || isServerError;
+
+    if (isRetryableError && attempt < maxRetries) {
+      // Calculate delay with exponential backoff + jitter
+      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      const errorDetail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${err.response?.status} ${err.response?.statusText}. Error: ${errorDetail}. Retrying in ${Math.round(delay)}ms...`);
+      await sleep(delay);
+      return callLLM(model, systemMessage, userMessage, maxTokens, attempt + 1);
+    }
+
+    // If we've exhausted retries or it's a non-retryable error, throw with context
+    const errorMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+    console.error(`LLM call failed after ${attempt} attempt(s): ${err.response?.status} ${err.response?.statusText}. Error: ${errorMsg}. Full response: ${errorJSON(err.response?.data)}`);
     if (err.response) {
       console.error('OpenRouter API Error:', err.response.status, err.response.data);
-      throw new Error(`OpenRouter API error: ${err.response.status} - ${JSON.stringify(err.response.data)}`);
+      throw new Error(`OpenRouter API error: ${err.response.status} - ${errorMsg}`);
     } else if (err.request) {
       console.error('OpenRouter Network Error:', err.message);
       throw new Error(`OpenRouter network error: ${err.message}`);
@@ -441,6 +469,15 @@ async function callLLM(model, systemMessage, userMessage, maxTokens) {
       console.error('OpenRouter Request Error:', err.message);
       throw new Error(`OpenRouter request error: ${err.message}`);
     }
+  }
+}
+
+// Helper to safely stringify error response data
+function errorJSON(data) {
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
   }
 }
 
