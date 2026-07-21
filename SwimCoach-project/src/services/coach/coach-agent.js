@@ -438,7 +438,7 @@ async function callLLM(model, messages, tools, attempt = 1) {
       const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
       // Log the full error response for debugging
       const errorDetail = error.response?.data?.error?.message || error.response?.data?.error || error.message;
-      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${JSON(error.response?.data)}. Retrying in ${Math.round(delay)}ms...`);
+      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${errorJSON(error.response?.data)}. Retrying in ${Math.round(delay)}ms...`);
       await sleep(delay);
       return callLLM(model, messages, tools, attempt + 1);
     }
