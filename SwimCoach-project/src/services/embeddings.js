@@ -6,6 +6,7 @@
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || 'nvidia/llama-nemotron-embed-vl-1b-v2:free';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/embeddings';
+const { rateLimitedFetchCall } = require('./openrouter-rate-limiter');
 
 // SSRF protection: model allowlist
 const ALLOWED_MODELS = new Set([
@@ -135,7 +136,8 @@ async function fetchWithRetry(url, options, attempt = 1) {
   const baseDelay = 2000; // 2 seconds base delay
 
   try {
-    const res = await fetch(url, options);
+    // Use rate limiter to prevent hitting free tier limits
+    const res = await rateLimitedFetchCall(() => fetch(url, options));
 
     // Check for retryable status codes
     const isRateLimited = res.status === 429;

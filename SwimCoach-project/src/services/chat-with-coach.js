@@ -12,6 +12,7 @@
 const axios = require('axios');
 const { resolveTrainingFocus, resolvePoolLength, isPoolYards, sanitizeModel } = require('./workout-ai');
 const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('./prompt-sanitizer');
+const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -74,7 +75,8 @@ async function callLLMWithRetry(model, messages, attempt = 1) {
   const baseDelay = 2000; // 2 seconds base delay
 
   try {
-    const response = await axios.post(
+    // Use rate limiter to prevent hitting free tier limits
+    const response = await rateLimitedAxiosCall(() => axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
       {
         model,
@@ -91,7 +93,7 @@ async function callLLMWithRetry(model, messages, attempt = 1) {
         },
         timeout: 60_000,
       },
-    );
+    ));
 
     return response.data;
   } catch (err) {

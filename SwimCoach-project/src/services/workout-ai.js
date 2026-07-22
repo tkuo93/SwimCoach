@@ -11,6 +11,7 @@ const axios = require('axios');
 const { getFeedbackSummary } = require('./memory');
 const CoachingMemory = require('../models/CoachingMemory');
 const { getCSS, formatSecondsToSendOff, formatSecondsToTime } = require('../utils/interval-calculator');
+const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
 
 // Use OpenRouter with free models as the default API endpoint
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
@@ -418,7 +419,8 @@ async function callLLM(model, systemMessage, userMessage, maxTokens, attempt = 1
   const baseDelay = 2000; // 2 seconds base delay
 
   try {
-    const response = await axios.post(
+    // Use rate limiter to prevent hitting free tier limits
+    const response = await rateLimitedAxiosCall(() => axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
       {
         model,
@@ -435,7 +437,7 @@ async function callLLM(model, systemMessage, userMessage, maxTokens, attempt = 1
         },
         timeout: 120_000,
       },
-    );
+    ));
 
     const choice = response.data?.choices?.[0];
     const content = choice?.message?.content;

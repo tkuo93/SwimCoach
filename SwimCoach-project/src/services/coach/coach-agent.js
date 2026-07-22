@@ -18,6 +18,7 @@ const CoachingMemory = require('../../models/CoachingMemory');
 const { getToolDefinitions, executeTool } = require('./coach-tools');
 const { sanitizeModel } = require('../workout-ai');
 const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('../prompt-sanitizer');
+const { rateLimitedAxiosCall } = require('../openrouter-rate-limiter');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -414,7 +415,8 @@ async function callLLM(model, messages, tools, attempt = 1) {
   const baseDelay = 2000; // 2 seconds base delay
 
   try {
-    const response = await axios.post(
+    // Use rate limiter to prevent hitting free tier limits
+    const response = await rateLimitedAxiosCall(() => axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
       body,
       {
@@ -425,7 +427,7 @@ async function callLLM(model, messages, tools, attempt = 1) {
         },
         timeout: 60_000,
       },
-    );
+    ));
 
     return response.data;
   } catch (error) {
@@ -442,13 +444,12 @@ async function callLLM(model, messages, tools, attempt = 1) {
     if (isRetryableError && attempt < maxRetries) {
       // Calculate delay with exponential backoff + jitter
       const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${errorMessage}. Retrying in ${Math.round(delay)}ms...`);
+      console.warn(`[RETRY ${attempt}/${maxRetries}] OpenRouter ${error.response?.status}: ${errorMessage}. Waiting ${Math.round(delay)}ms... (api calls this minute: ${apiCallCount})`);
       await sleep(delay);
       return callLLM(model, messages, tools, attempt + 1);
     }
 
-    // If we've exhausted retries or it's a non-retryable error, throw with full error details
-    console.error(`LLM call failed after ${attempt} attempt(s): ${error.response?.status} ${error.response?.statusText}. OpenRouter error: ${errorMessage}`);
+    console.error(`[FAILED] OpenRouter call failed after ${attempt} attempts: ${errorMessage} (api calls this minute: ${apiCallCount})`);
     throw error;
   }
 }
