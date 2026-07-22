@@ -105,8 +105,23 @@ router.post('/chat', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Coach chat error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    // Extract OpenRouter error details for logging
+    const openRouterError = err.response?.data?.error;
+    const errorDetail = typeof openRouterError === 'object' && openRouterError !== null
+      ? (openRouterError.message || openRouterError.code || JSON.stringify(openRouterError))
+      : (openRouterError || err.message);
+
+    console.error('Coach chat error:', {
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      error: errorDetail,
+      userId: err.response?.data?.user_id,
+      message: err.message
+    });
+    res.status(err.response?.status || 500).json({
+      success: false,
+      error: errorDetail || err.message
+    });
   }
 });
 
