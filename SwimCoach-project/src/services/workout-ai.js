@@ -18,7 +18,7 @@ const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OPEN_NOTEBOOK_URL = process.env.OPEN_NOTEBOOK_URL || 'http://localhost:8502';
 const OPEN_NOTEBOOK_MODEL = process.env.OPEN_NOTEBOOK_MODEL || '';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'poolside/laguna-m.1:free';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
 
 // ─── Model Allowlist ────────────────────────────────────────────────
 // User-supplied model IDs must match this pattern to prevent injection
