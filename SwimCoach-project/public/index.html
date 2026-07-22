@@ -281,6 +281,10 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .feedback-link:hover{color:var(--coral);text-decoration:underline}
 .feedback-link:focus{outline:2px solid var(--coral);outline-offset:2px;border-radius:4px}
 
+/* Top bar profile button */
+.top-bar-profile{background:none;border:none;font-size:20px;color:var(--text-sec);cursor:pointer;padding:6px 8px;border-radius:8px;transition:all .15s;margin-left:auto}
+.top-bar-profile:hover{background:var(--cream-warm);color:var(--text)}
+
 /* Coach */
 /* Overlay is fixed to viewport for full-screen mobile modal */
 .coach-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--cream);overflow:hidden;transform:translateY(100%);transition:transform .35s cubic-bezier(.16,1,.3,1)}
@@ -426,7 +430,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
         <span class="top-back" onclick="goBack()">←</span>
         <h1>Today</h1>
         <button class="coach-fab" onclick="toggleWorkoutEdit()" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:18px" id="workoutEditBtn">✏️</button>
-        <button class="coach-fab" onclick="openCoach()">💬</button>
+        <button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button>
       </div>
       <div class="workout-date"><div class="date-label" id="dateLbl"></div><div class="workout-title-large" id="wTitle"></div></div>
       <div class="stats-row" id="statsRow"></div>
@@ -469,7 +473,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- WEEK -->
   <div class="screen" id="s-week">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>This Week</h1><button class="coach-fab" onclick="openCoach()">💬</button></div>
+      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>This Week</h1><button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button></div>
       <div class="week-header"><button class="week-nav" onclick="changeWeek(-1)">‹</button><div class="week-title" id="weekTitle"></div><button class="week-nav" onclick="changeWeek(1)">›</button></div>
       <div class="week-strip" id="weekStrip"></div>
       <div class="week-stats" id="weekStats"></div>
@@ -481,7 +485,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- HISTORY -->
   <div class="screen" id="s-history">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="coach-fab" onclick="openCoach()">💬</button></div>
+      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button></div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -489,7 +493,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- PROFILE -->
   <div class="screen" id="s-profile">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>Profile</h1><button class="coach-fab" onclick="showScreen('s-settings')" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:20px">⚙️</button><button class="coach-fab" onclick="openCoach()">💬</button></div>
+      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>Profile</h1><button class="coach-fab" onclick="showScreen('s-settings')" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:20px">⚙️</button></div>
       <div class="profile-switcher" id="profileSwitcher"></div>
       <div id="profileSections"></div>
     </div>
@@ -518,9 +522,9 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
     <div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div>
     <div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div>
     <div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div>
-    <div class="nav-tab" onclick="showScreen('s-profile')"><span class="icon">👤</span><span>Profile</span></div>
+    <div class="nav-tab" onclick="openCoach()"><span class="icon">💬</span><span>Coach</span></div>
     <a href="https://forms.gle/ybW5Xd5hyuguAcQZ7" target="_blank" rel="noopener" class="nav-tab feedback-link" aria-label="Give Feedback" style="color: var(--coral);">
-      <span class="icon">💬</span><span>Feedback</span>
+      <span class="icon">💡</span><span>Feedback</span>
     </a>
   </nav>
 
@@ -1808,7 +1812,7 @@ const navTabMap = {
   's-today': 0,
   's-week': 1,
   's-history': 2,
-  's-profile': 3,
+  's-profile': -1,  // No bottom nav tab corresponds to Profile
   's-empty': 0
 };
 function showScreen(id){
@@ -1821,8 +1825,9 @@ function showScreen(id){
   if (screensWithNav.includes(id)) {
     navBar.classList.add('visible');
     // Update active tab
+    const activeTabIndex = navTabMap[id];
     document.querySelectorAll('.nav-tab').forEach((t, i) => {
-      t.classList.toggle('active', i === navTabMap[id]);
+      t.classList.toggle('active', i === activeTabIndex);
     });
   } else {
     navBar.classList.remove('visible');
