@@ -1,5 +1,4 @@
 const express = require('express');
-const crypto = require('crypto');
 const router = express.Router();
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const Workout = require('../../models/Workout');
@@ -75,11 +74,9 @@ router.post('/chat', async (req, res) => {
     }
 
     // If no valid conversationId found and there are proposals, create new conversation
-    // with SERVER-GENERATED ID (never use client-provided ID for creation)
+    // Let Mongoose generate the ObjectId (don't use client-provided UUID)
     if (!finalConversationId && proposals.length > 0) {
-      finalConversationId = crypto.randomUUID();
-      await Conversation.create({
-        _id: finalConversationId,
+      const conversation = await Conversation.create({
         swimmerId: req.user._id,
         title: 'Coach Proposals',
         messages: [
@@ -88,9 +85,9 @@ router.post('/chat', async (req, res) => {
         ],
         contextWorkoutId: workoutId || null,
         proposals: proposals,
-        createdAt: new Date(),
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
       });
+      finalConversationId = conversation._id.toString();
     }
 
     // Note: If no conversationId provided and no proposals, no conversation is created here.
