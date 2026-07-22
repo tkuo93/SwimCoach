@@ -444,12 +444,12 @@ async function callLLM(model, messages, tools, attempt = 1) {
     if (isRetryableError && attempt < maxRetries) {
       // Calculate delay with exponential backoff + jitter
       const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      console.warn(`[RETRY ${attempt}/${maxRetries}] OpenRouter ${error.response?.status}: ${errorMessage}. Waiting ${Math.round(delay)}ms... (api calls this minute: ${apiCallCount})`);
+      console.warn(`[RETRY ${attempt}/${maxRetries}] OpenRouter ${error.response?.status}: ${errorMessage}. Waiting ${Math.round(delay)}ms...`);
       await sleep(delay);
       return callLLM(model, messages, tools, attempt + 1);
     }
 
-    console.error(`[FAILED] OpenRouter call failed after ${attempt} attempts: ${errorMessage} (api calls this minute: ${apiCallCount})`);
+    console.error(`[FAILED] OpenRouter call failed after ${attempt} attempts: ${errorMessage}`);
     throw error;
   }
 }
