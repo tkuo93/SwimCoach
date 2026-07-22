@@ -100,21 +100,25 @@ async function callLLMWithRetry(model, messages, attempt = 1) {
     const isServerError = err.response?.status >= 500 && err.response?.status < 600;
     const isRetryableError = isRateLimited || isServerError;
 
+    // Extract the actual OpenRouter error message (nested in error.response.data.error)
+    const openRouterError = err.response?.data?.error;
+    const errorMessage = typeof openRouterError === 'object' && openRouterError !== null
+      ? (openRouterError.message || openRouterError.code || JSON.stringify(openRouterError))
+      : (openRouterError || err.message);
+
     if (isRetryableError && attempt < maxRetries) {
       // Calculate delay with exponential backoff + jitter
       const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      const errorDetail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
-      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${err.response?.status} ${err.response?.statusText}. Error: ${errorDetail}. Retrying in ${Math.round(delay)}ms...`);
+      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${err.response?.status} ${err.response?.statusText}. Error: ${errorMessage}. Retrying in ${Math.round(delay)}ms...`);
       await sleep(delay);
       return callLLMWithRetry(model, messages, attempt + 1);
     }
 
     // If we've exhausted retries or it's a non-retryable error, throw with context
-    const errorMsg = err.response?.data?.error?.message || err.response?.data?.error || err.message;
-    console.error(`LLM call failed after ${attempt} attempt(s): ${err.response?.status} ${err.response?.statusText}. Error: ${errorMsg}. Full response: ${errorJSON(err.response?.data)}`);
+    console.error(`LLM call failed after ${attempt} attempt(s): ${err.response?.status} ${err.response?.statusText}. OpenRouter error: ${errorMessage}`);
     if (err.response) {
       console.error('OpenRouter API Error:', err.response.status, err.response.data);
-      throw new Error(`OpenRouter API error: ${err.response.status} - ${errorMsg}`);
+      throw new Error(`OpenRouter API error: ${err.response.status} - ${errorMessage}`);
     } else if (err.request) {
       console.error('OpenRouter Network Error:', err.message);
       throw new Error(`OpenRouter network error: ${err.message}`);

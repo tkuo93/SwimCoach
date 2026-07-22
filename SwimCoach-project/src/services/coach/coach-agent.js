@@ -433,19 +433,22 @@ async function callLLM(model, messages, tools, attempt = 1) {
     const isRateLimited = error.response?.status === 429;
     const isRetryableError = isRateLimited || (error.response?.status >= 500 && error.response?.status < 600);
 
+    // Extract the actual OpenRouter error message (nested in error.response.data.error)
+    const openRouterError = error.response?.data?.error;
+    const errorMessage = typeof openRouterError === 'object' && openRouterError !== null
+      ? (openRouterError.message || openRouterError.code || JSON.stringify(openRouterError))
+      : (openRouterError || error.message);
+
     if (isRetryableError && attempt < maxRetries) {
       // Calculate delay with exponential backoff + jitter
       const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      // Log the full error response for debugging
-      const errorDetail = error.response?.data?.error?.message || error.response?.data?.error || error.message;
-      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${errorJSON(error.response?.data)}. Retrying in ${Math.round(delay)}ms...`);
+      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${error.response?.status} ${error.response?.statusText}. Error: ${errorMessage}. Retrying in ${Math.round(delay)}ms...`);
       await sleep(delay);
       return callLLM(model, messages, tools, attempt + 1);
     }
 
     // If we've exhausted retries or it's a non-retryable error, throw with full error details
-    const errorMsg = error.response?.data?.error?.message || error.response?.data?.error || error.message;
-    console.error(`LLM call failed after ${attempt} attempt(s): ${error.response?.status} ${error.response?.statusText}. Full error: ${errorJSON(error.response?.data)}`);
+    console.error(`LLM call failed after ${attempt} attempt(s): ${error.response?.status} ${error.response?.statusText}. OpenRouter error: ${errorMessage}`);
     throw error;
   }
 }
