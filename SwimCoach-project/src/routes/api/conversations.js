@@ -13,7 +13,14 @@ router.get('/', async (req, res) => {
       .sort({ updatedAt: -1 })
       .select(projection)
       .lean();
-    res.json({ success: true, count: conversations.length, data: conversations });
+
+    // Filter out any conversations with invalid _id (e.g., UUID strings from old bug)
+    // Valid ObjectId is 24 hex chars
+    const validConversations = conversations.filter(c =>
+      c._id && typeof c._id === 'object' && c._id.toString().match(/^[0-9a-fA-F]{24}$/)
+    );
+
+    res.json({ success: true, count: validConversations.length, data: validConversations });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
