@@ -205,7 +205,7 @@ function handleRoute() {
       }
       showPage('coach');
       setActiveNav('coach');
-      loadCoachPage();
+      await loadCoachPage();
       break;
 
     case 'program':
@@ -2054,20 +2054,32 @@ async function loadCoachPage() {
 }
 
 async function loadCoachConversations() {
-  const res = await api.conversations.list(true);
-  if (res.success) {
-    coachState.conversations = res.data;
+  try {
+    const res = await api.conversations.list(true);
+    if (res.success) {
+      coachState.conversations = res.data;
+    } else {
+      showToast(`Failed to load conversations: ${res.error || 'Unknown error'}`, 'error');
+      coachState.conversations = [];
+    }
+  } catch (err) {
+    showToast(`Failed to load conversations: ${err.message}`, 'error');
+    coachState.conversations = [];
   }
 }
 
 async function startNewCoachConversation() {
-  const created = await api.conversations.create(
-    { title: 'New conversation' },
-  );
-  coachState.conversations.unshift(created.data);
-  coachState.activeConversationId = created.data._id;
-  renderCoachConversationList();
-  renderCoachChat(created.data._id);
+  try {
+    const created = await api.conversations.create(
+      { title: 'New conversation' },
+    );
+    coachState.conversations.unshift(created.data);
+    coachState.activeConversationId = created.data._id;
+    renderCoachConversationList();
+    renderCoachChat(created.data._id);
+  } catch (err) {
+    showToast(`Failed to create conversation: ${err.message}`, 'error');
+  }
 }
 
 function renderCoachConversationList() {
