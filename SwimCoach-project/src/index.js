@@ -92,9 +92,26 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Inject PostHog config into index.html at serve time
+const fs = require('fs');
+const INDEX_HTML_PATH = path.join(__dirname, '..', 'public', 'index.html');
+function serveIndexHtml(res) {
+  const posthogKey = process.env.POSTHOG_PROJECT_KEY || '';
+  const posthogHost = process.env.POSTHOG_HOST || 'https://us.i.posthog.com';
+  if (!posthogKey && process.env.NODE_ENV !== 'production') {
+    console.warn('[PostHog] POSTHOG_PROJECT_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_PROJECT_KEY is configured');
+  }
+  const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
+  const injected = html
+    .replace('__POSTHOG_KEY__', posthogKey)
+    .replace('__POSTHOG_HOST__', posthogHost);
+  res.setHeader('Content-Type', 'text/html');
+  res.send(injected);
+}
+
 // Serve index.html for root (client handles auth state)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  serveIndexHtml(res);
 });
 
 // Serve frontend static files
@@ -110,7 +127,7 @@ app.get('*', (req, res) => {
   if (req.path.includes('.')) {
     return res.status(404).send('Not found');
   }
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  serveIndexHtml(res);
 });
 
 // Initialize Telegram bot after DB connection

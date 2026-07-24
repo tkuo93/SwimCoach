@@ -51,3 +51,7 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         value: https://swimcoachai.onrender.com
+      - key: POSTHOG_PROJECT_KEY
+        sync: false
+      - key: POSTHOG_HOST
+        value: https://us.i.posthog.com
