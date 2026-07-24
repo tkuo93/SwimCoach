@@ -268,12 +268,30 @@ async function searchInsights(opts = {}) {
   }));
 }
 
+/**
+ * Keep-alive ping to reset Qdrant Cloud inactivity timer
+ * Makes a lightweight API call to the cluster
+ */
+async function keepAlive() {
+  try {
+    const qdrant = getClient();
+    // Simple collection list call - lightweight and confirms connectivity
+    await qdrant.getCollections();
+    console.log('Qdrant keep-alive ping successful');
+    return true;
+  } catch (error) {
+    console.error('Qdrant keep-alive failed:', error.message);
+    return false;
+  }
+}
+
 module.exports = {
   initCollections,
   upsertSources,
   upsertInsights,
   searchSources,
   searchInsights,
+  keepAlive,
   SOURCES_COLLECTION,
   INSIGHTS_COLLECTION,
   VECTOR_SIZE

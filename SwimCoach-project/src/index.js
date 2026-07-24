@@ -8,6 +8,7 @@ const passport = require('passport');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const { connectDB } = require('./models');
+const { initCollections, keepAlive } = require('./services/qdrant');
 const profileRoutes = require('./routes/api/profiles');
 const workoutRoutes = require('./routes/api/workouts');
 const knowledgeRoutes = require('./routes/api/knowledge');
@@ -131,7 +132,23 @@ async function initTelegramBot() {
 }
 
 // Start server (connect to MongoDB first)
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Initialize Qdrant collections and send keep-alive ping
+  try {
+    await initCollections();
+    await keepAlive();
+    console.log('Qdrant initialized and keep-alive sent');
+  } catch (err) {
+    console.error('Qdrant initialization failed:', err.message);
+  }
+
+  // Schedule weekly keep-alive to prevent Qdrant Cloud suspension (7 days = 604800000 ms)
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  setInterval(async () => {
+    console.log('Running weekly Qdrant keep-alive...');
+    await keepAlive();
+  }, WEEK_MS);
+
   initTelegramBot();
   app.listen(PORT, () => {
     console.log(`SwimCoach server running on port ${PORT}`);
