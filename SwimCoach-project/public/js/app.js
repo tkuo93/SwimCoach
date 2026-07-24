@@ -264,6 +264,13 @@ function initProfileForm() {
         localStorage.setItem('swimcoach_profile_id', state.currentProfile._id);
         await loadAllProfiles();
         exitEditMode();
+        if (window.posthog) {
+          posthog.capture('profile_updated', {
+            experience_level: data.experienceLevel,
+            weekly_pool_sessions: data.trainingSchedule?.weeklyPoolSessions,
+            weekly_gym_sessions: data.trainingSchedule?.weeklyGymSessions,
+          });
+        }
         showToast('Profile updated!', 'success');
         navigateTo('generate');
       } else {
@@ -272,6 +279,17 @@ function initProfileForm() {
         state.currentProfile = result.data;
         localStorage.setItem('swimcoach_profile_id', state.currentProfile._id);
         await loadAllProfiles();
+        if (window.posthog) {
+          posthog.identify(state.currentProfile._id, {
+            experience_level: data.experienceLevel,
+          });
+          posthog.capture('profile_created', {
+            experience_level: data.experienceLevel,
+            weekly_pool_sessions: data.trainingSchedule?.weeklyPoolSessions,
+            weekly_gym_sessions: data.trainingSchedule?.weeklyGymSessions,
+            goal_outcomes: data.goals?.outcomes,
+          });
+        }
         showToast('Profile saved! Let\'s generate your first workout.', 'success');
         navigateTo('generate');
       }
@@ -1253,6 +1271,15 @@ async function generateWorkout(form) {
       hideLoading();
       const generated = result.data.generatedCount;
       const total = result.data.totalSessions;
+      if (window.posthog) {
+        posthog.capture('program_generated', {
+          program_period: genData.programPeriod,
+          generated_count: generated,
+          total_sessions: total,
+          partial: !!result.data.partial,
+          workout_type: genData.workoutType,
+        });
+      }
       if (result.data.partial) {
         const failedSessions = result.data.errors?.map(e => e.dayOfWeek ? `${e.dayOfWeek} (${e.sessionType})` : `session ${e.session}`).join(', ');
         const detail = failedSessions ? ` Missing: ${failedSessions}.` : '';
@@ -1264,6 +1291,14 @@ async function generateWorkout(form) {
     } else {
       const result = await api.workouts.generate(genData);
       hideLoading();
+      if (window.posthog) {
+        posthog.capture('workout_generated', {
+          workout_type: genData.workoutType,
+          session_type: genData.sessionType,
+          duration: genData.duration,
+          intensity: genData.intensity,
+        });
+      }
       showToast('Workout generated! 🎉', 'success');
       navigateTo(`workout/${result.data._id}`);
     }
@@ -1586,6 +1621,7 @@ async function deleteWorkout(workoutId) {
   try {
     await api.workouts.delete(workoutId, state.currentProfile?._id);
     hideLoading();
+    if (window.posthog) posthog.capture('workout_deleted', { workout_id: workoutId });
     showToast('Workout deleted.', 'info');
     navigateTo('history');
   } catch (err) {
@@ -1658,6 +1694,9 @@ async function initChatHandler(workoutId) {
     // Add user message to local conversation
     conv.push(userMsg);
     renderConversation(workoutId, conv);
+    if (window.posthog) {
+      posthog.capture('coach_message_sent', { message_count: conv.length });
+    }
     input.value = '';
 
     // Show typing indicator
@@ -1862,6 +1901,15 @@ function initFeedbackHandler(workoutId, existingFeedback) {
       };
 
       await api.workouts.feedback(workoutId, feedback, state.currentProfile?._id);
+      if (window.posthog) {
+        posthog.capture('workout_feedback_submitted', {
+          rating: feedback.rating,
+          difficulty_perception: feedback.difficultyPerception,
+          enjoyment: feedback.enjoyment,
+          quality: feedback.quality,
+          accuracy: feedback.accuracy,
+        });
+      }
       showToast('Feedback saved. Thanks!', 'success');
       showAdaptiveResponse(workoutId, feedback);
       form.classList.add('hidden');
