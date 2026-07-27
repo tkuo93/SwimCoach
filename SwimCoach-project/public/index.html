@@ -24,7 +24,7 @@
           (p.async = !0),
           (p.src =
             s.api_host.replace(".i.posthog.com", "-assets.i.posthog.com") + "/static/array.js"),
-          (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r));
+          (r = t.getElementsOfTagName("script")[0]).parentNode.insertBefore(p, r));
         var u = e;
         for (
           void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
@@ -50,10 +50,10 @@
       (e.__SV = 1));
   })(document, window.posthog || []);
   (function() {
-    var key = '<%- JSON.stringify(POSTHOG_KEY) %>';
-    var host = '<%- JSON.stringify(POSTHOG_HOST) %>';
-    var appVersion = '<%- JSON.stringify(APP_VERSION) %>';
-    var nodeEnv = '<%- JSON.stringify(NODE_ENV) %>';
+    var key = <%= JSON.stringify(POSTHOG_KEY) %>;
+    var host = <%= JSON.stringify(POSTHOG_HOST) %>;
+    var appVersion = <%= JSON.stringify(APP_VERSION) %>;
+    var nodeEnv = <%= JSON.stringify(NODE_ENV) %>;
     if (!key || key === '""') return;
     window.POSTHOG_KEY = key;
     window.POSTHOG_HOST = host;
