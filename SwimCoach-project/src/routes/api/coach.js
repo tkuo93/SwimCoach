@@ -5,6 +5,7 @@ const Workout = require('../../models/Workout');
 const Conversation = require('../../models/Conversation');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
 const { regenerateWorkout } = require('../../services/workout-generator');
+const { track } = require('../../services/posthog');
 
 // POST /api/coach/chat
 // Body: { messages: Array<{role, text}>, message: string, llmModel?, conversationId?, workoutId? }
@@ -41,6 +42,18 @@ router.post('/chat', async (req, res) => {
       mode,
       modelOverride: llmModel,
     });
+
+    // Track coach interaction
+    const userId = req.user._id.toString();
+    const sessionId = req.sessionID || req.headers['x-session-id'];
+    track('coach_message_sent', {
+      message_type: workout ? 'workout_context' : 'general',
+      conversation_length: messages.length + 1,
+      has_proposals: result.actions.some(a => a.proposal),
+      proposal_count: result.actions.filter(a => a.proposal).length,
+      workout_id: workoutId || null,
+      llm_model: llmModel || 'default',
+    }, userId, sessionId);
 
     // Store any proposal actions in Conversation DB for later confirmation
     const proposals = result.actions.filter(a => a.proposal);
@@ -172,6 +185,14 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
         { new: true, runValidators: true },
       );
 
+      // Track workout modification
+      track('workout_modified', {
+        workout_id: proposal.workoutId,
+        field_modified: field,
+        action_type: 'modify',
+        via_coach: true,
+      }, req.user._id.toString(), req.sessionID);
+
       // Remove confirmed proposal
       entry.proposals.splice(actionIndex, 1);
       if (entry.proposals.length === 0) {
@@ -211,6 +232,14 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
       };
 
       const newWorkout = await regenerateWorkout(proposal.workoutId, profile, customization, { mode: 'direct' });
+
+      // Track workout regeneration
+      track('workout_regenerated', {
+        original_workout_id: proposal.workoutId,
+        new_workout_id: newWorkout._id.toString(),
+        action_type: 'regenerate',
+        via_coach: true,
+      }, req.user._id.toString(), req.sessionID);
 
       // Remove confirmed proposal
       entry.proposals.splice(actionIndex, 1);

@@ -8,6 +8,7 @@ const { getFeedbackSummary, deriveLearning } = require('../../services/memory');
 const { getCoachingObservations, getAllNotebookNotes } = require('../../services/workout-ai');
 const { chat: legacyChat } = require('../../services/chat-with-coach');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
+const { track } = require('../../services/posthog');
 
 /**
  * Verify the requesting user owns the workout.
@@ -60,6 +61,19 @@ router.post('/generate', async (req, res) => {
     }
 
     const workout = await generateWorkout(profile, customization, { mode });
+
+    // Track workout generation
+    track('workout_generated', {
+      workout_id: workout._id.toString(),
+      workout_type: workout.workoutType || 'mixed',
+      session_type: customization.sessionType,
+      duration: customization.duration,
+      pool_length: customization.poolLength,
+      intensity: customization.intensity,
+      mode,
+      is_ai_generated: true,
+    }, req.user._id.toString(), req.sessionID);
+
     res.status(201).json({ success: true, data: workout });
   } catch (err) {
     console.error('Workout generation error:', err);
@@ -194,6 +208,18 @@ router.post('/:id/feedback', async (req, res) => {
     if (!workout) {
       return res.status(404).json({ success: false, error: 'Workout not found' });
     }
+
+    // Track workout completion/feedback
+    track('workout_completed', {
+      workout_id: workout._id.toString(),
+      workout_type: workout.workoutType,
+      rating,
+      difficulty_perception: difficultyPerception,
+      enjoyment,
+      quality,
+      accuracy,
+      has_comments: !!comments,
+    }, req.user._id.toString(), req.sessionID);
 
     // Sync feedback to CoachingMemory for the agentic coach
     try {

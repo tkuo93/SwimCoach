@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { track, identify } = require('../../services/posthog');
 
 // Simple in-memory rate limiter for public analytics endpoint
 // Uses fixed-size LRU with TTL to prevent unbounded growth
@@ -44,32 +45,79 @@ function rateLimiter(req, res, next) {
 // POST /api/analytics/onboarding-acknowledged - Track onboarding privacy acknowledgment
 router.post('/onboarding-acknowledged', rateLimiter, async (req, res) => {
   try {
-    const { timestamp, userId, sessionId, appVersion } = req.body;
+    const { timestamp, userId, sessionId, appVersion, profileData } = req.body;
 
     // Validate required fields
     if (!timestamp) {
       return res.status(400).json({ success: false, error: 'Timestamp required' });
     }
 
-    // Log the acknowledgment (in production, you'd save to DB or send to analytics service)
-    console.log('Onboarding acknowledged:', {
-      timestamp,
-      userId: userId || 'anonymous',
-      sessionId,
-      appVersion,
-      ip: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    const distinctId = userId || `anon_${sessionId || req.ip}`;
 
-    // In a real app, you might:
-    // - Save to an analytics collection in MongoDB
-    // - Send to PostHog, Mixpanel, Amplitude, etc.
-    // - Forward to a data warehouse
+    // Track onboarding completion event
+    track('onboarding_completed', {
+      timestamp,
+      app_version: appVersion,
+      profile_data: profileData || {},
+      source: 'web',
+    }, distinctId, sessionId);
+
+    // Identify user with profile info if available
+    if (userId && profileData) {
+      identify(userId, {
+        onboarding_completed: true,
+        onboarding_date: new Date(timestamp).toISOString(),
+        experience_level: profileData.experienceLevel,
+        goals: profileData.goals,
+        pool_frequency: profileData.poolFrequency,
+        gym_frequency: profileData.gymFrequency,
+      });
+    }
 
     res.json({ success: true });
   } catch (err) {
     console.error('Analytics error:', err);
     res.status(500).json({ success: false, error: 'Failed to track acknowledgment' });
+  }
+});
+
+// POST /api/analytics/event - Generic event tracking endpoint
+router.post('/event', rateLimiter, async (req, res) => {
+  try {
+    const { event, properties, userId, sessionId } = req.body;
+
+    // Validate required fields
+    if (!event) {
+      return res.status(400).json({ success: false, error: 'Event name required' });
+    }
+
+    const distinctId = userId || `anon_${sessionId || req.ip}`;
+
+    // Track custom event
+    track(event, properties || {}, distinctId, sessionId);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Analytics event error:', err);
+    res.status(500).json({ success: false, error: 'Failed to track event' });
+  }
+});
+
+// POST /api/analytics/identify - Identify user with properties
+router.post('/identify', rateLimiter, async (req, res) => {
+  try {
+    const { userId, properties } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID required' });
+    }
+
+    identify(userId, properties || {});
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Analytics identify error:', err);
+    res.status(500).json({ success: false, error: 'Failed to identify user' });
   }
 });
 
