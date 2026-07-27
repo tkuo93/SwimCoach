@@ -50,9 +50,15 @@
       (e.__SV = 1));
   })(document, window.posthog || []);
   (function() {
-    var key = '__POSTHOG_KEY__';
-    var host = '__POSTHOG_HOST__';
-    if (!key) return;
+    var key = '<%- JSON.stringify(POSTHOG_KEY) %>';
+    var host = '<%- JSON.stringify(POSTHOG_HOST) %>';
+    var appVersion = '<%- JSON.stringify(APP_VERSION) %>';
+    var nodeEnv = '<%- JSON.stringify(NODE_ENV) %>';
+    if (!key || key === '""') return;
+    window.POSTHOG_KEY = key;
+    window.POSTHOG_HOST = host;
+    window.APP_VERSION = appVersion;
+    window.NODE_ENV = nodeEnv;
     posthog.init(key, {
       api_host: host,
       defaults: '2026-05-30',
