@@ -25,6 +25,8 @@ export {
   capitalize,
   formatDate,
   formatDateInput,
+  formatSecondsToTime,
+  formatSecondsToSendOff,
 };
 
 // ─── Toast Notifications ───
@@ -166,9 +168,9 @@ function buildWorkoutEditForm(workout) {
 
   const poolMainSetRows = (pool.mainSet || []).map((set, i) => {
     const intervalDetail = set.intervalDetail;
-    const sendOff = intervalDetail?.sendOff || set.interval || '';
-    const targetPace = intervalDetail?.targetPace || '';
-    const rest = intervalDetail?.rest || '';
+    const sendOff = intervalDetail?.sendOff ? formatSecondsToSendOff(intervalDetail.sendOff) : (set.interval || '');
+    const targetPace = intervalDetail?.targetPace ? formatSecondsToTime(intervalDetail.targetPace) : '';
+    const rest = intervalDetail?.rest ? formatSecondsToTime(intervalDetail.rest) : '';
     return `
     <tr class="edit-set-row" data-set-index="${i}" data-set-type="pool">
       <td><input type="number" class="edit-input edit-reps" value="${set.repetitions || 1}" min="1" title="Reps"></td>
@@ -363,9 +365,9 @@ function buildPoolSection(pool) {
     let restDisplay = '—';
 
     if (intervalDetail) {
-      intervalDisplay = escapeHtml(intervalDetail.sendOff || set.interval || '—');
-      targetPaceDisplay = escapeHtml(intervalDetail.targetPace || '—');
-      restDisplay = escapeHtml(intervalDetail.rest || '—');
+      intervalDisplay = escapeHtml(formatSecondsToSendOff(intervalDetail.sendOff) || set.interval || '—');
+      targetPaceDisplay = escapeHtml(formatSecondsToTime(intervalDetail.targetPace) || '—');
+      restDisplay = escapeHtml(formatSecondsToTime(intervalDetail.rest) || '—');
     }
 
     return `
@@ -663,6 +665,35 @@ function buildEmptyState(emoji, title, message, action) {
 }
 
 // ─── Helpers ───
+
+/**
+ * Format seconds to time string (M:SS or M:SS.hh)
+ * Used for displaying target pace and rest intervals
+ */
+function formatSecondsToTime(seconds) {
+  if (seconds == null) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const hundredths = Math.round((seconds % 1) * 100);
+  if (mins > 0) {
+    return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  }
+  return `${secs}.${hundredths.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Format seconds to send-off string (M:SS)
+ * Used for displaying send-off intervals
+ */
+function formatSecondsToSendOff(seconds) {
+  if (seconds == null) return '';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins > 0) {
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${secs}s`;
+}
 
 function escapeHtml(str) {
   const div = document.createElement('div');
