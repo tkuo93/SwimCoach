@@ -223,7 +223,16 @@ const workoutSchema = new mongoose.Schema({
       },
       durationPreference: Number,
       intensityPreference: String
-    }
+    },
+    // Duration validation tracking
+    durationValidation: {
+      estimatedMinutes: { type: Number },
+      targetMinutes: { type: Number },
+      percentOfTarget: { type: Number },
+      adjusted: { type: Boolean, default: false },
+      originalEstimatedMinutes: { type: Number },
+      validatedAt: { type: Date },
+    },
   },
 
   // Timestamps

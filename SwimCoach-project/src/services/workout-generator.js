@@ -2,6 +2,8 @@ const Workout = require('../models/Workout');
 const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
 // interval-calculator.js is pure computation (no network I/O) - calculates swim intervals from CSS/race pace
 const { getCSS, validateAndCorrectIntervals, formatSecondsToSendOff } = require('../utils/interval-calculator');
+// Duration validation and adjustment
+const { calculateWorkoutDuration, validateWorkoutDuration, adjustWorkoutToDuration } = require('../utils/workout-duration');
 
 /**
  * Calculate working weight from 1RM percentage
@@ -235,6 +237,46 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
   // Post-process: validate and correct pool distances if AI used wrong unit
   if (includePool && isPoolYards(customization, profile)) {
     validateYardsDistances(workout);
+  }
+
+  // Post-process: validate and adjust workout duration
+  const durationValidation = validateWorkoutDuration(workout);
+  const durationInfo = durationValidation.durationInfo;
+
+  // Save duration validation info to generationInfo
+  workout.generationInfo.durationValidation = {
+    estimatedMinutes: durationInfo.totalMinutes,
+    targetMinutes: durationInfo.targetMinutes,
+    percentOfTarget: durationInfo.percentOfTarget,
+    adjusted: false,
+    originalEstimatedMinutes: durationInfo.totalMinutes,
+    validatedAt: new Date(),
+  };
+
+  if (!durationValidation.valid && durationInfo.percentOfTarget > 100) {
+    console.log(`Workout duration validation: ${durationValidation.warnings.join('; ')}`);
+    console.log('Adjusting workout to fit target duration...');
+    const adjustedWorkout = adjustWorkoutToDuration(workout, duration);
+    // Apply adjustments to the workout object
+    if (adjustedWorkout.poolWorkout) workout.poolWorkout = adjustedWorkout.poolWorkout;
+    if (adjustedWorkout.gymWorkout) workout.gymWorkout = adjustedWorkout.gymWorkout;
+    workout._durationAdjusted = true;
+    workout._originalDuration = durationInfo.totalMinutes;
+    workout._targetDuration = duration;
+
+    // Update duration validation info after adjustment
+    const adjustedValidation = validateWorkoutDuration(workout);
+    workout.generationInfo.durationValidation = {
+      estimatedMinutes: adjustedValidation.durationInfo.totalMinutes,
+      targetMinutes: duration,
+      percentOfTarget: adjustedValidation.durationInfo.percentOfTarget,
+      adjusted: true,
+      originalEstimatedMinutes: durationInfo.totalMinutes,
+      validatedAt: new Date(),
+    };
+  } else if (!durationValidation.valid && durationInfo.percentOfTarget < 100) {
+    console.log(`Workout duration validation: ${durationValidation.warnings.join('; ')}`);
+    // Under duration is less critical, just log warning
   }
 
   return workout.save();
