@@ -940,8 +940,25 @@ function renderToday(){
   const dateLblEl = document.getElementById('dateLbl');
   const wTitleEl = document.getElementById('wTitle');
   if(workoutEditMode){
-    dateLblEl.innerHTML = `<input type="date" class="edit-input" id="edit-workout-date" value="${esc(w.date ? w.date.split('T')[0] : (w.createdAt ? w.createdAt.split('T')[0] : ''))}" style="width:auto;padding:8px 12px;font-family:var(--font-b);font-size:13px">`;
-    wTitleEl.innerHTML = `<input type="text" class="edit-input" id="edit-workout-title" value="${esc(w.workoutName||w.workoutType||'Workout')}" style="width:100%;font-family:var(--font-d);font-size:32px;font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px 0">`;
+    // Create date input programmatically to avoid XSS
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'edit-input';
+    dateInput.id = 'edit-workout-date';
+    dateInput.value = w.date ? w.date.split('T')[0] : (w.createdAt ? w.createdAt.split('T')[0] : '');
+    dateInput.style.cssText = 'width:auto;padding:8px 12px;font-family:var(--font-b);font-size:13px';
+    dateLblEl.innerHTML = '';
+    dateLblEl.appendChild(dateInput);
+
+    // Create title input programmatically to avoid XSS
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'edit-input';
+    titleInput.id = 'edit-workout-title';
+    titleInput.value = w.workoutName || w.workoutType || 'Workout';
+    titleInput.style.cssText = 'width:100%;font-family:var(--font-d);font-size:32px;font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px 0';
+    wTitleEl.innerHTML = '';
+    wTitleEl.appendChild(titleInput);
   }else{
     dateLblEl.textContent = w.date || w.createdAt;
     wTitleEl.textContent = w.workoutName || w.workoutType || 'Workout';
