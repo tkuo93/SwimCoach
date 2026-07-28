@@ -919,9 +919,15 @@ function genWorkout(p){
 // === WORKOUT EDIT ===
 let workoutEditMode=false;
 function toggleWorkoutEdit(){
-  workoutEditMode=!workoutEditMode;
-  document.getElementById('workoutEditBtn').textContent=workoutEditMode?'💾':'✏️';
-  renderToday();
+  if (workoutEditMode) {
+    // Currently in edit mode, save changes
+    saveWorkoutEdits();
+  } else {
+    // Enter edit mode
+    workoutEditMode = true;
+    document.getElementById('workoutEditBtn').textContent = '💾';
+    renderToday();
+  }
 }
 function renderToday(){
   if(!currentWorkout)return;
@@ -929,8 +935,17 @@ function renderToday(){
   const pool=w.poolWorkout||{};
   const gym=w.gymWorkout||{};
   const unit=pool.poolUnit==='yards'?'yd':'m';
-  document.getElementById('dateLbl').textContent=w.date||w.createdAt;
-  document.getElementById('wTitle').textContent=w.workoutName||w.workoutType||'Workout';
+
+  // Workout title and date - editable in edit mode
+  const dateLblEl = document.getElementById('dateLbl');
+  const wTitleEl = document.getElementById('wTitle');
+  if(workoutEditMode){
+    dateLblEl.innerHTML = `<input type="date" class="edit-input" id="edit-workout-date" value="${esc(w.date ? w.date.split('T')[0] : (w.createdAt ? w.createdAt.split('T')[0] : ''))}" style="width:auto;padding:8px 12px;font-family:var(--font-b);font-size:13px">`;
+    wTitleEl.innerHTML = `<input type="text" class="edit-input" id="edit-workout-title" value="${esc(w.workoutName||w.workoutType||'Workout')}" style="width:100%;font-family:var(--font-d);font-size:32px;font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px 0">`;
+  }else{
+    dateLblEl.textContent = w.date || w.createdAt;
+    wTitleEl.textContent = w.workoutName || w.workoutType || 'Workout';
+  }
 
   document.getElementById('statsRow').innerHTML=`<div class="stat-item"><div class="stat-value">${(pool.totalDistance||0).toLocaleString()}</div><div class="stat-label">${unit}</div></div><div class="stat-item"><div class="stat-value">${w.duration||60}</div><div class="stat-label">minutes</div></div><div class="stat-item"><div class="stat-value">${esc(w.intensity||'moderate')}</div><div class="stat-label">intensity</div></div>`;
   document.getElementById('totDist').textContent=(pool.totalDistance||0).toLocaleString()+unit;
@@ -1013,9 +1028,23 @@ function saveWorkoutEdits(){
   currentWorkout.poolWorkout=pool;
   pool.mainSet=newMainSet;
   pool.totalDistance=newMainSet.reduce((s,e)=>s+e.distance*e.repetitions,0)+(pool.warmUp?.distance||0)+(pool.coolDown?.distance||0);
+
+  // Also save workout title and date if edited
+  const editTitle = document.getElementById('edit-workout-title');
+  const editDate = document.getElementById('edit-workout-date');
+  const updateData = {
+    poolWorkout: pool,
+    gymWorkout: gym
+  };
+  if (editTitle) updateData.workoutName = editTitle.value;
+  if (editDate) updateData.date = editDate.value;
+
   // Save to API
-  api.workouts.update(currentWorkout._id, {poolWorkout:pool,gymWorkout:gym}).then(res=>{
-    if(res.success){toggleWorkoutEdit();}
+  api.workouts.update(currentWorkout._id, updateData).then(res=>{
+    if(res.success){
+      currentWorkout = res.data;
+      toggleWorkoutEdit();
+    }
     else{alert('Failed to save: '+(res.error||'Unknown'));}
   });
 }
