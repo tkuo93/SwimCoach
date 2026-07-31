@@ -14,10 +14,6 @@ const ALLOWED_QDRANT_HOSTS = new Set([
   '127.0.0.1',
   'host.docker.internal',
 ]);
-const ALLOWED_QDRANT_DOMAINS = new Set([
-  'cloud.qdrant.io',           // Qdrant Cloud (and subdomains)
-  'qdrant.io'                  // Legacy Qdrant Cloud (and subdomains)
-]);
 const PRIVATE_IP_RANGES = [
   '10.0.0.0/8',
   '172.16.0.0/12',
@@ -46,13 +42,17 @@ async function validateQdrantUrlRuntime(url) {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;
-    // Check exact hostname match (localhost, etc.) OR domain suffix match (cloud.qdrant.io, etc.)
-    const exactMatch = ALLOWED_QDRANT_HOSTS.has(hostname);
-    const domainMatch = [...ALLOWED_QDRANT_DOMAINS].some(domain =>
-      hostname === domain || hostname.endsWith('.' + domain)
-    );
 
-    if (!exactMatch && !domainMatch) {
+    // Check exact hostname match (localhost, etc.) OR Qdrant Cloud pattern match
+    const exactMatch = ALLOWED_QDRANT_HOSTS.has(hostname);
+
+    // Qdrant Cloud pattern: UUID.region.provider.cloud.qdrant.io
+    // Legacy Qdrant Cloud: UUID.qdrant.io or similar
+    const qdrantCloudPattern = /^[a-f0-9-]+\.[a-z0-9-]+\.(aws|gcp|azure)\.cloud\.qdrant\.io$/i;
+    const legacyQdrantPattern = /^[a-f0-9-]+\.qdrant\.io$/i;
+    const patternMatch = qdrantCloudPattern.test(hostname) || legacyQdrantPattern.test(hostname);
+
+    if (!exactMatch && !patternMatch) {
       throw new Error(`SSRF blocked: ${hostname} not in Qdrant allowlist`);
     }
     if (parsed.protocol !== 'https:' && !['localhost', '127.0.0.1', 'host.docker.internal'].includes(hostname)) {
