@@ -50,11 +50,11 @@
       (e.__SV = 1));
   })(document, window.posthog || []);
   (function() {
-    var key = <%= JSON.stringify(POSTHOG_KEY) %>;
-    var host = <%= JSON.stringify(POSTHOG_HOST) %>;
-    var appVersion = <%= JSON.stringify(APP_VERSION) %>;
-    var nodeEnv = <%= JSON.stringify(NODE_ENV) %>;
-    if (!key || key === '""') return;
+    var key = '__POSTHOG_KEY__';
+    var host = '__POSTHOG_HOST__';
+    var appVersion = '__APP_VERSION__';
+    var nodeEnv = '__NODE_ENV__';
+    if (!key || key === '""' || key === '__POSTHOG_KEY__') return;
     window.POSTHOG_KEY = key;
     window.POSTHOG_HOST = host;
     window.APP_VERSION = appVersion;
@@ -2185,10 +2185,10 @@ async function acknowledgePrivacy() {
 }
 
 // PostHog configuration (injected by server - values are JSON-encoded)
-window.POSTHOG_KEY = <%= POSTHOG_KEY %>;
-window.POSTHOG_HOST = <%= POSTHOG_HOST %>;
-window.APP_VERSION = <%= APP_VERSION %>;
-window.NODE_ENV = <%= NODE_ENV %>;
+window.POSTHOG_KEY = '__POSTHOG_KEY__';
+window.POSTHOG_HOST = '__POSTHOG_HOST__';
+window.APP_VERSION = '__APP_VERSION__';
+window.NODE_ENV = '__NODE_ENV__';
 
 function showPrivacyModalIfNeeded() {
   if (!hasAcknowledgedPrivacy()) {

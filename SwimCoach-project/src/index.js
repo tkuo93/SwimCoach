@@ -98,13 +98,17 @@ const INDEX_HTML_PATH = path.join(__dirname, '..', 'public', 'index.html');
 function serveIndexHtml(res) {
   const posthogKey = process.env.POSTHOG_PROJECT_KEY || '';
   const posthogHost = process.env.POSTHOG_HOST || 'https://us.i.posthog.com';
+  const appVersion = process.env.npm_package_version || '1.0.0';
+  const nodeEnv = process.env.NODE_ENV || 'development';
   if (!posthogKey && process.env.NODE_ENV !== 'production') {
     console.warn('[PostHog] POSTHOG_PROJECT_KEY variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once POSTHOG_PROJECT_KEY is configured');
   }
   const html = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
   const injected = html
-    .replace('__POSTHOG_KEY__', posthogKey)
-    .replace('__POSTHOG_HOST__', posthogHost);
+    .replace('__POSTHOG_KEY__', JSON.stringify(posthogKey))
+    .replace('__POSTHOG_HOST__', JSON.stringify(posthogHost))
+    .replace('__APP_VERSION__', JSON.stringify(appVersion))
+    .replace('__NODE_ENV__', JSON.stringify(nodeEnv));
   res.setHeader('Content-Type', 'text/html');
   res.send(injected);
 }
