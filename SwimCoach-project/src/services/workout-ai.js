@@ -11,28 +11,11 @@ const axios = require('axios');
 const { getFeedbackSummary } = require('./memory');
 const CoachingMemory = require('../models/CoachingMemory');
 const { getCSS, formatSecondsToSendOff, formatSecondsToTime } = require('../utils/interval-calculator');
-const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
+const { callByRoute } = require('./model-router');
+const { sanitizeModel } = require('../config/model-routes');
 
-// Use OpenRouter with free models as the default API endpoint
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const OPEN_NOTEBOOK_URL = process.env.OPEN_NOTEBOOK_URL || 'http://localhost:8502';
 const OPEN_NOTEBOOK_MODEL = process.env.OPEN_NOTEBOOK_MODEL || '';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
-
-// ─── Model Allowlist ────────────────────────────────────────────────
-// User-supplied model IDs must match this pattern to prevent injection
-// of arbitrary values into outbound OpenRouter API calls.
-const MODEL_PATTERN = /^[\w\-./:@]+$/;
-
-/**
- * Validate and sanitize a user-supplied model ID.
- * Returns the model if valid, or the default model if not.
- */
-function sanitizeModel(model) {
-  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
-  return MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
-}
 
 // ─── RAG Cache ──────────────────────────────────────────────────────
 const ragCache = new Map();
@@ -354,8 +337,8 @@ async function generateWorkout(profile, customization, opts = {}) {
     ? programContext.coachingObservations
     : await getCoachingObservations(profile._id);
 
-  // Determine model — allow override via customization (for debug mode)
-  // Sanitize user-supplied model to prevent injection into outbound API calls
+  // Determine model — use route-based model selection
+  // Allow override via customization (for debug mode) but sanitize first
   const model = sanitizeModel(customization.llmModel);
 
   const sessionType = customization.sessionType || 'both';
@@ -375,7 +358,12 @@ async function generateWorkout(profile, customization, opts = {}) {
   const systemMessage = { role: 'system', content: systemPrompt };
   const userMessage = { role: 'user', content: userPrompt };
 
-  let result = await callLLM(model, systemMessage, userMessage, 12288);
+  // Use model router for workout generation
+  const routeKey = customization.llmModel ? 'fallback:code' : 'workout:generate';
+  let result = await callByRoute(routeKey, [systemMessage, userMessage], {
+    maxTokens: 12288,
+    timeout: 120000
+  });
   if (!result.content) throw new Error('No response from OpenRouter');
 
   let parsed = parseWorkoutJSON(result.content);
@@ -386,7 +374,10 @@ async function generateWorkout(profile, customization, opts = {}) {
   if (!parsed && result.finishReason === 'length') {
     console.warn('Workout JSON truncated (finish_reason=length) — retrying with 16384 tokens, context stripped');
     const leanPrompt = buildWorkoutPrompt(profile, promptCustomization, '', '', '', '');
-    result = await callLLM(model, systemMessage, { role: 'user', content: leanPrompt }, 16384);
+    result = await callByRoute(routeKey, [systemMessage, { role: 'user', content: leanPrompt }], {
+      maxTokens: 16384,
+      timeout: 120000
+    });
     if (result.content) parsed = parseWorkoutJSON(result.content);
   }
 
@@ -406,87 +397,6 @@ async function generateWorkout(profile, customization, opts = {}) {
 /**
  * Sleep utility for retry delays
  */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Single LLM call with exponential backoff retry for 429/5xx errors.
- * Returns { content, truncated, finishReason }.
- */
-async function callLLM(model, systemMessage, userMessage, maxTokens, attempt = 1) {
-  const maxRetries = 3;
-  const baseDelay = 2000; // 2 seconds base delay
-
-  try {
-    // Use rate limiter to prevent hitting free tier limits
-    const response = await rateLimitedAxiosCall(() => axios.post(
-      `${OPENROUTER_BASE}/chat/completions`,
-      {
-        model,
-        messages: [systemMessage, userMessage],
-        temperature: 0.7,
-        max_tokens: maxTokens,
-        provider: { order: ['openai'], sort: 'throughput' },
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://swimcoach.app',
-          'X-Title': 'SwimCoach',
-        },
-        timeout: 120_000,
-      },
-    ));
-
-    const choice = response.data?.choices?.[0];
-    const content = choice?.message?.content;
-    const finishReason = choice?.finish_reason;
-    return { content, finishReason };
-  } catch (err) {
-    // Check if it's a retryable error (429 rate limit or 5xx server errors)
-    const isRateLimited = err.response?.status === 429;
-    const isServerError = err.response?.status >= 500 && err.response?.status < 600;
-    const isRetryableError = isRateLimited || isServerError;
-
-    // Extract the actual OpenRouter error message (nested in error.response.data.error)
-    const openRouterError = err.response?.data?.error;
-    const errorMessage = typeof openRouterError === 'object' && openRouterError !== null
-      ? (openRouterError.message || openRouterError.code || JSON.stringify(openRouterError))
-      : (openRouterError || err.message);
-
-    if (isRetryableError && attempt < maxRetries) {
-      // Calculate delay with exponential backoff + jitter
-      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      console.warn(`LLM call failed (attempt ${attempt}/${maxRetries}): ${err.response?.status} ${err.response?.statusText}. Error: ${errorMessage}. Retrying in ${Math.round(delay)}ms...`);
-      await sleep(delay);
-      return callLLM(model, systemMessage, userMessage, maxTokens, attempt + 1);
-    }
-
-    // If we've exhausted retries or it's a non-retryable error, throw with context
-    console.error(`LLM call failed after ${attempt} attempt(s): ${err.response?.status} ${err.response?.statusText}. OpenRouter error: ${errorMessage}`);
-    if (err.response) {
-      console.error('OpenRouter API Error:', err.response.status, err.response.data);
-      throw new Error(`OpenRouter API error: ${err.response.status} - ${errorMessage}`);
-    } else if (err.request) {
-      console.error('OpenRouter Network Error:', err.message);
-      throw new Error(`OpenRouter network error: ${err.message}`);
-    } else {
-      console.error('OpenRouter Request Error:', err.message);
-      throw new Error(`OpenRouter request error: ${err.message}`);
-    }
-  }
-}
-
-// Helper to safely stringify error response data
-function errorJSON(data) {
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return String(data);
-  }
-}
-
 /**
  * Extract JSON from an LLM response. Returns the parsed object, or null.
  */

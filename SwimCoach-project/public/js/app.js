@@ -16,6 +16,7 @@ import {
   buildFeedbackForm,
   showAdaptiveResponse,
   escapeHtml,
+  formatDateInput,
 } from '/js/components.js';
 
 // ─── Helper Functions for Safe DOM Creation ───
@@ -1389,7 +1390,7 @@ function collectGenerateFormData(form) {
 async function loadWorkoutPage(workoutId, editMode = false) {
   showLoading('Loading workout…');
   try {
-    const result = await api.workouts.get(workoutId, state.currentProfile?._id);
+    const result = await api.workouts.get(workoutId);
     const workout = result.data;
 
     const container = document.getElementById('workout-content');
@@ -1465,8 +1466,8 @@ function buildWorkoutViewWithActions(workout) {
 	    btn.disabled = true;
 	    btn.textContent = 'Saving…';
 	    try {
-	      const updateData = collectEditFormData(workoutId);
-	      const result = await api.workouts.update(workoutId, updateData, state.currentProfile?._id);
+	      const updateData = collectEditFormData(workoutId, workout);
+	      const result = await api.workouts.update(workoutId, updateData);
 	      showToast('Workout updated!', 'success');
 	      const container = document.getElementById('workout-content');
 	      container.innerHTML = buildWorkoutCard(result.data);
@@ -1520,13 +1521,24 @@ function buildWorkoutViewWithActions(workout) {
 	  });
 	}
 
-	function collectEditFormData(workoutId) {
+	function collectEditFormData(workoutId, originalWorkout) {
 	  const workoutName = document.getElementById(`edit-name-${workoutId}`).value.trim();
 	  const workoutType = document.getElementById(`edit-type-${workoutId}`).value;
 	  const duration = parseInt(document.getElementById(`edit-duration-${workoutId}`).value, 10);
 	  const intensity = document.getElementById(`edit-intensity-${workoutId}`).value;
 	  const dateVal = document.getElementById(`edit-date-${workoutId}`).value;
-	  const date = dateVal ? new Date(dateVal) : undefined;
+
+	  // Only include date in update if user explicitly changed it
+	  // Parse as UTC to avoid timezone shifts (input type="date" is treated as local by browser)
+	  let date;
+	  if (dateVal && originalWorkout) {
+	    const originalDateStr = formatDateInput(originalWorkout.date || originalWorkout.createdAt);
+	    if (dateVal !== originalDateStr) {
+	      // User changed the date - parse as UTC to preserve the selected date
+	      const [year, month, day] = dateVal.split('-').map(Number);
+	      date = new Date(Date.UTC(year, month - 1, day));
+	    }
+	  }
 
 	  const poolWarmUpDistance = parseInt(document.getElementById(`edit-pool-wu-dist-${workoutId}`).value, 10) || 0;
 	  const poolWarmUpDuration = parseInt(document.getElementById(`edit-pool-wu-dur-${workoutId}`).value, 10) || 0;
@@ -1555,10 +1567,6 @@ function buildWorkoutViewWithActions(workout) {
       focus: row.querySelector('.edit-focus').value.trim(),
       description: row.querySelector('.edit-set-notes').value.trim(),
     });
-  });e.trim(),
-	      description: row.querySelector('.edit-set-notes').value.trim(),
-	    });
-	  });
 
 	  const poolTotalDistance = poolMainSet.reduce(function(sum, s) { return sum + (s.distance * s.repetitions); }, 0)
 	    + poolWarmUpDistance + poolCoolDownDistance;
@@ -1619,7 +1627,7 @@ async function deleteWorkout(workoutId) {
   }
   showLoading('Deleting workout…');
   try {
-    await api.workouts.delete(workoutId, state.currentProfile?._id);
+    await api.workouts.delete(workoutId);
     hideLoading();
     if (window.posthog) posthog.capture('workout_deleted', { workout_id: workoutId });
     showToast('Workout deleted.', 'info');
@@ -1771,7 +1779,7 @@ async function initChatHandler(workoutId) {
                       const update = {};
                       update[action.field] = parseActionValue(action.newValue);
                       update.updatedAt = new Date().toISOString();
-                      const result = await api.workouts.update(action.workoutId, update, state.currentProfile?._id);
+                      const result = await api.workouts.update(action.workoutId, update);
                       proposalEl.remove();
                       showToast('Change applied!', 'success');
                       // Update the workout card in-place without reloading the page
@@ -1900,7 +1908,7 @@ function initFeedbackHandler(workoutId, existingFeedback) {
         comments: fd.get('comments') || undefined,
       };
 
-      await api.workouts.feedback(workoutId, feedback, state.currentProfile?._id);
+      await api.workouts.feedback(workoutId, feedback);
       if (window.posthog) {
         posthog.capture('workout_feedback_submitted', {
           rating: feedback.rating,
@@ -1946,7 +1954,7 @@ async function loadHistoryPage() {
 
   showLoading('Loading workouts…');
   try {
-    const result = await api.workouts.list(state.currentProfile._id);
+    const result = await api.workouts.list();
     let workouts = result.data || [];
 
     // Apply type filter
@@ -2330,7 +2338,7 @@ async function confirmCoachAction(conversationId, actionIndex) {
   const swimmerId = state.currentProfile?._id;
   try {
     showLoading('Applying change…');
-    const result = await api.coach.confirm(conversationId, actionIndex, swimmerId);
+    const result = await api.coach.confirm(conversationId, actionIndex);
     hideLoading();
 
     if (result.data?.applied) {
@@ -2351,7 +2359,7 @@ async function confirmCoachAction(conversationId, actionIndex) {
 
 function dismissCoachAction(conversationId, actionIndex, proposalEl) {
   const swimmerId = state.currentProfile?._id;
-  api.coach.dismiss(conversationId, actionIndex, swimmerId).catch(() => {});
+  api.coach.dismiss(conversationId, actionIndex).catch(() => {});
   if (proposalEl) proposalEl.remove();
 }
 
@@ -2371,7 +2379,7 @@ async function loadProgramPage(programId) {
 
   showLoading('Loading program…');
   try {
-    const result = await api.workouts.getProgram(programId, state.currentProfile?._id);
+    const result = await api.workouts.getProgram(programId);
     const program = result.data;
 
     // Build program header
