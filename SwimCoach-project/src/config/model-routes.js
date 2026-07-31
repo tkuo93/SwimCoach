@@ -8,6 +8,23 @@
  * Rate limits are per-model daily estimates based on weekly token allocations.
  */
 
+// ─── Model Input Sanitization ──────────────────────────────────────────
+// Validates user-supplied model IDs against a strict allowlist pattern
+// to prevent injection of arbitrary model IDs into outbound API calls.
+const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
+const DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
+
+/**
+ * Sanitize a user-supplied model ID.
+ * Only allows models matching the openrouter/* pattern.
+ * @param {string} model - User-supplied model ID
+ * @returns {string} Sanitized model ID or default
+ */
+function sanitizeModel(model) {
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  return MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+}
+
 // ─── Model Definitions ─────────────────────────────────────────────────
 const MODELS = {
   // Poolside models - specialized for code/structured output
@@ -397,5 +414,6 @@ module.exports = {
   getModel,
   getAllRoutes,
   getAllModels,
-  validateRoutes
+  validateRoutes,
+  sanitizeModel,
 };
