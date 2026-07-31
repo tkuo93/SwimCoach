@@ -67,6 +67,42 @@ function isRateLimited(modelId) {
 }
 
 /**
+ * Recursively sanitize an object to remove secrets/PII
+ * @param {any} obj - Object to sanitize
+ * @param {number} depth - Current recursion depth
+ * @returns {any} Sanitized object
+ */
+function sanitizeObject(obj, depth = 0) {
+  if (depth > 5) return '[max depth]';
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    return obj
+      .replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED]')
+      .replace(/Bearer\s+[a-zA-Z0-9\-._~]+/g, '[REDACTED]')
+      .replace(/api[_-]?key["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'api_key=[REDACTED]')
+      .replace(/secret["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'secret=[REDACTED]')
+      .replace(/token["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'token=[REDACTED]')
+      .substring(0, 500);
+  }
+  if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
+  if (Array.isArray(obj)) return obj.slice(0, 10).map(item => sanitizeObject(item, depth + 1));
+  if (typeof obj === 'object') {
+    const sanitized = {};
+    const sensitiveKeys = ['authorization', 'api_key', 'apikey', 'secret', 'token', 'password', 'key', 'access_token', 'refresh_token', 'client_secret', 'private_key'];
+    for (const [key, value] of Object.entries(obj)) {
+      const lowerKey = key.toLowerCase();
+      if (sensitiveKeys.some(k => lowerKey.includes(k))) {
+        sanitized[key] = '[REDACTED]';
+      } else {
+        sanitized[key] = sanitizeObject(value, depth + 1);
+      }
+    }
+    return sanitized;
+  }
+  return '[unknown type]';
+}
+
+/**
  * Sanitize error for safe logging - removes potential secrets from error messages
  * @param {Error|Object} err - Error object
  * @returns {string} Safe error description
@@ -86,9 +122,12 @@ function sanitizeError(err) {
       // Only include message if it doesn't look like it contains secrets
       const msg = errorData.message || '';
       if (msg && !msg.includes('key') && !msg.includes('token') && !msg.includes('secret') && !msg.includes('authorization') && msg.length < 200) {
-        errorMsg = msg.replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED]').replace(/Bearer\s+[a-zA-Z0-9\-._~]+/g, '[REDACTED]');
+        errorMsg = sanitizeObject(msg);
       }
     }
+
+    // Also sanitize any request echo in response data
+    const sanitizedResponse = sanitizeObject(err.response.data);
 
     return `${status}${errorCode ? ` ${errorCode}` : ''}${errorMsg ? ` - ${errorMsg}` : ''}`;
   }
@@ -100,7 +139,7 @@ function sanitizeError(err) {
 
   // Other errors - sanitize message
   const msg = err.message || String(err);
-  return msg.replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED]').replace(/Bearer\s+[a-zA-Z0-9\-._~]+/g, '[REDACTED]').substring(0, 200);
+  return sanitizeObject(msg);
 }
 
 /**

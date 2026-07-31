@@ -1,7 +1,11 @@
 /**
  * SwimCoach API Client
  * Thin fetch wrapper around the Express REST API.
- * Uses cookie-based authentication (no X-Swimmer-Id header needed).
+ * Uses cookie-based authentication (credentials: 'include').
+ *
+ * AUTH MODEL: Backend extracts user identity from session/JWT (req.user._id).
+ * Client does NOT pass user/swimmer/profile IDs - backend trusts only authenticated session.
+ * This prevents IDOR: users can only access their own resources.
  */
 
 const BASE = '/api';
