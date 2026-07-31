@@ -2048,7 +2048,6 @@ async function loadHistoryPage() {
 const coachState = {
   conversations: [],  // [{ _id, title, messages: [{role, text}], updatedAt, contextWorkoutId }]
   activeConversationId: null,
-  loaded: false,
 };
 
 async function loadCoachPage() {
@@ -2090,11 +2089,8 @@ async function loadCoachPage() {
   layout.appendChild(main);
   container.appendChild(layout);
 
-  // Load conversations from MongoDB (once per page load)
-  if (!coachState.loaded) {
-    await loadCoachConversations();
-    coachState.loaded = true;
-  }
+  // Load conversations from MongoDB (every time page loads to ensure fresh data)
+  await loadCoachConversations();
 
   renderCoachConversationList();
 
@@ -2282,6 +2278,8 @@ function renderCoachChat(conversationId) {
 
       // Store in conversation (in-memory)
       conv.messages.push({ role: 'coach', text: result.data.reply });
+      // Update local updatedAt so sidebar shows fresh timestamp
+      conv.updatedAt = new Date().toISOString();
 
       // Update conversation ID if backend returned a new one (e.g., for proposals or new conversation created)
       if (result.data.conversationId && result.data.conversationId !== conv._id) {
