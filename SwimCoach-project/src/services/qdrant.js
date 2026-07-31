@@ -1,6 +1,13 @@
 /**
  * Qdrant Vector Database Service
  * Collections: swimcoach_sources, swimcoach_insights
+ *
+ * SSRF Protection (defense in depth):
+ * 1. Hostname allowlist - only localhost, Qdrant Cloud patterns allowed
+ * 2. HTTPS enforcement for external hosts
+ * 3. DNS resolution + RFC1918/link-local IP blocking at startup
+ * 4. QDRANT_URL comes from environment variable (trusted config), not user input
+ * 5. Process exits on validation failure - fails closed
  */
 
 const { QdrantClient } = require('@qdrant/js-client-rest');
