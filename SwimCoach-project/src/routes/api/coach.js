@@ -61,34 +61,44 @@ router.post('/chat', async (req, res) => {
 
     // If conversationId provided, try to find and append to existing conversation
     if (conversationId) {
-      const conversation = await Conversation.findById(conversationId);
+      let conversation = await Conversation.findById(conversationId);
       if (conversation && conversation.swimmerId.toString() === req.user._id.toString()) {
-        conversation.messages.push(
-          { role: 'user', text: message },
-          { role: 'coach', text: result.reply }
-        );
-        // Add proposals if any
-        if (proposals.length > 0) {
-          conversation.proposals = [...(conversation.proposals || []), ...proposals];
-          // Set expiry for proposals (10 min from now)
-          conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-          // Update contextWorkoutId if provided and not already set
-          if (workoutId && !conversation.contextWorkoutId) {
-            conversation.contextWorkoutId = workoutId;
-          }
-        }
-        await conversation.save();
-        finalConversationId = conversationId;
+        // Conversation found and owned by user
       } else if (conversation) {
         // Conversation exists but belongs to different user
         return res.status(403).json({ success: false, error: 'Access denied to this conversation' });
+      } else {
+        // Conversation not found - create a new one (frontend should have created it, but handle gracefully)
+        conversation = new Conversation({
+          swimmerId: req.user._id,
+          title: 'New conversation',
+          messages: [],
+          contextWorkoutId: workoutId || null,
+        });
       }
-      // If conversation not found, fall through to create new one below (only if proposals exist)
+
+      conversation.messages.push(
+        { role: 'user', text: message },
+        { role: 'coach', text: result.reply }
+      );
+      // Add proposals if any
+      if (proposals.length > 0) {
+        conversation.proposals = [...(conversation.proposals || []), ...proposals];
+        // Set expiry for proposals (10 min from now)
+        conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        // Update contextWorkoutId if provided and not already set
+        if (workoutId && !conversation.contextWorkoutId) {
+          conversation.contextWorkoutId = workoutId;
+        }
+      }
+      // Always save the conversation to persist messages
+      await conversation.save();
+      finalConversationId = conversation._id.toString();
     }
 
-    // If no valid conversationId found and there are proposals, create new conversation
-    // Let Mongoose generate the ObjectId (don't use client-provided UUID)
-    if (!finalConversationId && proposals.length > 0) {
+    // If no conversationId provided, create new conversation only if there are proposals
+    // (frontend should create conversation via POST /api/conversations before first message)
+    if (!finalConversationId && !conversationId && proposals.length > 0) {
       const conversation = await Conversation.create({
         swimmerId: req.user._id,
         title: 'Coach Proposals',

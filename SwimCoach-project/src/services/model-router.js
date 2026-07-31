@@ -76,13 +76,31 @@ function sanitizeObject(obj, depth = 0) {
   if (depth > 5) return '[max depth]';
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'string') {
-    return obj
-      .replace(/sk-[a-zA-Z0-9]+/g, '[REDACTED]')
-      .replace(/Bearer\s+[a-zA-Z0-9\-._~]+/g, '[REDACTED]')
-      .replace(/api[_-]?key["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'api_key=[REDACTED]')
-      .replace(/secret["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'secret=[REDACTED]')
-      .replace(/token["\s:=]+[a-zA-Z0-9\-._~]+/gi, 'token=[REDACTED]')
-      .substring(0, 500);
+    // Truncate FIRST to prevent exposing long secrets, then apply redactions
+    const truncated = obj.substring(0, 500);
+    return truncated
+      // OpenAI API keys
+      .replace(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]')
+      // AWS Access Key IDs
+      .replace(/AKIA[0-9A-Z]{16}/g, '[REDACTED]')
+      // GitHub tokens
+      .replace(/gh[pousr]_[a-zA-Z0-9]{36}/g, '[REDACTED]')
+      // Generic Bearer tokens
+      .replace(/Bearer\s+[a-zA-Z0-9\-._~]{20,}/g, '[REDACTED]')
+      // API keys in various formats
+      .replace(/api[_-]?key["\s:=]+[a-zA-Z0-9\-._~]{10,}/gi, 'api_key=[REDACTED]')
+      // Secrets
+      .replace(/secret["\s:=]+[a-zA-Z0-9\-._~]{10,}/gi, 'secret=[REDACTED]')
+      // Tokens
+      .replace(/token["\s:=]+[a-zA-Z0-9\-._~]{10,}/gi, 'token=[REDACTED]')
+      // Base64-encoded secrets (common pattern)
+      .replace(/[A-Za-z0-9+/]{40,}={0,2}/g, '[REDACTED]')
+      // JWT tokens
+      .replace(/eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+/g, '[REDACTED]');
+  }
+  // Handle Buffer/Uint8Array by converting to string first
+  if (obj instanceof Buffer || obj instanceof Uint8Array) {
+    return sanitizeObject(obj.toString(), depth);
   }
   if (typeof obj === 'number' || typeof obj === 'boolean') return obj;
   if (Array.isArray(obj)) return obj.slice(0, 10).map(item => sanitizeObject(item, depth + 1));
