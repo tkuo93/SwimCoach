@@ -2289,6 +2289,16 @@ function renderCoachChat(conversationId) {
         const idx = coachState.conversations.findIndex(c => (c._id || c.id) === conv._id);
         if (idx !== -1) {
           coachState.conversations[idx]._id = result.data.conversationId;
+        } else {
+          // Conversation not in our state (e.g., backend created new one) - fetch it
+          try {
+            const fetched = await api.conversations.get(result.data.conversationId);
+            if (fetched.success && fetched.data) {
+              coachState.conversations.unshift(fetched.data);
+            }
+          } catch (e) {
+            console.warn('Failed to fetch new conversation:', e.message);
+          }
         }
         conv._id = result.data.conversationId;
       }
