@@ -6,7 +6,7 @@ services:
     plan: free
     region: oregon
     rootDir: SwimCoach-project
-    buildCommand: npm ci
+    buildCommand: npm ci && echo "Verifying public directory..." && ls -la public/ && ls -la public/js/
     startCommand: npm start
     envVars:
       - key: NODE_ENV

@@ -117,6 +117,9 @@ app.get('/', (req, res) => {
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Explicitly serve /js files to avoid catch-all issues
+app.use('/js', express.static(path.join(__dirname, '..', 'public', 'js')));
+
 // Catch-all: serve index.html for any non-API, non-static route (client-side routing)
 app.get('*', (req, res) => {
   // Skip API routes
