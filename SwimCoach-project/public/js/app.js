@@ -2283,10 +2283,18 @@ function renderCoachChat(conversationId) {
       // Store in conversation (in-memory)
       conv.messages.push({ role: 'coach', text: result.data.reply });
 
-      // Update conversation ID if backend returned a new one (e.g., for proposals)
-      if (result.data.conversationId) {
+      // Update conversation ID if backend returned a new one (e.g., for proposals or new conversation created)
+      if (result.data.conversationId && result.data.conversationId !== conv._id) {
+        // Find and update the conversation in coachState
+        const idx = coachState.conversations.findIndex(c => (c._id || c.id) === conv._id);
+        if (idx !== -1) {
+          coachState.conversations[idx]._id = result.data.conversationId;
+        }
         conv._id = result.data.conversationId;
       }
+
+      // Refresh conversation list in case backend created a new conversation
+      renderCoachConversationList();
 
       // Handle action proposals
       if (result.data.actions?.length > 0) {
