@@ -152,8 +152,8 @@ const ROUTES = {
     description: 'Generate new structured workout from profile + preferences',
     primary: 'inclusionai/ling-3.0-flash:free',
     fallbacks: [
-      'nvidia/nemotron-3-nano-omni:free',
       'nvidia/nemotron-3-nano-30b-a3b:free',
+      'nvidia/nemotron-3-nano:free',
       'cohere/north-mini-code:free',
       'nvidia/nemotron-3-super:free',
       'poolside/laguna-s-2.1:free',
@@ -312,7 +312,7 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fastest available model fallback',
-    primary: 'nvidia/nemotron-3-nano-omni:free',
+    primary: 'nvidia/nemotron-3-nano:free',
     fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 2048,
     timeout: 5000,
@@ -338,7 +338,7 @@ const DAILY_LIMITS = {
   'nvidia/nemotron-3-ultra:free': 50,
   'nvidia/nemotron-3-super:free': 5000,
   'nvidia/nemotron-3-nano-30b-a3b:free': 100000,
-  'nvidia/nemotron-3-nano-omni:free': 100000,
+  'nvidia/nemotron-3-nano:free': 100000,
   'google/gemma-4-31b:free': 4000,
   'cohere/north-mini-code:free': 8000
 };
