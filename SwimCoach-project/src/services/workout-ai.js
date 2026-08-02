@@ -414,7 +414,9 @@ async function generateWorkout(profile, customization, opts = {}) {
   const routeKey = customization.llmModel ? 'fallback:code' : (useHighVolume ? 'workout:generate:high-volume' : 'workout:generate');
   let result = await callByRoute(routeKey, [systemMessage, userMessage], {
     maxTokens: 12288,
-    timeout: 120000
+    timeout: 60000,
+    retryDelay: useHighVolume ? 500 : 2000,  // Faster retries for high-volume
+    maxRetries: useHighVolume ? 2 : 3       // Fewer retries for high-volume
   });
   if (!result.content) throw new Error('No response from OpenRouter');
 
@@ -428,7 +430,9 @@ async function generateWorkout(profile, customization, opts = {}) {
     const leanPrompt = buildWorkoutPrompt(profile, promptCustomization, '', '', '', '');
     result = await callByRoute(routeKey, [systemMessage, { role: 'user', content: leanPrompt }], {
       maxTokens: 16384,
-      timeout: 120000
+      timeout: 60000,
+      retryDelay: useHighVolume ? 500 : 2000,
+      maxRetries: useHighVolume ? 2 : 3
     });
     if (result.content) parsed = parseWorkoutJSON(result.content);
   }

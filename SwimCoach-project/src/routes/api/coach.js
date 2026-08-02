@@ -87,12 +87,20 @@ router.post('/chat', async (req, res) => {
       // Add proposals if any
       if (proposals.length > 0) {
         conversation.proposals = [...(conversation.proposals || []), ...proposals];
-        // Set expiry for proposals (10 min from now)
-        conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        // Set expiry for proposals (10 min from now) ONLY for conversations that have no prior messages
+        // (i.e., proposals-only conversations created by backend). Frontend-created conversations
+        // persist indefinitely and are deleted explicitly when proposals are confirmed/dismissed.
+        const hasUserMessages = conversation.messages.some(m => m.role === 'user');
+        if (!hasUserMessages || conversation.messages.length <= 2) { // Only the two we just added
+          conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        }
         // Update contextWorkoutId if provided and not already set
         if (workoutId && !conversation.contextWorkoutId) {
           conversation.contextWorkoutId = workoutId;
         }
+      } else {
+        // No proposals - clear any existing expiresAt (e.g., from previous proposal interactions)
+        conversation.expiresAt = undefined;
       }
       // Always save the conversation to persist messages
       console.log('Saving conversation:', conversation._id, 'messages:', conversation.messages.length);
@@ -212,7 +220,16 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
       // Remove confirmed proposal
       entry.proposals.splice(actionIndex, 1);
       if (entry.proposals.length === 0) {
-        await Conversation.findByIdAndDelete(conversationId);
+        // If no more proposals, check if conversation has real messages (not just the ones from proposals)
+        const hasUserMessages = entry.messages.some(m => m.role === 'user');
+        if (hasUserMessages) {
+          // Keep conversation but clear expiresAt
+          entry.expiresAt = undefined;
+          await entry.save();
+        } else {
+          // Proposals-only conversation - delete it
+          await Conversation.findByIdAndDelete(conversationId);
+        }
       } else {
         await entry.save();
       }
@@ -260,7 +277,16 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
       // Remove confirmed proposal
       entry.proposals.splice(actionIndex, 1);
       if (entry.proposals.length === 0) {
-        await Conversation.findByIdAndDelete(conversationId);
+        // If no more proposals, check if conversation has real messages (not just the ones from proposals)
+        const hasUserMessages = entry.messages.some(m => m.role === 'user');
+        if (hasUserMessages) {
+          // Keep conversation but clear expiresAt
+          entry.expiresAt = undefined;
+          await entry.save();
+        } else {
+          // Proposals-only conversation - delete it
+          await Conversation.findByIdAndDelete(conversationId);
+        }
       } else {
         await entry.save();
       }
@@ -300,7 +326,16 @@ router.post('/chat/:conversationId/dismiss', async (req, res) => {
 
   entry.proposals.splice(actionIndex, 1);
   if (entry.proposals.length === 0) {
-    await Conversation.findByIdAndDelete(conversationId);
+    // If no more proposals, check if conversation has real messages (not just the ones from proposals)
+    const hasUserMessages = entry.messages.some(m => m.role === 'user');
+    if (hasUserMessages) {
+      // Keep conversation but clear expiresAt
+      entry.expiresAt = undefined;
+      await entry.save();
+    } else {
+      // Proposals-only conversation - delete it
+      await Conversation.findByIdAndDelete(conversationId);
+    }
   } else {
     await entry.save();
   }

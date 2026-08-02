@@ -164,13 +164,13 @@ function sanitizeError(err) {
  * Call OpenRouter API with retry logic
  * @param {string} model - Model ID
  * @param {Array} messages - Chat messages
- * @param {Object} options - Additional options (maxTokens, temperature, timeout)
+ * @param {Object} options - Additional options (maxTokens, temperature, timeout, retryDelay, maxRetries)
  * @param {number} attempt - Retry attempt number
  * @returns {Promise<Object>} Response data
  */
 async function callOpenRouter(model, messages, options = {}, attempt = 1) {
-  const maxRetries = 3;
-  const baseDelay = 2000;
+  const maxRetries = options.maxRetries ?? 3;
+  const baseDelay = options.retryDelay ?? 2000;
   const {
     maxTokens = 4096,
     temperature = 0.7,
@@ -236,7 +236,7 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
  *
  * @param {string} routeKey - Route identifier (e.g., 'workout:generate', 'coach:chat')
  * @param {Array} messages - Chat messages [{role, content}]
- * @param {Object} options - Override route defaults (maxTokens, temperature, timeout)
+ * @param {Object} options - Override route defaults (maxTokens, temperature, timeout, retryDelay)
  * @returns {Promise<Object>} { content, model, finishReason, usage, route, fallbackUsed }
  */
 async function callByRoute(routeKey, messages, options = {}) {
@@ -253,6 +253,10 @@ async function callByRoute(routeKey, messages, options = {}) {
     }
     callByRoute._validated = true;
   }
+
+  // Allow custom retry settings for high-volume generation
+  const retryDelay = options.retryDelay ?? 2000;
+  const maxRetries = options.maxRetries ?? 3;
 
   // Universal last-resort fallbacks (used only if ALL route-specific fallbacks fail)
   const UNIVERSAL_FALLBACKS = [
@@ -289,6 +293,8 @@ async function callByRoute(routeKey, messages, options = {}) {
         maxTokens: options.maxTokens || route.maxTokens,
         temperature: options.temperature ?? route.temperature,
         timeout: options.timeout || route.timeout,
+        retryDelay: retryDelay,
+        maxRetries: maxRetries,
       });
 
       // Track usage
