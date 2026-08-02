@@ -17,6 +17,7 @@ router.post('/chat', async (req, res) => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('Coach chat request:', { hasConversationId: !!conversationId, messageLength: message?.length });
     }
+    if (!message) {
       return res.status(400).json({ success: false, error: 'message is required' });
     }
 
