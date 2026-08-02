@@ -13,6 +13,8 @@ router.post('/chat', async (req, res) => {
   try {
     const { message, messages = [], llmModel, conversationId, workoutId } = req.body;
 
+    console.log('Coach chat request:', { userId: req.user._id, conversationId, messageLength: message?.length });
+
     if (!message) {
       return res.status(400).json({ success: false, error: 'message is required' });
     }
