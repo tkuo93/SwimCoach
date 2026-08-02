@@ -50,17 +50,17 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/workouts/generate
-// Body: { sessionType?, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, programPeriod?, mode? }
+// Body: { sessionType?, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, programPeriod?, mode?, useHighVolumeRoute? }
 router.post('/generate', async (req, res) => {
   try {
-    const { mode = 'direct', ...customization } = req.body;
+    const { mode = 'direct', useHighVolumeRoute = false, ...customization } = req.body;
 
     const profile = await SwimmerProfile.findById(req.user._id);
     if (!profile) {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
 
-    const workout = await generateWorkout(profile, customization, { mode });
+    const workout = await generateWorkout(profile, { ...customization, useHighVolumeRoute }, { mode });
 
     // Track workout generation
     track('workout_generated', {
@@ -418,11 +418,110 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delay between LLM calls to avoid OpenRouter rate limits (free tier: 20 req/min)
-const GENERATION_DELAY_MS = 3500;
+const GENERATION_DELAY_MS = 0; // Removed - high-volume route has 100k daily limit
 const TAPER_WINDOW_DAYS = 14;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Build a predicted session summary based on planned workout parameters.
+ * This allows parallel generation while maintaining the "informed by previous sessions" feature.
+ * The summary format: "Session N: [type], [strokes], [distance]m, gym: [muscle groups]"
+ */
+function buildPredictedSessionSummary(workoutType, sessionIndex, sessionType, profile, customization) {
+  const parts = [`Session ${sessionIndex + 1}: ${workoutType}`];
+
+  // Predict strokes based on workout type and profile events
+  const events = profile.goals?.primaryEvents || [];
+  if (events.length > 0) {
+    // If specific stroke requested, use that; otherwise use event strokes
+    if (customization.stroke && customization.stroke !== 'any') {
+      parts.push(customization.stroke);
+    } else {
+      const strokes = events.map(e => e.stroke).filter((v, i, a) => a.indexOf(v) === i);
+      parts.push(strokes.join('+'));
+    }
+  }
+
+  // Predict distance based on workout type and duration
+  const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
+  const baseDistance = workoutType === 'endurance' || workoutType === 'distance' ? 3500
+    : workoutType === 'recovery' || workoutType === 'mobility' ? 2000
+    : 2800; // sprint, speed, technique, lactate, resistance-power
+  const estimatedDistance = Math.round(baseDistance * (duration / 60));
+  parts.push(`${estimatedDistance}m`);
+
+  // Predict gym muscle groups based on session type
+  if (sessionType === 'gym' || sessionType === 'both') {
+    const focusToMuscles = {
+      'resistance-power': 'legs+core',
+      'speed': 'full-body',
+      'endurance': 'core+legs',
+      'technique': 'shoulders+core',
+      'lactate': 'legs+full-body',
+      'sprint': 'legs+core',
+      'mobility': 'full-body',
+      'recovery': 'core'
+    };
+    const muscles = focusToMuscles[workoutType] || 'full-body';
+    parts.push(`gym: ${muscles}`);
+  }
+
+  return parts.join(', ');
+}
+
+/**
+ * Generate multiple workouts in parallel for a program.
+ * All workouts share the same programContext (pre-fetched notes, feedback, observations).
+ * Each workout gets its own workoutType and programIndex.
+ * Previous session summaries are pre-computed from the plan to enable parallel generation.
+ */
+async function generateWorkoutsParallel(profile, sessionCustomizations, programContext, maxRetries = 2) {
+  const promises = sessionCustomizations.map((customization, index) => {
+    return (async () => {
+      let workout = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          workout = await generateWorkout(profile, customization, { mode: 'direct', programContext });
+          break;
+        } catch (genErr) {
+          const isRateLimited = genErr.message?.includes('429') || genErr.status === 429 || genErr.statusCode === 429;
+          const isRetryable = isRateLimited || genErr.message?.includes('truncated') || genErr.message?.includes('JSON parse') || genErr.message?.includes('No response from OpenRouter');
+          if (isRetryable && attempt < maxRetries) {
+            // Fast retry with minimal backoff (500ms) since we're using high-volume models
+            const backoffMs = 500 * Math.pow(2, attempt);
+            console.warn(`Retry ${attempt + 1}/${maxRetries} for workout ${index + 1} in ${backoffMs}ms: ${genErr.message}`);
+            await sleep(backoffMs);
+            continue;
+          } else {
+            throw genErr;
+          }
+        }
+      }
+      return workout;
+    })();
+  });
+
+  // Execute all in parallel
+  const results = await Promise.allSettled(promises);
+
+  const workouts = [];
+  const errors = [];
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value) {
+      workouts.push({ ...result.value, programIndex: index });
+    } else {
+      errors.push({
+        session: index + 1,
+        error: result.reason?.message || 'Unknown error'
+      });
+    }
+  });
+
+  return { workouts, errors };
 }
 
 /**
@@ -634,10 +733,6 @@ router.post('/generate/program', async (req, res) => {
       return types;
     })();
 
-    const workouts = [];
-    const errors = [];
-    const previousSessionSummaries = [];
-
     // Competition dates for taper detection
     const competitionDates = profile.trainingSchedule?.competitionDates || [];
 
@@ -655,13 +750,26 @@ router.post('/generate/program', async (req, res) => {
     const notebookNotes = await getAllNotebookNotes(`${baseWorkoutType} training for swimmers`);
     console.log(`Program context loaded in ${Date.now() - startTime}ms (notes: ${notebookNotes ? 'hit' : 'miss'})`);
 
+    // ── Build all session customizations with PREDICTED previous summaries ──
+    // This enables parallel generation while maintaining the "informed by previous sessions" feature.
+    const sessionCustomizations = [];
+    const predictedSummaries = [];
     for (let i = 0; i < totalSessions; i++) {
       const plan = sessionPlan[i];
       const sessionDate = plan ? plan.date : new Date();
-
-      // Check if this session falls within a competition taper window
       const taperInfo = checkTaper(sessionDate, competitionDates);
 
+      // Build predicted summary for this session based on all previous planned sessions
+      const predictedSummary = buildPredictedSessionSummary(
+        sessionTypes[i],
+        i,
+        plan ? plan.sessionType : (customization.sessionType || 'both'),
+        profile,
+        customization
+      );
+      predictedSummaries.push(predictedSummary);
+
+      // Build customization with all previous PREDICTED summaries
       const sessionCustomization = {
         ...customization,
         workoutType: sessionTypes[i],
@@ -669,6 +777,7 @@ router.post('/generate/program', async (req, res) => {
         totalSessions,
         programPeriod,
         programId,
+        useHighVolumeRoute: true,
         ...(plan ? { date: plan.date } : {}),
         // sessionType: plan-level pool/gym unless the user overrode it for the whole program
         ...(plan
@@ -676,9 +785,9 @@ router.post('/generate/program', async (req, res) => {
               ? customization.sessionType
               : plan.sessionType }
           : { sessionType: customization.sessionType || 'both' }),
-        // Pass previous session summaries for variety
-        ...(previousSessionSummaries.length > 0
-          ? { previousSessionSummaries: [...previousSessionSummaries] }
+        // Pass PREDICTED previous session summaries for variety (enables parallel generation)
+        ...(i > 0
+          ? { previousSessionSummaries: predictedSummaries.slice(0, i) }
           : {}),
         // Pass taper context if approaching competition
         ...(taperInfo.taper
@@ -689,45 +798,22 @@ router.post('/generate/program', async (req, res) => {
             }
           : {}),
       };
-
-      // Retry each workout generation with exponential backoff
-      let workout = null;
-      const maxRetries = 3;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          workout = await generateWorkout(profile, sessionCustomization, { mode: 'direct', programContext: { feedbackSummary, coachingObservations, notebookNotes } });
-          break;
-        } catch (genErr) {
-          const isRateLimited = genErr.message?.includes('429') || genErr.status === 429 || genErr.statusCode === 429;
-          const isRetryable = isRateLimited || genErr.message?.includes('truncated') || genErr.message?.includes('JSON parse') || genErr.message?.includes('No response from OpenRouter');
-          if (isRetryable && attempt < maxRetries) {
-            const backoffMs = GENERATION_DELAY_MS * Math.pow(2, attempt);
-            const reason = isRateLimited ? 'rate limited' : 'transient error';
-            console.log(`${reason} on session ${i + 1}/${totalSessions}, attempt ${attempt + 1}/${maxRetries + 1} — retrying in ${backoffMs / 1000}s`);
-            await sleep(backoffMs);
-          } else {
-            const sessionLabel = plan ? `${plan.dayOfWeek} ${plan.sessionType}` : `session ${i + 1}`;
-            const errMsg = genErr.message || 'Unknown error';
-            console.error(`Failed to generate ${sessionLabel} (${i + 1}/${totalSessions}):`, errMsg);
-            errors.push({ session: i + 1, sessionType: plan?.sessionType || 'unknown', dayOfWeek: plan?.dayOfWeek || 'unknown', error: errMsg });
-            break;
-          }
-        }
-      }
-
-      if (workout) {
-        workouts.push(workout);
-        // Build summary for subsequent sessions
-        previousSessionSummaries.push(buildSessionSummary(workout, i));
-      }
-
-      // Sleep between generations to stay within OpenRouter rate limits
-      if (i < totalSessions - 1) {
-        await sleep(GENERATION_DELAY_MS);
-      }
+      sessionCustomizations.push(sessionCustomization);
     }
 
-    if (workouts.length === 0) {
+    // ── Generate all workouts IN PARALLEL ──
+    const programContext = { feedbackSummary, coachingObservations, notebookNotes };
+    const { workouts: generatedWorkouts, errors } = await generateWorkoutsParallel(
+      profile,
+      sessionCustomizations,
+      programContext,
+      2 // maxRetries
+    );
+
+    // Sort workouts by programIndex to maintain order
+    generatedWorkouts.sort((a, b) => a.programIndex - b.programIndex);
+
+    if (generatedWorkouts.length === 0) {
       return res.status(500).json({ success: false, error: 'All workout generations failed. Please try again shortly.', errors });
     }
 
@@ -738,8 +824,8 @@ router.post('/generate/program', async (req, res) => {
         programId,
         programPeriod,
         totalSessions,
-        generatedCount: workouts.length,
-        workouts,
+        generatedCount: generatedWorkouts.length,
+        workouts: generatedWorkouts,
         ...(errors.length > 0 && { errors }),
       },
     });

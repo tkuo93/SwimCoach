@@ -22,6 +22,11 @@ const ragCache = new Map();
 const RAG_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RAG_CACHE_MAX = 200;
 
+// ─── Notebook Notes Cache ───────────────────────────────────────────
+const notesCache = new Map();
+const NOTES_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const NOTES_CACHE_MAX = 50;
+
 function cacheGet(key) {
   const entry = ragCache.get(key);
   if (!entry) return null;
@@ -38,6 +43,24 @@ function cacheSet(key, value) {
     ragCache.delete(oldestKey);
   }
   ragCache.set(key, { value, ts: Date.now() });
+}
+
+function notesCacheGet(key) {
+  const entry = notesCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > NOTES_CACHE_TTL_MS) {
+    notesCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function notesCacheSet(key, value) {
+  if (notesCache.size >= NOTES_CACHE_MAX) {
+    const oldestKey = notesCache.keys().next().value;
+    notesCache.delete(oldestKey);
+  }
+  notesCache.set(key, { value, ts: Date.now() });
 }
 
 function hashInsightsPrompt(profile, customization) {
@@ -57,12 +80,23 @@ function hashInsightsPrompt(profile, customization) {
 
 async function getTrainingInsights(profile, customization) {
   const prompt = buildInsightsPrompt(profile, customization);
+  const cacheKey = hashInsightsPrompt(profile, customization);
+
+  // Check cache first
+  const cached = cacheGet(cacheKey);
+  if (cached !== null) {
+    console.log(`[getTrainingInsights] Cache hit for key: ${cacheKey}`);
+    return cached;
+  }
 
   // Try the full RAG query first (sources + notes combined)
   try {
     const { query } = require('./open-notebook');
     const answer = await query(prompt);
-    if (answer && answer !== 'No answer generated') return answer;
+    if (answer && answer !== 'No answer generated') {
+      cacheSet(cacheKey, answer);
+      return answer;
+    }
   } catch {
     // Fall through to simpler endpoint
   }
@@ -81,7 +115,9 @@ async function getTrainingInsights(profile, customization) {
       answer_model: modelId,
       final_answer_model: modelId,
     });
-    return res.data?.answer || '';
+    const result = res.data?.answer || '';
+    if (result) cacheSet(cacheKey, result);
+    return result;
   } catch {
     return '';
   }
@@ -121,6 +157,14 @@ async function getNotebookNotes(notebookId, topic) {
  * This accesses notes that Open Notebook has generated from ingested sources.
  */
 async function getAllNotebookNotes(topic) {
+  // Check cache first
+  const cacheKey = `notes:${topic || 'default'}`;
+  const cached = notesCacheGet(cacheKey);
+  if (cached !== null) {
+    console.log(`[getAllNotebookNotes] Cache hit for topic: ${topic}`);
+    return cached;
+  }
+
   const onClient = axios.create({
     baseURL: OPEN_NOTEBOOK_URL,
     timeout: 30_000,
@@ -132,12 +176,18 @@ async function getAllNotebookNotes(topic) {
       params: topic ? { topic, limit: 5 } : { limit: 5 },
     });
     const notes = res.data?.notes || res.data;
+    let result = '';
     if (Array.isArray(notes)) {
-      return notes.map(n => n.content || n.text || n).join('\n\n');
+      result = notes.map(n => n.content || n.text || n).join('\n\n');
+    } else if (typeof notes === 'string') {
+      result = notes;
     }
-    if (typeof notes === 'string') return notes;
-    return '';
+    // Cache the result (even if empty, to avoid repeated calls)
+    notesCacheSet(cacheKey, result);
+    return result;
   } catch {
+    // Cache empty result to avoid hammering the endpoint
+    notesCacheSet(cacheKey, '');
     return '';
   }
 }
@@ -359,7 +409,9 @@ async function generateWorkout(profile, customization, opts = {}) {
   const userMessage = { role: 'user', content: userPrompt };
 
   // Use model router for workout generation
-  const routeKey = customization.llmModel ? 'fallback:code' : 'workout:generate';
+  // Use high-volume route if explicitly requested or if generating for multiple users
+  const useHighVolume = customization.useHighVolumeRoute || customization.multiUserGeneration;
+  const routeKey = customization.llmModel ? 'fallback:code' : (useHighVolume ? 'workout:generate:high-volume' : 'workout:generate');
   let result = await callByRoute(routeKey, [systemMessage, userMessage], {
     maxTokens: 12288,
     timeout: 120000
@@ -757,6 +809,7 @@ parts.push('## Gym Workout Constraints — STRICT');
   const includePool = sessionType === 'both' || sessionType === 'pool';
   const includeGym = sessionType === 'both' || sessionType === 'gym';
 
+  parts.push('');
   parts.push('## Output Requirements');
   // ── CSS Calibration — Swimmer's calibrated paces for realistic intervals ──
   const cssPace = getCSS(profile);
@@ -792,11 +845,17 @@ parts.push('## Gym Workout Constraints — STRICT');
   }
 
 
-  parts.push(`- Total workout time: ${duration} minutes (including warm-up and cool-down)`);
+  parts.push('## DURATION CONSTRAINTS — CRITICAL');
+  parts.push(`- Total workout time MUST be ${duration} minutes ± 5% (${Math.round(duration * 0.95)}-${Math.round(duration * 1.05)} minutes)`);
+  parts.push('- Warm-up: ~15% of total time');
+  parts.push('- Main set: ~70% of total time');
+  parts.push('- Cool-down: ~10% of total time');
+  parts.push('- DO NOT exceed the target duration — the system will reject overlong workouts');
+  parts.push('');
   if (includePool) {
     parts.push(`- Pool workout for a ${poolLengthDisplay} ${poolUnit} pool`);
     parts.push(`- ALL distances MUST be standard ${poolUnit} distances: ${standardDistances.join(', ')} ${poolUnitAbbr}`);
-    parts.push(`- DO NOT use distances like ${poolIsYards ? '100m, 200m, 400m' : '100yd, 200yd, 400yd'} — wrong unit`);
+    parts.push(`- DO NOT use distances like ${poolIsYards ? '100m, 200m, 400m, 800m, 1500m' : '100yd, 200yd, 400yd, 500yd, 1650yd'} — wrong unit`);
     parts.push('- Include specific distances, reps, rest intervals, and target paces');
   }
   if (includeGym) {

@@ -150,17 +150,38 @@ const ROUTES = {
   // ─── Workout Generation ──────────────────────────────────────────────
   'workout:generate': {
     description: 'Generate new structured workout from profile + preferences',
-    primary: 'poolside/laguna-s-2.1:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free', 'cohere/north-mini-code:free', 'inclusionai/ling-3.0-flash:free'],
+    primary: 'inclusionai/ling-3.0-flash:free',
+    fallbacks: [
+      'nvidia/nemotron-3-nano-omni:free',
+      'nvidia/nemotron-3-nano-30b-a3b:free',
+      'cohere/north-mini-code:free',
+      'nvidia/nemotron-3-super:free',
+      'poolside/laguna-s-2.1:free',
+      'poolside/laguna-xs-2.1:free'
+    ],
     maxTokens: 16384,
     timeout: 120000,
+    temperature: 0.7
+  },
+
+  'workout:generate:high-volume': {
+    description: 'High-volume workout generation for multiple users - uses highest rate limit models',
+    primary: 'nvidia/nemotron-3-nano-omni:free',
+    fallbacks: [
+      'nvidia/nemotron-3-nano-30b-a3b:free',
+      'inclusionai/ling-3.0-flash:free',
+      'cohere/north-mini-code:free',
+      'nvidia/nemotron-3-super:free'
+    ],
+    maxTokens: 16384,
+    timeout: 60000,
     temperature: 0.7
   },
 
   'workout:modify': {
     description: 'Modify existing workout (swap stroke, change intensity, etc.)',
     primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['poolside/laguna-s-2.1:free', 'cohere/north-mini-code:free'],
+    fallbacks: ['inclusionai/ling-3.0-flash:free', 'poolside/laguna-s-2.1:free', 'cohere/north-mini-code:free'],
     maxTokens: 8192,
     timeout: 60000,
     temperature: 0.7
