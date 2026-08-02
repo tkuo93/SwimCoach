@@ -822,6 +822,8 @@ router.post('/generate/program', async (req, res) => {
     // Sort workouts by programIndex to maintain order
     generatedWorkouts.sort((a, b) => a.programIndex - b.programIndex);
 
+    console.log(`Program generation complete: ${generatedWorkouts.length}/${totalSessions} workouts, errors: ${errors.length}`);
+
     if (generatedWorkouts.length === 0) {
       return res.status(500).json({ success: false, error: 'All workout generations failed. Please try again shortly.', errors });
     }
