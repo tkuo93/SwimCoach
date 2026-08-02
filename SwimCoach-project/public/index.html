@@ -277,6 +277,41 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .week-stat-val{font-family:var(--font-d);font-size:20px;font-weight:600;color:var(--sage)}
 .week-stat-lbl{font-size:10px;color:var(--text-mut);text-transform:uppercase;letter-spacing:.06em}
 
+/* Weekly Timeline - Multiple workouts per day stacked vertically */
+.week-timeline{padding:0 24px 24px}
+.week-day-column{margin-bottom:20px}
+.week-day-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);border:1px solid var(--border-light);border-radius:var(--r);margin-bottom:8px;cursor:pointer;transition:all .15s}
+.week-day-header:hover{background:var(--cream-warm);border-color:var(--sage)}
+.week-day-header.today{border-color:var(--coral);background:var(--coral-light)}
+.week-day-header.has-workouts{border-color:var(--sage);background:var(--sage-light)}
+.week-day-label{display:flex;align-items:center;gap:12px}
+.week-day-name-main{font-family:var(--font-d);font-size:16px;font-weight:600;color:var(--text)}
+.week-day-date{font-family:var(--font-m);font-size:11px;color:var(--text-mut);text-transform:uppercase;letter-spacing:.06em}
+.week-day-today-badge{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600;background:var(--coral);color:#fff;text-transform:uppercase;letter-spacing:.04em}
+.week-day-summary{display:flex;align-items:center;gap:8px;font-family:var(--font-m);font-size:11px;color:var(--text-sec)}
+.week-day-summary .swim{color:var(--sage)}
+.week-day-summary .gym{color:var(--coral)}
+.week-day-summary .rest{color:var(--text-mut)}
+
+/* Workout cards within a day */
+.week-workout-list{display:flex;flex-direction:column;gap:8px;padding-left:4px}
+.week-workout-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--rs);padding:14px 16px;transition:all .15s;cursor:pointer}
+.week-workout-card:hover{box-shadow:var(--sh);border-color:var(--sage);transform:translateY(-1px)}
+.week-workout-card.pool{border-left:3px solid var(--sage)}
+.week-workout-card.gym{border-left:3px solid var(--coral)}
+.week-workout-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.week-workout-name{font-family:var(--font-d);font-size:14px;font-weight:600;color:var(--text)}
+.week-workout-type{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.week-workout-type.swim{background:var(--sage-light);color:var(--sage-dark)}
+.week-workout-type.gym{background:var(--coral-light);color:var(--coral)}
+.week-workout-details{display:flex;flex-wrap:wrap;gap:12px;font-family:var(--font-m);font-size:11px;color:var(--text-sec);line-height:1.4}
+.week-workout-detail{display:flex;align-items:center;gap:4px}
+.week-workout-coaching{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-mut);line-height:1.5;font-style:italic;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Empty day state */
+.week-day-empty{padding:20px 16px;text-align:center;color:var(--text-mut);font-size:13px;background:var(--surface);border:1px dashed var(--border-light);border-radius:var(--rs)}
+.week-day-empty.rest-day{opacity:.5}
+
 /* History */
 .history-list{padding:0 24px 100px}
 .history-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--r);padding:18px;margin-bottom:12px;transition:all .2s;cursor:pointer}
@@ -1274,9 +1309,123 @@ function renderWeek(){
   const swimWorkouts=weekWorkouts.filter(w=>w.poolWorkout?.totalDistance>0);
   const totalDist=swimWorkouts.reduce((s,w)=>s+(w.poolWorkout?.totalDistance||0),0);
   document.getElementById('weekStats').innerHTML=`<div class="week-stat"><div class="week-stat-val">${totalDist.toLocaleString()} ${unit}</div><div class="week-stat-lbl">Total</div></div><div class="week-stat"><div class="week-stat-val">${swimWorkouts.length}</div><div class="week-stat-lbl">Swim Workouts</div></div><div class="week-stat"><div class="week-stat-val">${swimWorkouts.length>0?Math.round(totalDist/swimWorkouts.length):0} ${unit}</div><div class="week-stat-lbl">Avg</div></div>`;
-  document.getElementById('weekTimeline').innerHTML='';
-  // Always show the generate button — it's how you populate an empty week.
-  // When the week already has workouts, offer a regenerate instead.
+
+  // NEW: Render weekly timeline with multiple workouts per day
+  const timeline = document.getElementById('weekTimeline');
+  timeline.innerHTML = '';
+
+  const dayNamesFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  days.forEach((d, i) => {
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = dateStr === todayStr;
+    const isPast = dateStr < todayStr;
+
+    // Find ALL workouts for this day (not just the first one)
+    const dayWorkouts = workouts.filter(w => workoutLocalDate(w) === dateStr);
+
+    const dayColumn = document.createElement('div');
+    dayColumn.className = 'week-day-column';
+
+    // Day header
+    const hasWorkouts = dayWorkouts.length > 0;
+    const header = document.createElement('div');
+    header.className = 'week-day-header' + (isToday ? ' today' : '') + (hasWorkouts ? ' has-workouts' : '');
+
+    // Build summary of workouts for this day
+    const swimWorkoutsDay = dayWorkouts.filter(w => w.poolWorkout?.totalDistance > 0);
+    const gymWorkoutsDay = dayWorkouts.filter(w => w.gymWorkout?.mainSet?.length > 0);
+    const totalSwimDist = swimWorkoutsDay.reduce((s, w) => s + (w.poolWorkout?.totalDistance || 0), 0);
+
+    let summaryHTML = '';
+    if (swimWorkoutsDay.length > 0) {
+      summaryHTML += `<span class="swim">🏊 ${totalSwimDist.toLocaleString()}${unit}</span>`;
+    }
+    if (gymWorkoutsDay.length > 0) {
+      summaryHTML += `<span class="gym">🏋 ${gymWorkoutsDay.length} workout${gymWorkoutsDay.length > 1 ? 's' : ''}</span>`;
+    }
+    if (!hasWorkouts) {
+      summaryHTML += `<span class="rest">😴 Rest Day</span>`;
+    }
+    const totalCount = swimWorkoutsDay.length + gymWorkoutsDay.length;
+    if (totalCount > 1) {
+      summaryHTML += `<span>${totalCount} workouts</span>`;
+    } else if (totalCount === 1) {
+      summaryHTML += `<span>1 workout</span>`;
+    }
+
+    header.innerHTML = `
+      <div class="week-day-label">
+        <span class="week-day-name-main">${dayNamesFull[i]}</span>
+        ${isToday ? '<span class="week-day-today-badge">Today</span>' : ''}
+      </div>
+      <div class="week-day-summary">${summaryHTML}</div>
+    `;
+
+    // Click on day header to navigate to first workout of the day
+    header.onclick = () => {
+      if (dayWorkouts.length > 0) {
+        currentWorkout = dayWorkouts[0];
+        renderToday();
+        showScreen('s-today');
+      }
+    };
+
+    dayColumn.appendChild(header);
+
+    // Workout list for this day
+    if (hasWorkouts) {
+      const workoutList = document.createElement('div');
+      workoutList.className = 'week-workout-list';
+
+      dayWorkouts.forEach((w, wIndex) => {
+        const isGym = w.gymWorkout?.mainSet?.length > 0;
+        const isPool = w.poolWorkout?.totalDistance > 0;
+        const workoutType = isGym && !isPool ? 'gym' : 'pool';
+        const typeLabel = isGym && !isPool ? 'Gym' : 'Swim';
+        const typeClass = isGym && !isPool ? 'gym' : 'swim';
+
+        const dist = w.poolWorkout?.totalDistance || 0;
+        const duration = w.duration || 60;
+        const intensity = w.intensity || 'moderate';
+        const coachingNote = w.trainingNotes?.[0] || w.poolWorkout?.trainingNotes?.[0] || w.gymWorkout?.trainingNotes?.[0] || '';
+
+        const card = document.createElement('div');
+        card.className = `week-workout-card ${workoutType}`;
+        card.innerHTML = `
+          <div class="week-workout-card-header">
+            <span class="week-workout-name">${esc(w.workoutName || w.workoutType || 'Workout')}</span>
+            <span class="week-workout-type ${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="week-workout-details">
+            ${isPool ? `<span class="week-workout-detail">🏊 ${dist.toLocaleString()}${unit}</span>` : ''}
+            <span class="week-workout-detail">⏱ ${duration}min</span>
+            <span class="week-workout-detail">🔥 ${esc(intensity.charAt(0).toUpperCase() + intensity.slice(1))}</span>
+          </div>
+          ${coachingNote ? `<div class="week-workout-coaching">${esc(coachingNote)}</div>` : ''}
+        `;
+        card.onclick = (e) => {
+          e.stopPropagation();
+          currentWorkout = w;
+          renderToday();
+          showScreen('s-today');
+        };
+        workoutList.appendChild(card);
+      });
+
+      dayColumn.appendChild(workoutList);
+    } else {
+      // Empty/rest day
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'week-day-empty' + (isPast ? ' rest-day' : '');
+      emptyDiv.textContent = isPast ? 'No workout scheduled' : 'Scheduled rest day. Focus on mobility and recovery.';
+      dayColumn.appendChild(emptyDiv);
+    }
+
+    timeline.appendChild(dayColumn);
+  });
+
+  // Generate button
   const actions = document.getElementById('weekActions');
   actions.style.display = 'flex';
   const hasWorkouts = weekWorkouts.length > 0;
