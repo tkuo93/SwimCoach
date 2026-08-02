@@ -160,7 +160,7 @@ const ROUTES = {
       'poolside/laguna-xs-2.1:free'
     ],
     maxTokens: 16384,
-    timeout: 120000,
+    timeout: 60000,
     temperature: 0.7
   },
 

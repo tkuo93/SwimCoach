@@ -64,11 +64,14 @@ router.post('/chat', async (req, res) => {
       let conversation = await Conversation.findById(conversationId);
       if (conversation && conversation.swimmerId.toString() === req.user._id.toString()) {
         // Conversation found and owned by user
+        console.log('Found existing conversation:', conversationId);
       } else if (conversation) {
         // Conversation exists but belongs to different user
+        console.log('Conversation belongs to different user:', conversationId, 'requesting:', req.user._id);
         return res.status(403).json({ success: false, error: 'Access denied to this conversation' });
       } else {
         // Conversation not found - create a new one (frontend should have created it, but handle gracefully)
+        console.log('Conversation not found, creating new:', conversationId);
         conversation = new Conversation({
           swimmerId: req.user._id,
           title: 'New conversation',
@@ -92,7 +95,9 @@ router.post('/chat', async (req, res) => {
         }
       }
       // Always save the conversation to persist messages
+      console.log('Saving conversation:', conversation._id, 'messages:', conversation.messages.length);
       await conversation.save();
+      console.log('Conversation saved successfully:', conversation._id);
       finalConversationId = conversation._id.toString();
     }
 
@@ -110,6 +115,7 @@ router.post('/chat', async (req, res) => {
         proposals: proposals,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
       });
+      console.log('Created new conversation with proposals:', conversation._id);
       finalConversationId = conversation._id.toString();
     }
 
