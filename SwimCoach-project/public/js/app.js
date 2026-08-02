@@ -2129,6 +2129,8 @@ async function startNewCoachConversation() {
     const created = await api.conversations.create(
       { title: 'New conversation' },
     );
+    console.log('Created conversation:', created.data);
+    console.log('Created conversation _id:', created.data._id, 'type:', typeof created.data._id);
     coachState.conversations.unshift(created.data);
     coachState.activeConversationId = created.data._id;
     renderCoachConversationList();
@@ -2176,7 +2178,9 @@ function renderCoachChat(conversationId) {
 
   // Normalize IDs to strings for comparison
   const targetId = String(conversationId);
+  console.log('renderCoachChat: looking for', targetId, 'in', coachState.conversations.map(c => ({ _id: c._id, id: c.id, title: c.title })));
   const conv = coachState.conversations.find(c => String(c._id || c.id) === targetId);
+  console.log('renderCoachChat: found', conv ? { _id: conv._id, title: conv.title } : 'NOT FOUND');
   if (!conv) return;
 
   // Chat messages area
