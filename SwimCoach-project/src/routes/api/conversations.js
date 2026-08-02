@@ -6,6 +6,7 @@ const Conversation = require('../../models/Conversation');
 // Query: ?includeMessages=true returns full message arrays (for sidebar, omit for lightweight)
 router.get('/', async (req, res) => {
   try {
+    console.log('Fetching conversations for user:', req.user._id);
     const projection = req.query.includeMessages
       ? 'title messages updatedAt contextWorkoutId'
       : 'title updatedAt contextWorkoutId';
@@ -14,14 +15,18 @@ router.get('/', async (req, res) => {
       .select(projection)
       .lean();
 
+    console.log('Found conversations:', conversations.length);
+
     // Filter out any conversations with invalid _id (e.g., UUID strings from old bug)
     // Valid ObjectId is 24 hex chars
     const validConversations = conversations.filter(c =>
       c._id && typeof c._id === 'object' && c._id.toString().match(/^[0-9a-fA-F]{24}$/)
     );
 
+    console.log('Valid conversations:', validConversations.length);
     res.json({ success: true, count: validConversations.length, data: validConversations });
   } catch (err) {
+    console.error('Error fetching conversations:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

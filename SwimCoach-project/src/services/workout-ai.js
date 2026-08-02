@@ -89,10 +89,14 @@ async function getTrainingInsights(profile, customization) {
     return cached;
   }
 
+  // Use shorter timeout for high-volume generation
+  const isHighVolume = customization.useHighVolumeRoute || customization.multiUserGeneration;
+  const ragTimeout = isHighVolume ? 15000 : 30000; // 15s for high-volume, 30s default
+
   // Try the full RAG query first (sources + notes combined)
   try {
     const { query } = require('./open-notebook');
-    const answer = await query(prompt);
+    const answer = await query(prompt, { timeout: ragTimeout });
     if (answer && answer !== 'No answer generated') {
       cacheSet(cacheKey, answer);
       return answer;
@@ -156,7 +160,7 @@ async function getNotebookNotes(notebookId, topic) {
  * Fetch notes from Open Notebook's general notes endpoint.
  * This accesses notes that Open Notebook has generated from ingested sources.
  */
-async function getAllNotebookNotes(topic) {
+async function getAllNotebookNotes(topic, customization = {}) {
   // Check cache first
   const cacheKey = `notes:${topic || 'default'}`;
   const cached = notesCacheGet(cacheKey);
@@ -165,9 +169,13 @@ async function getAllNotebookNotes(topic) {
     return cached;
   }
 
+  // Use shorter timeout for high-volume generation
+  const isHighVolume = customization.useHighVolumeRoute || customization.multiUserGeneration;
+  const timeout = isHighVolume ? 10000 : 30000; // 10s for high-volume, 30s default
+
   const onClient = axios.create({
     baseURL: OPEN_NOTEBOOK_URL,
-    timeout: 30_000,
+    timeout,
   });
 
   try {

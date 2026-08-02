@@ -136,13 +136,16 @@ async function query(question, opts = {}) {
     );
   }
 
+  // Allow custom timeout for high-volume generation
+  const timeout = opts.timeout ?? TIMEOUT_MS;
+
   // Retry up to N times on transient Open Notebook errors
   const maxRetries = opts.retries ?? 2;
   let lastErr;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const answer = await _streamQuery(question, modelId);
+      const answer = await _streamQuery(question, modelId, timeout);
       if (answer && answer !== 'No answer generated') {
         recordSuccess();
         return answer;
@@ -173,7 +176,7 @@ async function query(question, opts = {}) {
   throw lastErr;
 }
 
-async function _streamQuery(question, modelId) {
+async function _streamQuery(question, modelId, timeout = TIMEOUT_MS) {
   // Use axios for streaming because the Node.js http module has issues with
   // SSE data events when called from within an Express server process.
   const axios = require('axios');
@@ -187,7 +190,7 @@ async function _streamQuery(question, modelId) {
     url: `${pythonBaseUrl}/api/search/ask`,
     data: { question, strategy_model: modelId, answer_model: modelId, final_answer_model: modelId },
     responseType: 'stream',
-    timeout: TIMEOUT_MS,
+    timeout,
   });
 
   let lastAnswer = '';

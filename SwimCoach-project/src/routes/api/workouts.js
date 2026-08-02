@@ -747,7 +747,7 @@ router.post('/generate/program', async (req, res) => {
     const baseWorkoutType = customization.workoutType
       || (Array.isArray(profile.goals?.trainingFocus) ? profile.goals.trainingFocus[0] : profile.goals?.trainingFocus)
       || 'endurance';
-    const notebookNotes = await getAllNotebookNotes(`${baseWorkoutType} training for swimmers`);
+    const notebookNotes = await getAllNotebookNotes(`${baseWorkoutType} training for swimmers`, customization);
     console.log(`Program context loaded in ${Date.now() - startTime}ms (notes: ${notebookNotes ? 'hit' : 'miss'})`);
 
     // ── Build all session customizations with PREDICTED previous summaries ──
