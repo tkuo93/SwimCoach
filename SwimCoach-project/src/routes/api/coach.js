@@ -13,9 +13,10 @@ router.post('/chat', async (req, res) => {
   try {
     const { message, messages = [], llmModel, conversationId, workoutId } = req.body;
 
-    console.log('Coach chat request:', { userId: req.user._id, conversationId, messageLength: message?.length });
-
-    if (!message) {
+    // Debug logging (only in development)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Coach chat request:', { hasConversationId: !!conversationId, messageLength: message?.length });
+    }
       return res.status(400).json({ success: false, error: 'message is required' });
     }
 
@@ -66,14 +67,14 @@ router.post('/chat', async (req, res) => {
       let conversation = await Conversation.findById(conversationId);
       if (conversation && conversation.swimmerId.toString() === req.user._id.toString()) {
         // Conversation found and owned by user
-        console.log('Found existing conversation:', conversationId);
+        if (process.env.NODE_ENV !== 'production') console.log('Found existing conversation');
       } else if (conversation) {
         // Conversation exists but belongs to different user
-        console.log('Conversation belongs to different user:', conversationId, 'requesting:', req.user._id);
+        if (process.env.NODE_ENV !== 'production') console.log('Conversation belongs to different user');
         return res.status(403).json({ success: false, error: 'Access denied to this conversation' });
       } else {
         // Conversation not found - create a new one (frontend should have created it, but handle gracefully)
-        console.log('Conversation not found, creating new:', conversationId);
+        if (process.env.NODE_ENV !== 'production') console.log('Conversation not found, creating new');
         conversation = new Conversation({
           swimmerId: req.user._id,
           title: 'New conversation',
@@ -105,9 +106,9 @@ router.post('/chat', async (req, res) => {
         conversation.expiresAt = undefined;
       }
       // Always save the conversation to persist messages
-      console.log('Saving conversation:', conversation._id, 'messages:', conversation.messages.length);
+      if (process.env.NODE_ENV !== 'production') console.log('Saving conversation, messages:', conversation.messages.length);
       await conversation.save();
-      console.log('Conversation saved successfully:', conversation._id);
+      if (process.env.NODE_ENV !== 'production') console.log('Conversation saved successfully');
       finalConversationId = conversation._id.toString();
     }
 
@@ -125,7 +126,7 @@ router.post('/chat', async (req, res) => {
         proposals: proposals,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
       });
-      console.log('Created new conversation with proposals:', conversation._id);
+      if (process.env.NODE_ENV !== 'production') console.log('Created new conversation with proposals');
       finalConversationId = conversation._id.toString();
     }
 
