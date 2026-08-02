@@ -101,12 +101,12 @@ const MODELS = {
     weeklyTokens: 49.4e9,
     dailyLimit: 100000,
     strengths: ['speed', 'efficiency', 'high rate limit'],
-    bestFor: ['ui:autocomplete', 'ui:validate', 'util:classify', 'fallback:fast']
+    bestFor: ['ui:autocomplete', 'ui:validate', 'util:classify', 'fallback:fast', 'workout:generate:high-volume']
   },
 
-  // NVIDIA Nemotron 3 Nano Omni - fastest overall
-  'nvidia/nemotron-3-nano-omni:free': {
-    name: 'NVIDIA Nemotron 3 Nano Omni',
+  // NVIDIA Nemotron 3 Nano - fastest overall
+  'nvidia/nemotron-3-nano:free': {
+    name: 'NVIDIA Nemotron 3 Nano',
     params: '~37B',
     context: 256000,
     latencyMs: 664,

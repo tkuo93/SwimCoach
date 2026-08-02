@@ -2265,12 +2265,15 @@ function renderCoachChat(conversationId) {
 
     try {
       const llmModel = state.globalLlm || null;
-      const result = await api.coach.chat({
+      const requestData = {
         message,
         messages: conv.messages.slice(0, -1).map(m => ({ role: m.role, text: m.text })),
         conversationId: conv._id,
         ...(llmModel && { llmModel }),
-      });
+      };
+      console.log('Sending coach chat request:', requestData);
+      const result = await api.coach.chat(requestData);
+      console.log('Coach chat response:', result);
 
       typingEl.remove();
 
