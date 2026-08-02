@@ -479,8 +479,17 @@ function buildPredictedSessionSummary(workoutType, sessionIndex, sessionType, pr
  * Previous session summaries are pre-computed from the plan to enable parallel generation.
  */
 async function generateWorkoutsParallel(profile, sessionCustomizations, programContext, maxRetries = 2) {
+  // Stagger parallel requests to avoid hitting OpenRouter rate limits (15 req/min free tier)
+  // With 5 workouts, stagger by 500ms each = 2.5s total spread, well within limits
+  const STAGGER_DELAY_MS = 500;
+
   const promises = sessionCustomizations.map((customization, index) => {
     return (async () => {
+      // Stagger the start of each workout generation
+      if (index > 0) {
+        await sleep(index * STAGGER_DELAY_MS);
+      }
+
       let workout = null;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -504,7 +513,7 @@ async function generateWorkoutsParallel(profile, sessionCustomizations, programC
     })();
   });
 
-  // Execute all in parallel
+  // Execute all in parallel (with stagger)
   const results = await Promise.allSettled(promises);
 
   const workouts = [];

@@ -11,7 +11,7 @@
 
 class RateLimiter {
   constructor(options = {}) {
-    this.maxRequestsPerMinute = options.maxRequestsPerMinute || 15; // Conservative for free tier
+    this.maxRequestsPerMinute = options.maxRequestsPerMinute || 20; // OpenRouter free tier: 20 req/min
     this.requests = [];
     this.waitingQueue = [];
   }
