@@ -166,12 +166,12 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation for multiple users - uses highest rate limit models',
-    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
+    primary: 'nvidia/nemotron-3-super:free',
     fallbacks: [
+      'nvidia/nemotron-3-nano-30b-a3b:free',
       'nvidia/nemotron-3-nano:free',
       'inclusionai/ling-3.0-flash:free',
-      'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-super:free'
+      'cohere/north-mini-code:free'
     ],
     maxTokens: 16384,
     timeout: 60000,
