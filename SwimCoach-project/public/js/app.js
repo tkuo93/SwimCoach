@@ -2109,7 +2109,11 @@ async function loadCoachConversations() {
   try {
     const res = await api.conversations.list(true);
     if (res.success) {
-      coachState.conversations = res.data;
+      // Normalize _id to string for consistent comparison
+      coachState.conversations = res.data.map(c => ({
+        ...c,
+        _id: String(c._id)
+      }));
     } else {
       showToast(`Failed to load conversations: ${res.error || 'Unknown error'}`, 'error');
       coachState.conversations = [];
@@ -2140,9 +2144,9 @@ function renderCoachConversationList() {
   list.innerHTML = '';
 
   for (const conv of coachState.conversations) {
-    const convId = conv._id || conv.id;
+    const convId = String(conv._id || conv.id);
     const item = document.createElement('div');
-    item.className = `coach-conversation-item ${convId === coachState.activeConversationId ? 'active' : ''}`;
+    item.className = `coach-conversation-item ${convId === String(coachState.activeConversationId) ? 'active' : ''}`;
     item.dataset.conversationId = convId;
 
     const title = document.createElement('div');
@@ -2170,7 +2174,9 @@ function renderCoachChat(conversationId) {
   if (!main) return;
   main.innerHTML = '';
 
-  const conv = coachState.conversations.find(c => (c._id || c.id) === conversationId);
+  // Normalize IDs to strings for comparison
+  const targetId = String(conversationId);
+  const conv = coachState.conversations.find(c => String(c._id || c.id) === targetId);
   if (!conv) return;
 
   // Chat messages area
@@ -2282,9 +2288,9 @@ function renderCoachChat(conversationId) {
       conv.updatedAt = new Date().toISOString();
 
       // Update conversation ID if backend returned a new one (e.g., for proposals or new conversation created)
-      if (result.data.conversationId && result.data.conversationId !== conv._id) {
+      if (result.data.conversationId && String(result.data.conversationId) !== String(conv._id)) {
         // Find and update the conversation in coachState
-        const idx = coachState.conversations.findIndex(c => (c._id || c.id) === conv._id);
+        const idx = coachState.conversations.findIndex(c => String(c._id || c.id) === String(conv._id));
         if (idx !== -1) {
           coachState.conversations[idx]._id = result.data.conversationId;
         } else {
