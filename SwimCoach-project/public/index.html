@@ -1574,7 +1574,7 @@ function confirmGenerateWeek(){
       alert('Failed: '+(res.error||'Unknown error'));
       showScreen('s-week');
     }
-  }).catch(()=>{clearInterval(progressInterval);stopLoadingTimer();alert('Failed to generate week');showScreen('s-week')});
+  }).catch(err=>{clearInterval(progressInterval);stopLoadingTimer();alert(err.message||'Failed to generate week');showScreen('s-week')});
 }
 
 // === HISTORY ===

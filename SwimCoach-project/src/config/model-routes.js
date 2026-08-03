@@ -142,10 +142,7 @@ const ROUTES = {
     primary: 'inclusionai/ling-3.0-flash:free',
     fallbacks: [
       'nvidia/nemotron-3-nano-30b-a3b:free',
-      'cohere/north-mini-code:free',
       'nvidia/nemotron-3-super:free',
-      'poolside/laguna-s-2.1:free',
-      'poolside/laguna-xs-2.1:free'
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -157,8 +154,7 @@ const ROUTES = {
     primary: 'inclusionai/ling-3.0-flash:free',
     fallbacks: [
       'nvidia/nemotron-3-nano-30b-a3b:free',
-      'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-super:free'
+      'nvidia/nemotron-3-super:free',
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -168,7 +164,7 @@ const ROUTES = {
   'workout:modify': {
     description: 'Modify existing workout (swap stroke, change intensity, etc.)',
     primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['inclusionai/ling-3.0-flash:free', 'poolside/laguna-s-2.1:free', 'cohere/north-mini-code:free'],
+    fallbacks: ['inclusionai/ling-3.0-flash:free', 'nvidia/nemotron-3-super:free'],
     maxTokens: 8192,
     timeout: 60000,
     temperature: 0.7
@@ -177,7 +173,7 @@ const ROUTES = {
   'workout:quick-edit': {
     description: 'Small targeted edits (single set change, equipment swap)',
     primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free', 'inclusionai/ling-3.0-flash:free'],
     maxTokens: 4096,
     timeout: 30000,
     temperature: 0.5
@@ -235,7 +231,7 @@ const ROUTES = {
   'ui:autocomplete': {
     description: 'Typeahead suggestions for workout builder',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-xs-2.1:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free'],
     maxTokens: 512,
     timeout: 2000,
     temperature: 0.3
@@ -253,7 +249,7 @@ const ROUTES = {
   'ui:suggest': {
     description: 'Quick workout suggestions/recommendations',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.6
@@ -263,7 +259,7 @@ const ROUTES = {
   'util:classify': {
     description: 'Classify/extract workout tags, intervals, stroke types',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.3
@@ -272,7 +268,7 @@ const ROUTES = {
   'util:extract': {
     description: 'Extract structured data from unstructured text',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-xs-2.1:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.2
@@ -291,7 +287,7 @@ const ROUTES = {
   'fallback:code': {
     description: 'Code/structured output fallback',
     primary: 'cohere/north-mini-code:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-s-2.1:free'],
+    fallbacks: ['nvidia/nemotron-3-super:free'],
     maxTokens: 8192,
     timeout: 60000,
     temperature: 0.5
