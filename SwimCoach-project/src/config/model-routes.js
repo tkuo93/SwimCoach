@@ -11,6 +11,7 @@
 // ─── Model Input Sanitization ──────────────────────────────────────────
 // Validates user-supplied model IDs against a strict allowlist pattern
 // to prevent injection of arbitrary model IDs into outbound API calls.
+// Model IDs follow the format: provider/model-name:variant (e.g., nvidia/nemotron-3-ultra:free)
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
 const DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
 
@@ -104,18 +105,6 @@ const MODELS = {
     bestFor: ['ui:autocomplete', 'ui:validate', 'util:classify', 'fallback:fast', 'workout:generate:high-volume']
   },
 
-  // NVIDIA Nemotron 3 Nano - fastest overall
-  'nvidia/nemotron-3-nano:free': {
-    name: 'NVIDIA Nemotron 3 Nano',
-    params: '~37B',
-    context: 256000,
-    latencyMs: 664,
-    throughput: 94,
-    weeklyTokens: 36.8e9,
-    dailyLimit: 100000,
-    strengths: ['fastest', 'multimodal ready', 'unlimited rate limit'],
-    bestFor: ['ui:autocomplete', 'ui:validate', 'util:classify', 'fallback:fastest']
-  },
 
   // Google Gemma 4 31B - solid backup
   'google/gemma-4-31b:free': {
@@ -153,7 +142,6 @@ const ROUTES = {
     primary: 'inclusionai/ling-3.0-flash:free',
     fallbacks: [
       'nvidia/nemotron-3-nano-30b-a3b:free',
-      'nvidia/nemotron-3-nano:free',
       'cohere/north-mini-code:free',
       'nvidia/nemotron-3-super:free',
       'poolside/laguna-s-2.1:free',
@@ -166,12 +154,11 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation for multiple users - uses highest rate limit models',
-    primary: 'nvidia/nemotron-3-nano:free',
+    primary: 'inclusionai/ling-3.0-flash:free',
     fallbacks: [
       'nvidia/nemotron-3-nano-30b-a3b:free',
-      'inclusionai/ling-3.0-flash:free',
       'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-ultra:free'
+      'nvidia/nemotron-3-super:free'
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -190,7 +177,7 @@ const ROUTES = {
   'workout:quick-edit': {
     description: 'Small targeted edits (single set change, equipment swap)',
     primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'nvidia/nemotron-3-nano-30b-a3b:free'],
+    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 4096,
     timeout: 30000,
     temperature: 0.5
@@ -247,8 +234,8 @@ const ROUTES = {
   // ─── Real-time UI ────────────────────────────────────────────────────
   'ui:autocomplete': {
     description: 'Typeahead suggestions for workout builder',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
+    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-xs-2.1:free'],
     maxTokens: 512,
     timeout: 2000,
     temperature: 0.3
@@ -256,7 +243,7 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'nvidia/nemotron-3-nano:free',
+    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
     fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 512,
     timeout: 1500,
@@ -266,7 +253,7 @@ const ROUTES = {
   'ui:suggest': {
     description: 'Quick workout suggestions/recommendations',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'poolside/laguna-xs-2.1:free'],
+    fallbacks: ['poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.6
@@ -276,7 +263,7 @@ const ROUTES = {
   'util:classify': {
     description: 'Classify/extract workout tags, intervals, stroke types',
     primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'poolside/laguna-xs-2.1:free'],
+    fallbacks: ['poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.3
@@ -284,8 +271,8 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
+    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.2
@@ -312,7 +299,7 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fastest available model fallback',
-    primary: 'nvidia/nemotron-3-nano:free',
+    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
     fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 2048,
     timeout: 5000,
@@ -338,7 +325,6 @@ const DAILY_LIMITS = {
   'nvidia/nemotron-3-ultra:free': 50,
   'nvidia/nemotron-3-super:free': 5000,
   'nvidia/nemotron-3-nano-30b-a3b:free': 100000,
-  'nvidia/nemotron-3-nano:free': 100000,
   'google/gemma-4-31b:free': 4000,
   'cohere/north-mini-code:free': 8000
 };
