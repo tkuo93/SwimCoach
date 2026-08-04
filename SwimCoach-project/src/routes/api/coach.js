@@ -113,26 +113,22 @@ router.post('/chat', async (req, res) => {
       finalConversationId = conversation._id.toString();
     }
 
-    // If no conversationId provided, create new conversation only if there are proposals
-    // (frontend should create conversation via POST /api/conversations before first message)
-    if (!finalConversationId && !conversationId && proposals.length > 0) {
+    // If no conversationId provided, create a new conversation
+    // This handles cases where the frontend doesn't send conversationId
+    if (!finalConversationId && !conversationId) {
       const conversation = await Conversation.create({
         swimmerId: req.user._id,
-        title: 'Coach Proposals',
+        title: proposals.length > 0 ? 'Coach Proposals' : 'New conversation',
         messages: [
           { role: 'user', text: message },
           { role: 'coach', text: result.reply }
         ],
         contextWorkoutId: workoutId || null,
-        proposals: proposals,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 min TTL
+        ...(proposals.length > 0 ? { proposals, expiresAt: new Date(Date.now() + 10 * 60 * 1000) } : {}),
       });
-      if (process.env.NODE_ENV !== 'production') console.log('Created new conversation with proposals');
+      if (process.env.NODE_ENV !== 'production') console.log('Created new conversation (no conversationId provided)');
       finalConversationId = conversation._id.toString();
     }
-
-    // Note: If no conversationId provided and no proposals, no conversation is created here.
-    // The frontend creates conversations via POST /api/conversations before first message.
 
     res.json({
       success: true,

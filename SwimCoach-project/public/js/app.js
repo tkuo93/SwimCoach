@@ -2133,12 +2133,16 @@ async function startNewCoachConversation() {
     const created = await api.conversations.create(
       { title: 'New conversation' },
     );
-    console.log('Created conversation:', created.data);
-    console.log('Created conversation _id:', created.data._id, 'type:', typeof created.data._id);
-    coachState.conversations.unshift(created.data);
-    coachState.activeConversationId = created.data._id;
+    // Normalize _id to string for consistent comparison
+    const conv = {
+      ...created.data,
+      _id: String(created.data._id),
+    };
+    console.log('Created conversation:', conv);
+    coachState.conversations.unshift(conv);
+    coachState.activeConversationId = conv._id;
     renderCoachConversationList();
-    renderCoachChat(created.data._id);
+    renderCoachChat(conv._id);
   } catch (err) {
     showToast(`Failed to create conversation: ${err.message}`, 'error');
   }
@@ -2273,10 +2277,12 @@ function renderCoachChat(conversationId) {
 
     try {
       const llmModel = state.globalLlm || null;
+      // Ensure conversationId is always a valid string
+      const activeConvId = String(conv._id || conv.id || coachState.activeConversationId || '');
       const requestData = {
         message,
         messages: conv.messages.slice(0, -1).map(m => ({ role: m.role, text: m.text })),
-        conversationId: conv._id,
+        conversationId: activeConvId || undefined,
         ...(llmModel && { llmModel }),
       };
       console.log('Sending coach chat request:', requestData);
