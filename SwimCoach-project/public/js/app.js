@@ -2305,26 +2305,35 @@ function renderCoachChat(conversationId) {
       conv.updatedAt = new Date().toISOString();
 
       // Update conversation ID if backend returned a new one (e.g., for proposals or new conversation created)
-      if (result.data.conversationId && String(result.data.conversationId) !== String(conv._id)) {
-        // Find and update the conversation in coachState
-        const idx = coachState.conversations.findIndex(c => String(c._id || c.id) === String(conv._id));
-        if (idx !== -1) {
-          coachState.conversations[idx]._id = result.data.conversationId;
-        } else {
-          // Conversation not in our state (e.g., backend created new one) - fetch it
-          try {
-            const fetched = await api.conversations.get(result.data.conversationId);
-            if (fetched.success && fetched.data) {
-              coachState.conversations.unshift(fetched.data);
+      if (result.data.conversationId) {
+        const backendConvId = String(result.data.conversationId);
+        const currentConvId = String(conv._id || conv.id || '');
+
+        if (backendConvId !== currentConvId) {
+          // Backend created a new conversation or the conversation ID changed
+          // Find and update the conversation in coachState
+          const idx = coachState.conversations.findIndex(c => String(c._id || c.id) === currentConvId);
+          if (idx !== -1) {
+            coachState.conversations[idx]._id = backendConvId;
+            conv._id = backendConvId;
+          } else {
+            // Conversation not in our state (e.g., backend created new one) - fetch it
+            try {
+              const fetched = await api.conversations.get(backendConvId);
+              if (fetched.success && fetched.data) {
+                fetched.data._id = String(fetched.data._id);
+                coachState.conversations.unshift(fetched.data);
+                conv._id = backendConvId;
+              }
+            } catch (e) {
+              console.warn('Failed to fetch new conversation:', e.message);
             }
-          } catch (e) {
-            console.warn('Failed to fetch new conversation:', e.message);
           }
         }
-        conv._id = result.data.conversationId;
       }
 
-      // Refresh conversation list in case backend created a new conversation
+      // Refresh conversation list from backend in case backend created a new conversation
+      await loadCoachConversations();
       renderCoachConversationList();
 
       // Handle action proposals
