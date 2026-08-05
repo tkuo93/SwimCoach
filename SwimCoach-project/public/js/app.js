@@ -2111,18 +2111,24 @@ async function loadCoachPage() {
 
 async function loadCoachConversations() {
   try {
+    console.log('loadCoachConversations: fetching...');
     const res = await api.conversations.list(true);
+    console.log('loadCoachConversations: response', res);
     if (res.success) {
+      console.log('loadCoachConversations: found', res.data.length, 'conversations');
       // Normalize _id to string for consistent comparison
       coachState.conversations = res.data.map(c => ({
         ...c,
         _id: String(c._id)
       }));
+      console.log('loadCoachConversations: normalized', coachState.conversations.length, 'conversations');
     } else {
+      console.warn('loadCoachConversations: res.success is false', res);
       showToast(`Failed to load conversations: ${res.error || 'Unknown error'}`, 'error');
       coachState.conversations = [];
     }
   } catch (err) {
+    console.error('loadCoachConversations: error', err);
     showToast(`Failed to load conversations: ${err.message}`, 'error');
     coachState.conversations = [];
   }
