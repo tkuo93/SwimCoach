@@ -10,9 +10,6 @@
 
 const BASE = '/api';
 
-// Cache for GET responses to handle 304 Not Modified
-const sessionCache = new Map();
-
 async function request(path, { method = 'GET', body, headers: extraHeaders } = {}) {
   const opts = {
     method,
@@ -21,25 +18,11 @@ async function request(path, { method = 'GET', body, headers: extraHeaders } = {
   };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(`${BASE}${path}`, opts);
+  // Add cache-busting query param for GET requests to prevent 304 Not Modified
+  const cacheBust = method === 'GET' || !method ? `_t=${Date.now()}` : '';
+  const url = cacheBust ? `${BASE}${path}${path.includes('?') ? '&' : '?'}${cacheBust}` : `${BASE}${path}`;
 
-  // Handle 304 Not Modified — return cached data from previous successful response
-  if (res.status === 304) {
-    const cached = sessionCache.get(path);
-    if (cached) return cached;
-    // No cached data available — re-fetch without conditional caching
-    opts.headers['Cache-Control'] = 'no-cache';
-    opts.headers['Pragma'] = 'no-cache';
-    const freshRes = await fetch(`${BASE}${path}`, opts);
-    const freshText = await freshRes.text();
-    const freshJson = JSON.parse(freshText);
-    if (!freshRes.ok) {
-      const msg = freshJson.errors ? freshJson.errors.join(', ') : (freshJson.error || `HTTP ${freshRes.status}`);
-      throw new Error(msg);
-    }
-    return freshJson;
-  }
-
+  const res = await fetch(url, opts);
   const text = await res.text();
   let json;
   try {
@@ -55,11 +38,6 @@ async function request(path, { method = 'GET', body, headers: extraHeaders } = {
   if (!res.ok) {
     const msg = json.errors ? json.errors.join(', ') : (json.error || `HTTP ${res.status}`);
     throw new Error(msg);
-  }
-
-  // Cache successful GET responses for 304 handling
-  if (opts.method === 'GET' || !opts.method) {
-    sessionCache.set(path, json);
   }
 
   return json;
