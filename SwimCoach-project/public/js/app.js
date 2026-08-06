@@ -204,7 +204,12 @@ function handleRoute() {
         navigateTo('profile');
         return;
       }
-      showPage('coach');
+      // Show coach screen (bypass showPage which expects page- IDs)
+      document.querySelectorAll('.screen.active').forEach(s=>s.classList.remove('active'));
+      document.getElementById('s-coach').classList.add('active');
+      // Hide global nav bar while on coach page
+      const coachNav = document.getElementById('globalNavBar');
+      if (coachNav) coachNav.classList.remove('visible');
       setActiveNav('coach');
       await loadCoachPage();
       break;
@@ -2072,6 +2077,26 @@ async function loadCoachPage() {
 
   const sidebarHeader = document.createElement('div');
   sidebarHeader.className = 'coach-sidebar-header';
+
+  // Back button to return to previous screen
+  const backBtn = document.createElement('button');
+  backBtn.className = 'btn btn-outline btn-sm';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', () => {
+    document.getElementById('s-coach').classList.remove('active');
+    const navBar = document.getElementById('globalNavBar');
+    if (navBar) navBar.classList.add('visible');
+    // Navigate to today's screen
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const todayScreen = document.getElementById('s-today');
+    if (todayScreen) todayScreen.classList.add('active');
+    // Update nav tabs
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    const todayTab = document.querySelector('.nav-tab[onclick*="goToday"]');
+    if (todayTab) todayTab.classList.add('active');
+  });
+  sidebarHeader.appendChild(backBtn);
+
   const newChatBtn = document.createElement('button');
   newChatBtn.className = 'btn btn-primary btn-sm';
   newChatBtn.textContent = '+ New Chat';
@@ -2710,3 +2735,11 @@ async function loadDebugPage() {
   }
 }
 // cache bust Sun Aug  2 14:28:38 EDT 2026
+
+// Expose coach functions to window for inline onclick handlers
+window.loadCoachPage = loadCoachPage;
+window.startNewCoachConversation = startNewCoachConversation;
+window.loadCoachConversations = loadCoachConversations;
+window.renderCoachChat = renderCoachChat;
+window.renderCoachConversationList = renderCoachConversationList;
+window.navigateTo = navigateTo;
