@@ -668,8 +668,14 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 <script>
 // Fallback navigateTo for early inline script execution
 // Will be overridden by app.js module once loaded
+// Only allow known routes to prevent XSS via location.hash
+const allowedRoutes = ['today', 'week', 'history', 'profile', 'settings', 'debug', 'empty', 'generate', 'workout', 'program', 'coach', 'landing', 'onboard', 'loading', 'execute'];
 window.navigateTo = function(page) {
-  window.location.hash = page;
+  if (allowedRoutes.includes(page)) {
+    window.location.hash = page;
+  } else {
+    console.warn('navigateTo: blocked invalid route', page);
+  }
 };
 </script>
 
