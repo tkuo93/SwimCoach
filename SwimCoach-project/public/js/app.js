@@ -757,7 +757,25 @@ function buildWorkoutTimeline(workout) {
   if (pool.mainSet?.length || pool.warmUp?.description || pool.coolDown?.description) {
     const sections = [];
     if (pool.warmUp?.description) sections.push({name: 'Warmup', dist: pool.warmUp.distance || 0, desc: pool.warmUp.description, duration: pool.warmUp.duration, type: 'warmup', idx: 0});
-    pool.mainSet?.forEach((s, i) => sections.push({name: 'Set ' + (i+1), dist: s.distance * s.repetitions, desc: `${s.repetitions}× ${s.distance}${unit} ${s.stroke || 'freestyle'}${s.interval ? ' · ' + s.interval : ''}${s.focus ? ' · ' + s.focus : ''}`, notes: s.description, type: 'set', idx: i, reps: s.repetitions, distance: s.distance, stroke: s.stroke, interval: s.interval, focus: s.focus}));
+    pool.mainSet?.forEach((s, i) => {
+      const safeStroke = escapeHtml(s.stroke || 'freestyle');
+      const safeInterval = escapeHtml(s.interval || '');
+      const safeFocus = escapeHtml(s.focus || '');
+      const safeDescription = escapeHtml(s.description || '');
+      sections.push({
+        name: 'Set ' + (i+1),
+        dist: s.distance * s.repetitions,
+        desc: `${s.repetitions}× ${s.distance}${unit} ${safeStroke}${safeInterval ? ' · ' + safeInterval : ''}${safeFocus ? ' · ' + safeFocus : ''}`,
+        notes: safeDescription,
+        type: 'set',
+        idx: i,
+        reps: s.repetitions,
+        distance: s.distance,
+        stroke: safeStroke,
+        interval: safeInterval,
+        focus: safeFocus
+      });
+    });
     if (pool.coolDown?.description) sections.push({name: 'Cooldown', dist: pool.coolDown.distance || 0, desc: pool.coolDown.description, duration: pool.coolDown.duration, type: 'cooldown', idx: 0});
 
     sections.forEach(s => {
@@ -777,9 +795,10 @@ function buildWorkoutTimeline(workout) {
   // Gym workout timeline - show each exercise individually
   (gym.mainSet || []).forEach((e, i) => {
     const safeExercise = escapeHtml(e.exercise || '');
+    const safeWeight = escapeHtml(String(e.weight || ''));
     const safeWeightUnit = escapeHtml(e.weightUnit || 'lbs');
     const safeMuscleGroup = escapeHtml(e.muscleGroup || '');
-    const desc = `${safeExercise} · ${e.sets}×${e.repetitions}${e.weight ? ' · ' + e.weight + safeWeightUnit : ''}${safeMuscleGroup ? ' · ' + safeMuscleGroup : ''}`;
+    const desc = `${safeExercise} · ${e.sets}×${e.repetitions}${e.weight ? ' · ' + safeWeight + safeWeightUnit : ''}${safeMuscleGroup ? ' · ' + safeMuscleGroup : ''}`;
     html += `
       <div class="timeline-section done">
         <div class="timeline-card">
