@@ -149,7 +149,7 @@ function initRouter() {
   handleRoute();
 }
 
-function handleRoute() {
+async function handleRoute() {
   const hash = window.location.hash.slice(1) || 'today';
   const [page, ...rest] = hash.split('/');
 

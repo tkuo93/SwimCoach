@@ -666,6 +666,14 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 <script type="module" src="/js/app.js"></script>
 
 <script>
+// Fallback navigateTo for early inline script execution
+// Will be overridden by app.js module once loaded
+window.navigateTo = function(page) {
+  window.location.hash = page;
+};
+</script>
+
+<script>
 // === STATE ===
 let profile = JSON.parse(localStorage.getItem('sc_profile') || 'null');
 let allProfiles = [];
