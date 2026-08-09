@@ -868,11 +868,26 @@ function signInWithGoogle() {
     window.posthog.capture('google_sign_in_clicked');
   }
   // Redirect to Google OAuth with redirect back to the app
-  // Validate redirect against allowlist to prevent open redirect
-  const allowedRedirects = ['/', '/today', '/week', '/history', '/profile', '/settings', '/debug'];
-  const currentPath = window.location.pathname || '/';
-  const redirect = allowedRedirects.includes(currentPath) ? currentPath : '/';
+  // Use hash-based route for SPA navigation
+  const currentHash = window.location.hash.slice(1) || 'today';
+  const allowedRoutes = ['today', 'week', 'history', 'profile', 'settings', 'debug', 'empty', 'generate', 'workout', 'program', 'coach'];
+  const redirect = allowedRoutes.includes(currentHash) ? currentHash : 'today';
   window.location.href = '/api/auth/google?redirect=' + encodeURIComponent(redirect);
+}
+
+function signOut() {
+  if (window.posthog && typeof window.posthog.capture === 'function') {
+    window.posthog.capture('sign_out_clicked');
+  }
+  // Clear auth state
+  localStorage.removeItem('sc_profile');
+  localStorage.removeItem('sc_all_profiles');
+  localStorage.removeItem('sc_workouts');
+  localStorage.removeItem('swimcoach_profile_id');
+  localStorage.removeItem('swimcoach_global_llm');
+  localStorage.removeItem('swimcoach_debug_llm');
+  // Redirect to Google logout or just reload
+  window.location.href = '/api/auth/logout';
 }
 
 function finishOnboard() {
