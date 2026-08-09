@@ -1561,12 +1561,12 @@ function buildWorkoutViewWithActions(workout) {
 	    }
 	  });
 
-        form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
-          const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
-          const idx = tbody.querySelectorAll('.edit-set-row').length;
-          const row = createPoolSetRow(idx);
-          tbody.appendChild(row);
-        });
+	  form.querySelector('.btn-add-set[data-pool="true"]')?.addEventListener('click', () => {
+	    const tbody = document.getElementById(`edit-pool-sets-${workoutId}`);
+	    const idx = tbody.querySelectorAll('.edit-set-row').length;
+	    const row = createPoolSetRow(idx);
+	    tbody.appendChild(row);
+	  });
 
 	  form.querySelector('.btn-add-set[data-pool="false"]')?.addEventListener('click', () => {
 	    const tbody = document.getElementById(`edit-gym-sets-${workoutId}`);
