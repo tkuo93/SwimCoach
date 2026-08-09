@@ -136,43 +136,72 @@ async function handleRoute() {
     }
   }
 
+  // Sync inline script state (uses global `profile` and `workouts` variables)
+  if (state.currentProfile) {
+    window.profile = state.currentProfile;
+    window.selectedSwimmerId = state.currentProfile._id;
+    // Load workouts for this profile
+    try {
+      const workouts = await api.workouts.list(state.currentProfile._id);
+      state.workouts = workouts;
+      window.workouts = workouts;
+      window.currentWorkout = workouts.find(w => {
+        const d = new Date(w.date || w.createdAt);
+        const today = new Date().toISOString().split('T')[0];
+        return d.toISOString().split('T')[0] === today;
+      }) || null;
+    } catch (err) {
+      console.error('Failed to load workouts:', err);
+      window.workouts = [];
+      window.currentWorkout = null;
+    }
+  } else {
+    window.profile = null;
+    window.workouts = [];
+    window.currentWorkout = null;
+  }
+
   // Update active nav
   setActiveNav(page);
 
   // Route to appropriate page handler
   switch (page) {
     case 'today':
-      await showPage('today', state.currentProfile);
+      await showPage('today');
+      if (typeof window.renderToday === 'function') window.renderToday();
       break;
     case 'week':
-      await showPage('week', state.currentProfile);
+      await showPage('week');
+      if (typeof window.renderWeek === 'function') window.renderWeek();
       break;
     case 'history':
-      await showPage('history', state.currentProfile);
+      await showPage('history');
+      if (typeof window.renderHistory === 'function') window.renderHistory();
       break;
     case 'profile':
-      showPage('profile', state.currentProfile);
+      showPage('profile');
+      if (typeof window.renderProfile === 'function') window.renderProfile();
       break;
     case 'generate':
-      showPage('generate', state.currentProfile);
+      showPage('generate');
       break;
     case 'workout':
-      await showPage('workout', state.currentProfile);
+      await showPage('workout');
       break;
     case 'program':
-      showPage('program', state.currentProfile);
+      showPage('program');
       break;
     case 'coach':
-      await showPage('coach', state.currentProfile);
+      await showPage('coach');
       break;
     case 'settings':
-      showPage('settings', state.currentProfile);
+      showPage('settings');
       break;
     case 'debug':
-      showPage('debug', state.currentProfile);
+      showPage('debug');
       break;
     case 'empty':
-      showPage('empty', state.currentProfile);
+      showPage('empty');
       break;
     default:
       navigateTo('today');
@@ -638,6 +667,385 @@ function signOut() {
   state.workouts = [];
   window.location.href = '/api/auth/logout';
 }
+
+// ─── Page Renderers ───
+
+function renderToday() {
+  if (!state.currentProfile) {
+    showPage('empty');
+    return;
+  }
+
+  const container = document.getElementById('s-today')?.querySelector('.screen-content');
+  if (!container) return;
+
+  // Find today's workout
+  const today = new Date().toISOString().split('T')[0];
+  const workout = state.workouts.find(w => {
+    const d = new Date(w.date || w.createdAt);
+    return d.toISOString().split('T')[0] === today;
+  });
+
+  if (!workout) {
+    // Show empty state with generate button
+    container.innerHTML = `
+      <div class="empty-view">
+        <div class="empty-illustration">🏊</div>
+        <div class="empty-title">No workout for today</div>
+        <div class="empty-desc">Generate a personalized workout to get started.</div>
+        <button class="empty-btn" onclick="window.navigateTo('generate')">Generate Today's Workout</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Update title and date
+  const dateLbl = container.querySelector('#dateLbl');
+  const wTitle = container.querySelector('#wTitle');
+  if (dateLbl) dateLbl.textContent = formatDate(workout.date || workout.createdAt);
+  if (wTitle) wTitle.textContent = workout.workoutName || workout.workoutType || 'Workout';
+
+  // Update stats
+  const pool = workout.poolWorkout || {};
+  const gym = workout.gymWorkout || {};
+  const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
+
+  const statsRow = container.querySelector('#statsRow');
+  if (statsRow) {
+    statsRow.innerHTML = `
+      <div class="stat-item"><div class="stat-value">${(pool.totalDistance || 0).toLocaleString()}</div><div class="stat-label">${unit}</div></div>
+      <div class="stat-item"><div class="stat-value">${workout.duration || 60}</div><div class="stat-label">minutes</div></div>
+      <div class="stat-item"><div class="stat-value">${capitalize(workout.intensity || 'moderate')}</div><div class="stat-label">intensity</div></div>
+    `;
+  }
+
+  const totDist = container.querySelector('#totDist');
+  const totDur = container.querySelector('#totDur');
+  if (totDist) totDist.textContent = (pool.totalDistance || 0).toLocaleString() + unit;
+  if (totDur) totDur.textContent = '~' + (workout.duration || 60) + ' min';
+
+  // Build timeline
+  const timeline = container.querySelector('#timeline');
+  if (timeline) {
+    timeline.innerHTML = buildWorkoutTimeline(workout);
+  }
+
+  // Render feedback section
+  setTimeout(() => renderFeedback(workout), 0);
+}
+
+function buildWorkoutTimeline(workout) {
+  const pool = workout.poolWorkout || {};
+  const gym = workout.gymWorkout || {};
+  const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
+  let html = '';
+
+  // Workout goals at top (purpose and focus from root trainingNotes)
+  const purposeNotes = workout.trainingNotes || [];
+  if (purposeNotes.length) {
+    html += `
+      <div class="callout">
+        <div class="callout-label">🎯 Workout Goals</div>
+        <ul style="padding-left:18px;margin-top:8px;">
+          ${purposeNotes.map(n => `<li style="margin-bottom:4px">${escapeHtml(n)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  // Pool workout timeline
+  if (pool.mainSet?.length || pool.warmUp?.description || pool.coolDown?.description) {
+    const sections = [];
+    if (pool.warmUp?.description) sections.push({name: 'Warmup', dist: pool.warmUp.distance || 0, desc: pool.warmUp.description, duration: pool.warmUp.duration, type: 'warmup', idx: 0});
+    pool.mainSet?.forEach((s, i) => sections.push({name: 'Set ' + (i+1), dist: s.distance * s.repetitions, desc: `${s.repetitions}× ${s.distance}${unit} ${s.stroke || 'freestyle'}${s.interval ? ' · ' + s.interval : ''}${s.focus ? ' · ' + s.focus : ''}`, notes: s.description, type: 'set', idx: i, reps: s.repetitions, distance: s.distance, stroke: s.stroke, interval: s.interval, focus: s.focus}));
+    if (pool.coolDown?.description) sections.push({name: 'Cooldown', dist: pool.coolDown.distance || 0, desc: pool.coolDown.description, duration: pool.coolDown.duration, type: 'cooldown', idx: 0});
+
+    sections.forEach(s => {
+      html += `
+        <div class="timeline-section done">
+          <div class="timeline-card">
+            <div class="timeline-card-head"><h4>${escapeHtml(s.name)}</h4><span class="dist">${s.dist}${unit}</span></div>
+            <div class="sets">${escapeHtml(s.desc).replace(/\n/g, '<br>')}</div>
+            <div class="coaching">${escapeHtml(s.notes || '')}</div>
+            <div class="set-total">Total: ${s.dist}${unit}</div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // Gym workout timeline - show each exercise individually
+  (gym.mainSet || []).forEach((e, i) => {
+    const safeExercise = escapeHtml(e.exercise || '');
+    const safeWeightUnit = escapeHtml(e.weightUnit || 'lbs');
+    const safeMuscleGroup = escapeHtml(e.muscleGroup || '');
+    const desc = `${safeExercise} · ${e.sets}×${e.repetitions}${e.weight ? ' · ' + e.weight + safeWeightUnit : ''}${safeMuscleGroup ? ' · ' + safeMuscleGroup : ''}`;
+    html += `
+      <div class="timeline-section done">
+        <div class="timeline-card">
+          <div class="timeline-card-head"><h4>Exercise ${i+1}</h4></div>
+          <div class="sets">${escapeHtml(desc)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Training notes at bottom (pool + gym specific tips)
+  const sectionNotes = [...(pool.trainingNotes || []), ...(gym.trainingNotes || [])];
+  if (sectionNotes.length) {
+    html += `
+      <div class="callout coral">
+        <div class="callout-label">📝 Training Notes</div>
+        <ul style="padding-left:18px;margin-top:8px;">
+          ${sectionNotes.map(n => `<li style="margin-bottom:6px">${escapeHtml(n)}</li>`).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+function renderFeedback(workout) {
+  const container = document.getElementById('feedbackSection');
+  if (!container || !workout) return;
+
+  const fb = workout.userFeedback || {};
+  const rating = fb.rating || 0;
+
+  const sel = (opts, selected) => opts.map(v => `<option value="${v}" ${selected === v ? 'selected' : ''}>${v.replace(/-/g, ' ')}</option>`).join('');
+
+  container.innerHTML = `
+    <div style="margin:0 24px 24px;padding:18px;background:var(--surface);border-radius:var(--r);border:1px solid var(--border-light)">
+      <h4 style="font-family:var(--font-d);font-size:14px;margin-bottom:14px">📝 How was this workout?</h4>
+      <div class="edit-field"><label>Rating</label><div class="star-rating" id="fb-stars">${[1,2,3,4,5].map(n => `<span class="star ${n <= rating ? 'filled' : ''}" onclick="setFeedbackRating(${n})" style="cursor:pointer;font-size:20px">★</span>`).join('')}</div></div>
+      <div class="edit-field"><label>Difficulty</label><select id="fb-diff" class="edit-input"><option value="">Select…</option>${sel(['too-easy','easy','just-right','hard','too-hard'], fb.difficultyPerception)}</select></div>
+      <div class="edit-field"><label>Enjoyment</label><select id="fb-enjoy" class="edit-input"><option value="">Select…</option>${sel(['did-not-enjoy','neutral','enjoyed','loved'], fb.enjoyment)}</select></div>
+      <div class="edit-field"><label>Quality</label><select id="fb-quality" class="edit-input"><option value="">Select…</option>${sel(['poor','below-average','average','good','excellent'], fb.quality)}</select></div>
+      <div class="edit-field"><label>Accuracy</label><select id="fb-accuracy" class="edit-input"><option value="">Select…</option>${sel(['way-off','close-but-off','mostly-accurate','spot-on'], fb.accuracy)}</select></div>
+      <div class="edit-field"><label>Comments (optional)</label><textarea id="fb-comments" class="edit-input" rows="2" placeholder="What worked? What didn't?">${escapeHtml(fb.comments || '')}</textarea></div>
+      <button class="btn btn-coral" onclick="submitFeedback('${workout._id}')" style="width:100%;margin-top:12px">${rating ? 'Update Feedback' : 'Submit Feedback'}</button>
+    </div>
+  `;
+}
+
+function setFeedbackRating(n) {
+  const stars = document.querySelectorAll('#fb-stars .star');
+  stars.forEach((s, i) => { s.classList.toggle('filled', i < n); });
+  document.getElementById('fb-stars').dataset.rating = n;
+}
+
+async function submitFeedback(workoutId) {
+  const rating = parseInt(document.getElementById('fb-stars').dataset.rating) || 0;
+  const difficulty = document.getElementById('fb-diff').value;
+  const enjoyment = document.getElementById('fb-enjoy').value;
+  const quality = document.getElementById('fb-quality').value;
+  const accuracy = document.getElementById('fb-accuracy').value;
+  const comments = document.getElementById('fb-comments').value;
+
+  if (!rating) { showToast('Please select a rating', 'error'); return; }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const res = await api.workouts.feedback(workoutId, { rating, difficultyPerception: difficulty, enjoyment, quality, accuracy, comments });
+    if (res.success) {
+      // Update local state
+      const workout = state.workouts.find(w => w._id === workoutId);
+      if (workout) {
+        workout.userFeedback = { rating, difficultyPerception: difficulty, enjoyment, quality, accuracy, comments };
+      }
+      showToast('Feedback saved!', 'success');
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => renderFeedback(state.workouts.find(w => w._id === workoutId)), 1000);
+    } else {
+      throw new Error(res.error || 'Unknown error');
+    }
+  } catch (err) {
+    showToast('Failed: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Submit Feedback';
+  }
+}
+
+function renderWeek() {
+  if (!state.currentProfile) {
+    showPage('profile');
+    return;
+  }
+
+  // Week rendering would go here - for now show placeholder
+  const container = document.getElementById('s-week')?.querySelector('.screen-content');
+  if (container) {
+    container.innerHTML = `
+      <div class="empty-view">
+        <div class="empty-illustration">📅</div>
+        <div class="empty-title">Week View</div>
+        <div class="empty-desc">Week view coming soon.</div>
+      </div>
+    `;
+  }
+}
+
+function renderHistory() {
+  if (!state.currentProfile) {
+    showPage('profile');
+    return;
+  }
+
+  const container = document.getElementById('s-history')?.querySelector('.screen-content');
+  if (!container) return;
+
+  if (state.workouts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-view">
+        <div class="empty-illustration">📊</div>
+        <div class="empty-title">No workouts yet</div>
+        <div class="empty-desc">Generate your first workout to see it here.</div>
+        <button class="empty-btn" onclick="window.navigateTo('generate')">Generate Workout</button>
+      </div>
+    `;
+    return;
+  }
+
+  // Sort workouts by date, newest first
+  const sorted = [...state.workouts].sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
+
+  container.innerHTML = `
+    <div class="history-list">
+      ${sorted.map(w => `
+        <div class="history-card" onclick="window.navigateTo('workout'); loadWorkoutDetail('${w._id}')">
+          <div class="history-card-head">
+            <h4>${escapeHtml(w.workoutName || w.workoutType || 'Workout')}</h4>
+            <span class="date">${formatDate(w.date || w.createdAt)}</span>
+          </div>
+          <div class="history-meta">
+            ${w.poolWorkout?.totalDistance ? `<span>🏊 ${w.poolWorkout.totalDistance}${w.poolWorkout.poolUnit === 'yards' ? 'yd' : 'm'}</span>` : ''}
+            <span>${w.duration || 60} min</span>
+            <span class="badge badge-intensity badge-intensity-${w.intensity || 'moderate'}">${capitalize(w.intensity || 'moderate')}</span>
+          </div>
+          ${w.userFeedback ? `
+            <div class="history-feedback">
+              <div class="star-rating">
+                ${[1,2,3,4,5].map(n => `<span class="star ${n <= w.userFeedback.rating ? 'filled' : ''}">★</span>`).join('')}
+              </div>
+              <span class="feel-badge feel-${w.userFeedback.difficultyPerception?.replace('too-', '').replace('-', '') || 'right'}">${w.userFeedback.difficultyPerception?.replace(/-/g, ' ') || 'Just right'}</span>
+            </div>
+          ` : ''}
+          <div class="history-actions">
+            <button class="history-action-btn" onclick="event.stopPropagation(); window.navigateTo('workout'); loadWorkoutDetail('${w._id}')">View</button>
+            <button class="history-action-btn" onclick="event.stopPropagation(); editWorkout('${w._id}')">Edit</button>
+            <button class="history-action-btn del" onclick="event.stopPropagation(); deleteWorkout('${w._id}')">Delete</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderProfile() {
+  updateProfileDropdown();
+  updateProfileList();
+}
+
+function renderSettings() {
+  const container = document.getElementById('settingsSection');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="settings-section">
+      <div class="settings-row">
+        <span class="settings-label">Profile</span>
+        <span class="settings-value">${state.currentProfile?.name || 'Not selected'}</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Theme</span>
+        <select class="settings-select" id="theme-select">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Pool Units</span>
+        <select class="settings-select" id="units-select">
+          <option value="meters">Meters</option>
+          <option value="yards">Yards</option>
+        </select>
+      </div>
+    </div>
+  `;
+}
+
+function renderDebug() {
+  const container = document.getElementById('debugSection');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="settings-section">
+      <div class="settings-row">
+        <span class="settings-label">Current Profile</span>
+        <span class="settings-value">${JSON.stringify(state.currentProfile, null, 2)}</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Workouts Loaded</span>
+        <span class="settings-value">${state.workouts.length}</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">All Profiles</span>
+        <span class="settings-value">${state.allProfiles.length}</span>
+      </div>
+      <button class="btn btn-coral" onclick="localStorage.clear(); location.reload()">Clear All Storage</button>
+    </div>
+  `;
+}
+
+// Helper to load workout detail for history navigation
+async function loadWorkoutDetail(workoutId) {
+  try {
+    const workout = await api.workouts.get(workoutId);
+    if (workout) {
+      state.currentWorkout = workout;
+      // Re-render the workout page
+      renderWorkoutDetail(workout);
+    }
+  } catch (err) {
+    showToast('Failed to load workout: ' + err.message, 'error');
+  }
+}
+
+function renderWorkoutDetail(workout) {
+  const container = document.getElementById('workout-content');
+  if (!container) return;
+
+  container.innerHTML = buildWorkoutCard(workout);
+}
+
+function editWorkout(workoutId) {
+  const workout = state.workouts.find(w => w._id === workoutId);
+  if (workout) {
+    state.editingWorkoutId = workoutId;
+    buildWorkoutEditForm(workout);
+    const modal = document.getElementById('edit-workout-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+}
+
+// Expose render functions globally for router
+window.renderToday = renderToday;
+window.renderWeek = renderWeek;
+window.renderHistory = renderHistory;
+window.renderProfile = renderProfile;
+window.renderSettings = renderSettings;
+window.renderDebug = renderDebug;
+window.renderWorkoutDetail = renderWorkoutDetail;
+window.loadWorkoutDetail = loadWorkoutDetail;
+window.editWorkout = editWorkout;
+window.setFeedbackRating = setFeedbackRating;
+window.submitFeedback = submitFeedback;
+window.buildWorkoutTimeline = buildWorkoutTimeline;
 
 // ─── Init ───
 
