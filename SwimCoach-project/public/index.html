@@ -503,7 +503,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- ONBOARDING -->
   <div class="screen" id="s-onboard">
     <div class="onboarding">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>New Profile</h1></div>
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>New Profile</h1></div>
       <div class="coach-hero">
         <div class="coach-avatar">🏊</div>
         <h2>Hey, I'm your coach.</h2>
@@ -526,10 +526,10 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <div class="screen" id="s-today">
     <div class="screen-content">
       <div class="top-bar">
-        <span class="top-back" onclick="goBack()">←</span>
+        <span class="top-back" onclick="window.history.back()">←</span>
         <h1>Today</h1>
         <button class="coach-fab" onclick="toggleWorkoutEdit()" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:18px" id="workoutEditBtn">✏️</button>
-        <button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button>
+        <button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button>
       </div>
       <div class="workout-date"><div class="date-label" id="dateLbl"></div><div class="workout-title-large" id="wTitle"></div></div>
       <div class="stats-row" id="statsRow"></div>
@@ -553,7 +553,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
         <div class="exec-top-bar">
           <button class="exec-toggle" onclick="toggleExecSidebar()">☰</button>
           <h1 id="execTitle">Set 1</h1>
-          <button class="exec-close" onclick="showScreen('s-today')">✕</button>
+          <button class="exec-close" onclick="window.navigateTo('today')">✕</button>
         </div>
         <div class="exec-content">
           <div class="exec-card">
@@ -572,7 +572,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- WEEK -->
   <div class="screen" id="s-week">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>This Week</h1><button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button></div>
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>This Week</h1><button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button></div>
       <div class="week-header"><button class="week-nav" onclick="changeWeek(-1)">‹</button><div class="week-title" id="weekTitle"></div><button class="week-nav" onclick="changeWeek(1)">›</button></div>
       <div class="week-strip" id="weekStrip"></div>
       <div class="week-stats" id="weekStats"></div>
@@ -584,7 +584,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- HISTORY -->
   <div class="screen" id="s-history">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="top-bar-profile" onclick="showScreen('s-profile')">👤</button></div>
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>History</h1><button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button></div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -592,7 +592,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- PROFILE -->
   <div class="screen" id="s-profile">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>Profile</h1><button class="coach-fab" onclick="showScreen('s-settings')" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:20px">⚙️</button></div>
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>Profile</h1><button class="coach-fab" onclick="window.navigateTo('settings')" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:20px">⚙️</button></div>
       <div class="profile-switcher" id="profileSwitcher"></div>
       <div id="profileSections"></div>
     </div>
@@ -600,13 +600,13 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 
   <!-- SETTINGS -->
   <div class="screen" id="s-settings">
-    <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>Settings</h1></div>
+    <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>Settings</h1></div>
     <div class="settings-section" id="settingsSection"></div>
   </div>
 
   <!-- DEBUG -->
   <div class="screen" id="s-debug">
-    <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>Debug</h1></div>
+    <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>Debug</h1></div>
     <div class="settings-section" id="debugSection"></div>
   </div>
 
@@ -616,11 +616,35 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
     <div class="empty-view"><div class="empty-illustration">🏊</div><div class="empty-title">Ready to train?</div><div class="empty-desc">Generate a personalized workout for today.</div><button class="empty-btn" onclick="genNewWorkout()">Generate Today's Workout</button></div>
   </div>
 
+  <!-- GENERATE -->
+  <div class="screen" id="s-generate">
+    <div class="screen-content">
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1>Generate Workout</h1><button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button></div>
+      <form id="generate-form" class="generate-form"></form>
+    </div>
+  </div>
+
+  <!-- WORKOUT -->
+  <div class="screen" id="s-workout">
+    <div class="screen-content">
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1 id="workoutPageTitle">Workout</h1><button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button></div>
+      <div id="workout-content"></div>
+    </div>
+  </div>
+
+  <!-- PROGRAM -->
+  <div class="screen" id="s-program">
+    <div class="screen-content">
+      <div class="top-bar"><span class="top-back" onclick="window.history.back()">←</span><h1 id="programPageTitle">Program</h1><button class="top-bar-profile" onclick="window.navigateTo('profile')">👤</button></div>
+      <div id="program-content"></div>
+    </div>
+  </div>
+
   <!-- Global Nav Bar (fixed at bottom) -->
   <nav class="nav-bar" id="globalNavBar">
-    <div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div>
-    <div class="nav-tab" onclick="showScreen('s-week')"><span class="icon">📅</span><span>Week</span></div>
-    <div class="nav-tab" onclick="showScreen('s-history')"><span class="icon">📊</span><span>History</span></div>
+    <div class="nav-tab active" onclick="window.navigateTo('today')"><span class="icon">📋</span><span>Today</span></div>
+    <div class="nav-tab" onclick="window.navigateTo('week')"><span class="icon">📅</span><span>Week</span></div>
+    <div class="nav-tab" onclick="window.navigateTo('history')"><span class="icon">📊</span><span>History</span></div>
     <div class="nav-tab" onclick="window.navigateTo('coach')"><span class="icon">💬</span><span>Coach</span></div>
     <a href="https://forms.gle/ybW5Xd5hyuguAcQZ7" target="_blank" rel="noopener" class="nav-tab feedback-link" aria-label="Give Feedback" style="color: var(--coral);">
       <span class="icon">💡</span><span>Feedback</span>
@@ -1156,7 +1180,7 @@ function updateExec(){
   document.querySelectorAll('.exec-set-item').forEach((el,i)=>{el.className='exec-set-item'+(i===curSetIdx?' active':'')+(i<curSetIdx?' done':'')});
 }
 function prevSet(){if(curSetIdx>0){curSetIdx--;updateExec();renderExecSidebar();}}
-function nextSet(){if(curSetIdx<currentSections.length-1){curSetIdx++;updateExec();renderExecSidebar();}else{showScreen('s-today')}}
+function nextSet(){if(curSetIdx<currentSections.length-1){curSetIdx++;updateExec();renderExecSidebar();}else{window.navigateTo('today')}}
 function toggleExecSidebar(){document.getElementById('execSidebar').classList.toggle('hidden')}
 
 // === FEEDBACK ===
@@ -1219,21 +1243,43 @@ const navTabMap = {
   's-empty': 0
 };
 function showScreen(id){
+  // Convert s-* screen ID to page name for router
+  const pageMap = {
+    's-today': 'today',
+    's-week': 'week',
+    's-history': 'history',
+    's-profile': 'profile',
+    's-settings': 'settings',
+    's-debug': 'debug',
+    's-empty': 'empty',
+    's-loading': 'loading',  // Not a router page, handle specially
+    's-onboard': 'onboard',  // Not a router page
+    's-execute': 'execute',  // Not a router page
+    's-landing': 'landing'   // Not a router page
+  };
+  const page = pageMap[id];
+  if (page && ['today','week','history','profile','settings','debug','empty','generate','workout','program','coach'].includes(page)) {
+    window.navigateTo(page);
+    return;
+  }
+  // For non-router pages (loading, onboard, execute, landing), use direct DOM manipulation
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('s-coach').classList.remove('active');
+  document.getElementById(id)?.classList.add('active');
+  document.getElementById('s-coach')?.classList.remove('active');
 
   // Show/hide global nav bar
   const navBar = document.getElementById('globalNavBar');
-  if (screensWithNav.includes(id)) {
-    navBar.classList.add('visible');
-    // Update active tab
-    const activeTabIndex = navTabMap[id];
-    document.querySelectorAll('.nav-tab').forEach((t, i) => {
-      t.classList.toggle('active', i === activeTabIndex);
-    });
-  } else {
-    navBar.classList.remove('visible');
+  const screensWithNav = ['s-today', 's-week', 's-history', 's-profile', 's-empty'];
+  if (navBar) {
+    if (screensWithNav.includes(id)) {
+      navBar.classList.add('visible');
+      const activeTabIndex = navTabMap[id];
+      document.querySelectorAll('.nav-tab').forEach((t, i) => {
+        t.classList.toggle('active', i === activeTabIndex);
+      });
+    } else {
+      navBar.classList.remove('visible');
+    }
   }
 
   if(id==='s-week')renderWeek();
@@ -1242,8 +1288,9 @@ function showScreen(id){
   if(id==='s-settings')renderSettings();
   if(id==='s-debug')renderDebug();
 }
-function goToday(){if(currentWorkout){renderToday();showScreen('s-today')}else{showScreen('s-empty')}}
-function goEmpty(){showScreen('s-empty')}
+function goToday(){if(currentWorkout){renderToday();window.navigateTo('today')}else{window.navigateTo('empty')}}
+function goEmpty(){window.navigateTo('empty')}
+function goBack(){window.history.back()}
 let loadingTimerInterval=null;
 function startLoadingTimer(){
   const start=Date.now();

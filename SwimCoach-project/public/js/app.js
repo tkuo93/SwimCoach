@@ -150,10 +150,38 @@ function initRouter() {
 }
 
 function handleRoute() {
-  const hash = window.location.hash.slice(1) || 'profile';
+  const hash = window.location.hash.slice(1) || 'today';
   const [page, ...rest] = hash.split('/');
 
   switch (page) {
+    case 'today':
+      if (!state.currentProfile) {
+        showToast(state.profiles.length > 0 ? 'Please select a profile from the dropdown.' : 'Please create a profile first.', 'error');
+        navigateTo('profile');
+        return;
+      }
+      showPage('today');
+      setActiveNav('today');
+      // Call inline script's renderToday if available
+      if (typeof window.renderToday === 'function') {
+        window.renderToday();
+      }
+      break;
+
+    case 'week':
+      if (!state.currentProfile) {
+        showToast(state.profiles.length > 0 ? 'Please select a profile from the dropdown.' : 'Please create a profile first.', 'error');
+        navigateTo('profile');
+        return;
+      }
+      showPage('week');
+      setActiveNav('week');
+      // Call inline script's renderWeek if available
+      if (typeof window.renderWeek === 'function') {
+        window.renderWeek();
+      }
+      break;
+
     case 'profile':
       showPage('profile');
       setActiveNav('profile');
@@ -241,8 +269,13 @@ function handleRoute() {
       loadDebugPage();
       break;
 
+    case 'empty':
+      showPage('empty');
+      setActiveNav('empty');
+      break;
+
     default:
-      navigateTo('profile');
+      navigateTo('today');
   }
 }
 

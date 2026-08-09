@@ -54,16 +54,44 @@ function hideLoading() {
 // ─── Navigation ───
 
 function setActiveNav(page) {
-  document.querySelectorAll('.nav-link').forEach(link => {
-    link.classList.toggle('active', link.dataset.nav === page);
-  });
+  // Map page names to nav tab indices
+  const pageToTabIndex = {
+    'today': 0,
+    'week': 1,
+    'history': 2,
+    'coach': 3,
+    'empty': 0,  // Empty state shows Today tab
+  };
+
+  const targetIndex = pageToTabIndex[page];
+  if (targetIndex !== undefined) {
+    document.querySelectorAll('.nav-tab').forEach((tab, i) => {
+      tab.classList.toggle('active', i === targetIndex);
+    });
+  }
 }
 
 // ─── Page Visibility ───
 
 function showPage(pageId) {
-  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-  document.getElementById(`page-${pageId}`).classList.remove('hidden');
+  // Hide all screens
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // Hide coach overlay
+  document.getElementById('s-coach')?.classList.remove('active');
+  // Show the target screen
+  const screenId = pageId === 'coach' ? 's-coach' : `s-${pageId}`;
+  document.getElementById(screenId)?.classList.add('active');
+
+  // Show/hide global nav bar
+  const navBar = document.getElementById('globalNavBar');
+  const screensWithNav = ['today', 'week', 'history', 'profile', 'empty'];
+  if (navBar) {
+    if (screensWithNav.includes(pageId)) {
+      navBar.classList.add('visible');
+    } else {
+      navBar.classList.remove('visible');
+    }
+  }
 }
 
 // ─── Workout Type Badge ───
