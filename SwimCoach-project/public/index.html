@@ -1431,7 +1431,18 @@ async function init(){
   }
 
   // Also check localStorage for locally-created profiles (for migration)
-  const local = JSON.parse(localStorage.getItem('sc_all_profiles') || '[]');
+  let local = [];
+  try {
+    const stored = localStorage.getItem('sc_all_profiles');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        local = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse sc_all_profiles:', e);
+  }
   local.forEach(lp => { if (!allProfiles.find(p => p._id === lp._id || p.email === lp.email)) { allProfiles.push(lp) } });
 
   // Migrate old sc_profile format

@@ -843,7 +843,7 @@ function renderFeedback(workout) {
       <div class="edit-field"><label>Quality</label><select id="fb-quality" class="edit-input"><option value="">Select…</option>${sel(['poor','below-average','average','good','excellent'], fb.quality)}</select></div>
       <div class="edit-field"><label>Accuracy</label><select id="fb-accuracy" class="edit-input"><option value="">Select…</option>${sel(['way-off','close-but-off','mostly-accurate','spot-on'], fb.accuracy)}</select></div>
       <div class="edit-field"><label>Comments (optional)</label><textarea id="fb-comments" class="edit-input" rows="2" placeholder="What worked? What didn't?">${escapeHtml(fb.comments || '')}</textarea></div>
-      <button class="btn btn-coral" onclick="submitFeedback('${workout._id}')" style="width:100%;margin-top:12px">${rating ? 'Update Feedback' : 'Submit Feedback'}</button>
+      <button class="btn btn-coral" onclick="submitWorkoutFeedback('${workout._id}')" style="width:100%;margin-top:12px">${rating ? 'Update Feedback' : 'Submit Feedback'}</button>
     </div>
   `;
 }
@@ -854,7 +854,7 @@ function setFeedbackRating(n) {
   document.getElementById('fb-stars').dataset.rating = n;
 }
 
-async function submitFeedback(workoutId) {
+async function submitWorkoutFeedback(workoutId) {
   const rating = parseInt(document.getElementById('fb-stars').dataset.rating) || 0;
   const difficulty = document.getElementById('fb-diff').value;
   const enjoyment = document.getElementById('fb-enjoy').value;
@@ -1063,7 +1063,7 @@ window.renderWorkoutDetail = renderWorkoutDetail;
 window.loadWorkoutDetail = loadWorkoutDetail;
 window.editWorkout = editWorkout;
 window.setFeedbackRating = setFeedbackRating;
-window.submitFeedback = submitFeedback;
+window.submitWorkoutFeedback = submitWorkoutFeedback;
 window.buildWorkoutTimeline = buildWorkoutTimeline;
 
 // ─── Init ───
