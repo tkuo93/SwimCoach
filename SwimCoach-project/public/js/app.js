@@ -105,14 +105,6 @@ const state = {
 
 // ─── DOM Ready ───
 document.addEventListener('DOMContentLoaded', async () => {
-  initRouter();
-  initProfileForm();
-  initGenerateForm();
-  initExpandableSections();
-  initHistoryPage();
-  initSettingsPage();
-  initDebugPage();
-
   // Load customization options for generate page
   await loadCustomizationOptions();
 
@@ -140,6 +132,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   }
+
+  // Initialize router AFTER restoring profile so navigation works correctly
+  initRouter();
+  initProfileForm();
+  initGenerateForm();
+  initExpandableSections();
+  initHistoryPage();
+  initSettingsPage();
+  initDebugPage();
 });
 
 // ─── Router ───
@@ -185,6 +186,9 @@ function handleRoute() {
     case 'profile':
       showPage('profile');
       setActiveNav('profile');
+      // Render profile dropdown and list
+      if (window.updateProfileDropdown) window.updateProfileDropdown();
+      if (window.updateProfileList) window.updateProfileList();
       break;
 
     case 'generate':
@@ -543,7 +547,7 @@ async function loadProfile(id) {
   try {
     showLoading('Loading profile…');
     const result = await api.profiles.get(id);
-    state.currentProfile = result.data;
+    setCurrentProfile(result.data);
     fillProfileForm(result.data);
     hideLoading();
   } catch (err) {
@@ -551,6 +555,14 @@ async function loadProfile(id) {
     localStorage.removeItem('swimcoach_profile_id');
     navigateTo('profile');
   }
+}
+
+function setCurrentProfile(profile) {
+  state.currentProfile = profile;
+  localStorage.setItem('swimcoach_profile_id', profile._id);
+  // Update dropdown and list to reflect selection
+  updateProfileDropdown();
+  updateProfileList();
 }
 
 function fillProfileForm(profile) {
@@ -2779,3 +2791,11 @@ window.loadCoachConversations = loadCoachConversations;
 window.renderCoachChat = renderCoachChat;
 window.renderCoachConversationList = renderCoachConversationList;
 window.navigateTo = navigateTo;
+
+// Expose profile management functions for inline script
+window.loadAllProfiles = loadAllProfiles;
+window.updateProfileDropdown = updateProfileDropdown;
+window.updateProfileList = updateProfileList;
+window.enterEditMode = enterEditMode;
+window.exitEditMode = exitEditMode;
+window.setCurrentProfile = setCurrentProfile;

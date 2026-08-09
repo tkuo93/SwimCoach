@@ -949,7 +949,7 @@ function finishOnboard() {
   }
 
   showScreen('s-loading');
-  setTimeout(() => {
+  setTimeout(async () => {
     const w = genWorkout(profile);
     w.isToday = true;
     w.date = new Date().toISOString().split('T')[0];
@@ -965,6 +965,16 @@ function finishOnboard() {
         goal: Array.isArray(profile.goal) ? profile.goal : [profile.goal],
       });
     }
+
+    // Sync with app.js state
+    if (window.setCurrentProfile) {
+      window.setCurrentProfile(profile);
+    }
+    // Also refresh profile list in app.js
+    if (window.loadAllProfiles) {
+      await window.loadAllProfiles();
+    }
+
     renderToday();
     showScreen('s-today');
   }, 1200);
@@ -1317,6 +1327,17 @@ function showScreen(id){
   if(id==='s-settings')renderSettings();
   if(id==='s-debug')renderDebug();
 }
+
+function renderProfile() {
+  // Use app.js functions to render profile dropdown and list
+  if (window.updateProfileDropdown) {
+    window.updateProfileDropdown();
+  }
+  if (window.updateProfileList) {
+    window.updateProfileList();
+  }
+}
+
 function goToday(){if(currentWorkout){renderToday();window.navigateTo('today')}else{window.navigateTo('empty')}}
 function goEmpty(){window.navigateTo('empty')}
 function goBack(){window.history.back()}
@@ -1463,6 +1484,12 @@ function loadProfile(id){
       const storedWorkouts = JSON.parse(localStorage.getItem('sc_workouts_' + storageKey) || '[]');
       workouts = storedWorkouts;
       currentWorkout = workouts.find(w => workoutLocalDate(w) === today) || null;
+
+      // Sync with app.js state
+      if (window.setCurrentProfile) {
+        window.setCurrentProfile(profile);
+      }
+
       if (currentWorkout) { renderToday(); showScreen('s-today') } else { showScreen('s-empty') }
       return;
     }
@@ -1476,6 +1503,10 @@ function loadProfile(id){
       api.workouts.list().then(wres=>{
         workouts=wres.data||[];
         currentWorkout=workouts.find(w=>workoutLocalDate(w)===today)||null;
+        // Sync with app.js state
+        if (window.setCurrentProfile) {
+          window.setCurrentProfile(profile);
+        }
         if(currentWorkout){renderToday();showScreen('s-today')}else{showScreen('s-empty')}
       });
     }
@@ -1584,6 +1615,11 @@ async function init(){
       const data = await fetchRes.json();
       console.log('API response:', data);
       if (data.data) { allProfiles = data.data; console.log('Loaded', allProfiles.length, 'profiles') }
+
+      // Also refresh app.js profile state
+      if (window.loadAllProfiles) {
+        await window.loadAllProfiles();
+      }
     } else {
       console.log('Not authenticated - showing landing page');
     }
@@ -1611,9 +1647,19 @@ async function init(){
     }
   }
 
-  renderLanding();
-  // Always show landing page first so user can select or create a profile
-  showScreen('s-landing');
+  // Decide which screen to show
+  // If authenticated and has profiles, let the router handle navigation (don't force landing)
+  // If not authenticated OR no profiles, show landing page for profile selection/creation
+  const shouldShowLanding = !isAuthenticated || allProfiles.length === 0;
+
+  if (shouldShowLanding) {
+    renderLanding();
+    showScreen('s-landing');
+  } else {
+    // Authenticated with profiles - router will handle navigation based on hash
+    // If no hash, default to today (handled by router)
+    renderLanding(); // Still render landing profiles in case user navigates to profile page
+  }
 
   // Show privacy modal on first visit
   showPrivacyModalIfNeeded();
