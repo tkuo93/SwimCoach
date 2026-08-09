@@ -149,7 +149,7 @@ function initRouter() {
   handleRoute();
 }
 
-async function handleRoute() {
+function handleRoute() {
   const hash = window.location.hash.slice(1) || 'today';
   const [page, ...rest] = hash.split('/');
 
@@ -239,7 +239,10 @@ async function handleRoute() {
       const coachNav = document.getElementById('globalNavBar');
       if (coachNav) coachNav.classList.remove('visible');
       setActiveNav('coach');
-      await loadCoachPage();
+      loadCoachPage().catch(err => {
+        console.error('Failed to load coach page:', err);
+        showToast('Failed to load coach', 'error');
+      });
       break;
 
     case 'program':
