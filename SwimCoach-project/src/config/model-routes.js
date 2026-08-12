@@ -13,7 +13,7 @@
 // to prevent injection of arbitrary model IDs into outbound API calls.
 // Model IDs follow the format: provider/model-name:variant (e.g., nvidia/nemotron-3-ultra:free)
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
-const DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
+const DEFAULT_MODEL = 'openrouter/free';
 
 /**
  * Sanitize a user-supplied model ID.

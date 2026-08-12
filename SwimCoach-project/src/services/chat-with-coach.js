@@ -44,9 +44,6 @@ async function chat(profile, workout, messages, userMessage, modelOverride) {
   // Sanitize conversation history (user messages only)
   const safeConversationHistory = sanitizeConversationHistory(conversationHistory, { context: 'workout' });
 
-  // Sanitize user-supplied model to prevent injection into outbound API calls
-  const model = sanitizeModel(modelOverride);
-
   // Use model router for chat
   const routeKey = modelOverride ? 'fallback:chat' : 'coach:chat';
   const response = await callByRoute(routeKey, [
