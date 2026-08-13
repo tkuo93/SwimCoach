@@ -241,8 +241,8 @@ function buildWorkoutEditForm(workout) {
             </select>
           </div>
           <div class="form-group">
-            <label for="edit-date-${escapeHtml(w._id)}">Scheduled Date</label>
-            <input type="date" id="edit-date-${escapeHtml(w._id)}" value="${escapeHtml(formatDateInput(w.date || w.createdAt))}">
+            <label for="edit-date-${w._id}">Scheduled Date</label>
+            <input type="date" id="edit-date-${w._id}" value="${escapeHtml(formatDateInput(w.date || w.createdAt))}">
           </div>
         </div>
       </div>
