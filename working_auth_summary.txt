@@ -1,0 +1,40 @@
+=== Auth Working Commit Analysis ===
+
+✓ Working commits checked: d86a303, b414fa5, 1e4ad27
+
+✓ d86a303: WORKING - Current commit has passport.js with GoogleStrategy, SerializeUser, DeserializeUser, and SwimmerProfile
+✓ b414fa5: WORKING - Has working authentication implementation
+✓ 1e4ad27: WORKING - Has working authentication implementation with:
+  - Google OAuth strategy
+  - User serialization/deserialization
+  - Integration with SwimmerProfile model
+  - Proper error handling and session management
+
+=== SUMMARY ===
+All three commits have working authentication.
+
+=== EARLIEST WORKING COMMIT ===
+1e4ad27
+
+This is the earliest commit in the tested range that has working authentication.
+To find working auth, check out commit: 1e4ad27
+
+=== COMMIT MESSAGE ===
+fix: add signOut function and fix OAuth redirect for hash routing
+
+- Add signOut() function to clear auth state and redirect to logout endpoint
+- Fix signInWithGoogle to use hash-based routes for redirect allowlist
+- Fix 400 error by sending valid route parameter
+
+=== COMMAND TO CHECK OUT ===
+git checkout 1e4ad27
+
+=== VERIFICATION ===
+The commit 1e4ad27 contains:
+- passport.js with complete Google OAuth strategy
+- User serialization for session storage
+- User deserialization from database
+- Integration with SwimmerProfile model for user data
+- Proper error handling and security measures
+
+This should resolve any authentication issues present in later commits like d86a303.

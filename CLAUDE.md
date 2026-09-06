@@ -17,3 +17,6 @@ SwimCoach is your personal coach that has aggregated the best scientific swimmin
 - Concise (2-sentence max paragraphs for most content)
 - Use "we" not "I" in documentation
 - Avoid jargon unless it's standard PM terminology
+- Speak directly and concretely (not "we will ensure")
+- Use "you" when addressing users
+- Keep it punchy - get to the point quickly
