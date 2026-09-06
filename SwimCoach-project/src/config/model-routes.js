@@ -12,7 +12,7 @@
 // Validates user-supplied model IDs against a strict allowlist pattern
 // to prevent injection of arbitrary model IDs into outbound API calls.
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
-const DEFAULT_MODEL = 'inclusionai/ling-3.0-flash:free';
+const DEFAULT_MODEL = 'openrouter/inclusionai/ling-3.0-flash:free';
 
 /**
  * Sanitize a user-supplied model ID.
@@ -28,7 +28,7 @@ function sanitizeModel(model) {
 // ─── Model Definitions ─────────────────────────────────────────────────
 const MODELS = {
   // Poolside models - specialized for code/structured output
-  'poolside/laguna-s-2.1:free': {
+  'openrouter/poolside/laguna-s-2.1:free': {
     name: 'Poolside Laguna S 2.1',
     params: '118B (8B active)',
     context: 262144,
@@ -40,7 +40,7 @@ const MODELS = {
     bestFor: ['workout:generate', 'workout:modify']
   },
 
-  'poolside/laguna-xs-2.1:free': {
+  'openrouter/poolside/laguna-xs-2.1:free': {
     name: 'Poolside Laguna XS 2.1',
     params: '33B (3B active)',
     context: 262144,
@@ -53,7 +53,7 @@ const MODELS = {
   },
 
   // InclusionAI - best general reasoning/speed balance
-  'inclusionai/ling-3.0-flash:free': {
+  'openrouter/inclusionai/ling-3.0-flash:free': {
     name: 'InclusionAI Ling 3.0 Flash',
     params: '124B MoE (5.1B active)',
     context: 262144,
@@ -66,7 +66,7 @@ const MODELS = {
   },
 
   // NVIDIA Nemotron 3 Ultra - only 1M context model
-  'nvidia/nemotron-3-ultra:free': {
+  'openrouter/nvidia/nemotron-3-ultra:free': {
     name: 'NVIDIA Nemotron 3 Ultra',
     params: '550B MoE (55B active)',
     context: 1000000,
@@ -79,7 +79,7 @@ const MODELS = {
   },
 
   // NVIDIA Nemotron 3 Super - balanced
-  'nvidia/nemotron-3-super:free': {
+  'openrouter/nvidia/nemotron-3-super:free': {
     name: 'NVIDIA Nemotron 3 Super',
     params: '~300B+',
     context: 262144,
@@ -92,7 +92,7 @@ const MODELS = {
   },
 
   // NVIDIA Nemotron 3 Nano 30B A3B - fast MoE
-  'nvidia/nemotron-3-nano-30b-a3b:free': {
+  'openrouter/nvidia/nemotron-3-nano-30b-a3b:free': {
     name: 'NVIDIA Nemotron 3 Nano 30B A3B',
     params: '30B MoE (3B active)',
     context: 256000,
@@ -105,7 +105,7 @@ const MODELS = {
   },
 
   // NVIDIA Nemotron 3 Nano - fastest overall
-  'nvidia/nemotron-3-nano:free': {
+  'openrouter/nvidia/nemotron-3-nano:free': {
     name: 'NVIDIA Nemotron 3 Nano',
     params: '~37B',
     context: 256000,
@@ -118,7 +118,7 @@ const MODELS = {
   },
 
   // Google Gemma 4 31B - solid backup
-  'google/gemma-4-31b:free': {
+  'openrouter/google/gemma-4-31b:free': {
     name: 'Google Gemma 4 31B',
     params: '31B',
     context: 262144,
@@ -131,7 +131,7 @@ const MODELS = {
   },
 
   // Cohere North Mini Code - code specialized
-  'cohere/north-mini-code:free': {
+  'openrouter/cohere/north-mini-code:free': {
     name: 'Cohere North Mini Code',
     params: '30B MoE (3B active)',
     context: 256000,
@@ -150,14 +150,14 @@ const ROUTES = {
   // ─── Workout Generation ──────────────────────────────────────────────
   'workout:generate': {
     description: 'Generate new structured workout from profile + preferences',
-    primary: 'inclusionai/ling-3.0-flash:free',
+    primary: 'openrouter/inclusionai/ling-3.0-flash:free',
     fallbacks: [
-      'nvidia/nemotron-3-nano-30b-a3b:free',
-      'nvidia/nemotron-3-nano:free',
-      'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-super:free',
-      'poolside/laguna-s-2.1:free',
-      'poolside/laguna-xs-2.1:free'
+      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/cohere/north-mini-code:free',
+      'openrouter/nvidia/nemotron-3-super:free',
+      'openrouter/poolside/laguna-s-2.1:free',
+      'openrouter/poolside/laguna-xs-2.1:free'
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -166,12 +166,12 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation for multiple users - uses highest rate limit models',
-    primary: 'nvidia/nemotron-3-nano:free',
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
     fallbacks: [
-      'nvidia/nemotron-3-nano-30b-a3b:free',
-      'inclusionai/ling-3.0-flash:free',
-      'cohere/north-mini-code:free',
-      'nvidia/nemotron-3-ultra:free'
+      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
+      'openrouter/inclusionai/ling-3.0-flash:free',
+      'openrouter/cohere/north-mini-code:free',
+      'openrouter/nvidia/nemotron-3-ultra:free'
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -180,8 +180,8 @@ const ROUTES = {
 
   'workout:modify': {
     description: 'Modify existing workout (swap stroke, change intensity, etc.)',
-    primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['inclusionai/ling-3.0-flash:free', 'poolside/laguna-s-2.1:free', 'cohere/north-mini-code:free'],
+    primary: 'openrouter/poolside/laguna-xs-2.1:free',
+    fallbacks: ['openrouter/inclusionai/ling-3.0-flash:free', 'openrouter/poolside/laguna-s-2.1:free', 'openrouter/cohere/north-mini-code:free'],
     maxTokens: 8192,
     timeout: 60000,
     temperature: 0.7
@@ -189,8 +189,8 @@ const ROUTES = {
 
   'workout:quick-edit': {
     description: 'Small targeted edits (single set change, equipment swap)',
-    primary: 'poolside/laguna-xs-2.1:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'nvidia/nemotron-3-nano-30b-a3b:free'],
+    primary: 'openrouter/poolside/laguna-xs-2.1:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano:free', 'openrouter/nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 4096,
     timeout: 30000,
     temperature: 0.5
@@ -199,8 +199,8 @@ const ROUTES = {
   // ─── Coach Chat ──────────────────────────────────────────────────────
   'coach:chat': {
     description: 'Conversational chat with the AI coach',
-    primary: 'inclusionai/ling-3.0-flash:free',
-    fallbacks: ['google/gemma-4-31b:free', 'nvidia/nemotron-3-super:free'],
+    primary: 'openrouter/inclusionai/ling-3.0-flash:free',
+    fallbacks: ['openrouter/google/gemma-4-31b:free', 'openrouter/nvidia/nemotron-3-super:free'],
     maxTokens: 2048,
     timeout: 30000,
     temperature: 0.7
@@ -208,8 +208,8 @@ const ROUTES = {
 
   'coach:technique': {
     description: 'Technique-specific questions and explanations',
-    primary: 'inclusionai/ling-3.0-flash:free',
-    fallbacks: ['google/gemma-4-31b:free', 'nvidia/nemotron-3-super:free'],
+    primary: 'openrouter/inclusionai/ling-3.0-flash:free',
+    fallbacks: ['openrouter/google/gemma-4-31b:free', 'openrouter/nvidia/nemotron-3-super:free'],
     maxTokens: 2048,
     timeout: 30000,
     temperature: 0.6
@@ -218,8 +218,8 @@ const ROUTES = {
   // ─── Analysis ────────────────────────────────────────────────────────
   'analysis:season': {
     description: 'Full season analysis - requires 1M context for all workouts',
-    primary: 'nvidia/nemotron-3-ultra:free',
-    fallbacks: ['nvidia/nemotron-3-super:free'],
+    primary: 'openrouter/nvidia/nemotron-3-ultra:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-super:free'],
     maxTokens: 8192,
     timeout: 180000,
     temperature: 0.5,
@@ -228,8 +228,8 @@ const ROUTES = {
 
   'analysis:progress': {
     description: 'Progress insights over recent workouts (fits in 262K context)',
-    primary: 'nvidia/nemotron-3-super:free',
-    fallbacks: ['inclusionai/ling-3.0-flash:free', 'google/gemma-4-31b:free'],
+    primary: 'openrouter/nvidia/nemotron-3-super:free',
+    fallbacks: ['openrouter/inclusionai/ling-3.0-flash:free', 'openrouter/google/gemma-4-31b:free'],
     maxTokens: 4096,
     timeout: 60000,
     temperature: 0.5
@@ -237,8 +237,8 @@ const ROUTES = {
 
   'analysis:taper': {
     description: 'Competition taper planning and guidance',
-    primary: 'inclusionai/ling-3.0-flash:free',
-    fallbacks: ['nvidia/nemotron-3-super:free'],
+    primary: 'openrouter/inclusionai/ling-3.0-flash:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-super:free'],
     maxTokens: 4096,
     timeout: 60000,
     temperature: 0.5
@@ -247,8 +247,8 @@ const ROUTES = {
   // ─── Real-time UI ────────────────────────────────────────────────────
   'ui:autocomplete': {
     description: 'Typeahead suggestions for workout builder',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano-30b-a3b:free', 'openrouter/poolside/laguna-xs-2.1:free'],
     maxTokens: 512,
     timeout: 2000,
     temperature: 0.3
@@ -256,8 +256,8 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 512,
     timeout: 1500,
     temperature: 0.2
@@ -265,8 +265,8 @@ const ROUTES = {
 
   'ui:suggest': {
     description: 'Quick workout suggestions/recommendations',
-    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano:free', 'openrouter/poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.6
@@ -275,8 +275,8 @@ const ROUTES = {
   // ─── Utility ─────────────────────────────────────────────────────────
   'util:classify': {
     description: 'Classify/extract workout tags, intervals, stroke types',
-    primary: 'nvidia/nemotron-3-nano-30b-a3b:free',
-    fallbacks: ['nvidia/nemotron-3-nano:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano:free', 'openrouter/poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.3
@@ -284,8 +284,8 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free', 'poolside/laguna-xs-2.1:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano-30b-a3b:free', 'openrouter/poolside/laguna-xs-2.1:free'],
     maxTokens: 1024,
     timeout: 5000,
     temperature: 0.2
@@ -294,8 +294,8 @@ const ROUTES = {
   // ─── Fallback Categories ─────────────────────────────────────────────
   'fallback:general': {
     description: 'General purpose fallback',
-    primary: 'nvidia/nemotron-3-super:free',
-    fallbacks: ['inclusionai/ling-3.0-flash:free', 'google/gemma-4-31b:free'],
+    primary: 'openrouter/nvidia/nemotron-3-super:free',
+    fallbacks: ['openrouter/inclusionai/ling-3.0-flash:free', 'openrouter/google/gemma-4-31b:free'],
     maxTokens: 4096,
     timeout: 30000,
     temperature: 0.7
@@ -303,8 +303,8 @@ const ROUTES = {
 
   'fallback:code': {
     description: 'Code/structured output fallback',
-    primary: 'cohere/north-mini-code:free',
-    fallbacks: ['poolside/laguna-xs-2.1:free', 'poolside/laguna-s-2.1:free'],
+    primary: 'openrouter/cohere/north-mini-code:free',
+    fallbacks: ['openrouter/poolside/laguna-xs-2.1:free', 'openrouter/poolside/laguna-s-2.1:free'],
     maxTokens: 8192,
     timeout: 60000,
     temperature: 0.5
@@ -312,8 +312,8 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fastest available model fallback',
-    primary: 'nvidia/nemotron-3-nano:free',
-    fallbacks: ['nvidia/nemotron-3-nano-30b-a3b:free'],
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-nano-30b-a3b:free'],
     maxTokens: 2048,
     timeout: 5000,
     temperature: 0.5
@@ -321,8 +321,8 @@ const ROUTES = {
 
   'fallback:chat': {
     description: 'Chat/conversation fallback',
-    primary: 'google/gemma-4-31b:free',
-    fallbacks: ['nvidia/nemotron-3-super:free', 'inclusionai/ling-3.0-flash:free'],
+    primary: 'openrouter/google/gemma-4-31b:free',
+    fallbacks: ['openrouter/nvidia/nemotron-3-super:free', 'openrouter/inclusionai/ling-3.0-flash:free'],
     maxTokens: 2048,
     timeout: 30000,
     temperature: 0.7
@@ -332,15 +332,15 @@ const ROUTES = {
 // ─── Daily Rate Limits (Conservative) ─────────────────────────────────
 // Based on weekly token allocations ÷ 7, assuming ~5K tokens/request average
 const DAILY_LIMITS = {
-  'poolside/laguna-s-2.1:free': 1000,
-  'poolside/laguna-xs-2.1:free': 4000,
-  'inclusionai/ling-3.0-flash:free': 20000,
-  'nvidia/nemotron-3-ultra:free': 50,
-  'nvidia/nemotron-3-super:free': 5000,
-  'nvidia/nemotron-3-nano-30b-a3b:free': 100000,
-  'nvidia/nemotron-3-nano:free': 100000,
-  'google/gemma-4-31b:free': 4000,
-  'cohere/north-mini-code:free': 8000
+  'openrouter/poolside/laguna-s-2.1:free': 1000,
+  'openrouter/poolside/laguna-xs-2.1:free': 4000,
+  'openrouter/inclusionai/ling-3.0-flash:free': 20000,
+  'openrouter/nvidia/nemotron-3-ultra:free': 50,
+  'openrouter/nvidia/nemotron-3-super:free': 5000,
+  'openrouter/nvidia/nemotron-3-nano-30b-a3b:free': 100000,
+  'openrouter/nvidia/nemotron-3-nano:free': 100000,
+  'openrouter/google/gemma-4-31b:free': 4000,
+  'openrouter/cohere/north-mini-code:free': 8000
 };
 
 // ─── Helper Functions ──────────────────────────────────────────────────
@@ -356,12 +356,263 @@ function getRoute(routeKey) {
 
 /**
  * Get model configuration by model ID
- * @param {string} modelId - Full model ID (e.g., 'poolside/laguna-s-2.1:free')
+ * @param {string} modelId - Full model ID (e.g., 'openrouter/poolside/laguna-s-2.1:free')
  * @returns {Object|null} Model config or null if not found
  */
 function getModel(modelId) {
   return MODELS[modelId] || null;
 }
+
+/**
+ * Sanitize a user-supplied model ID.
+ * Only allows models matching the openrouter/* pattern.
+ * @param {string} model - User-supplied model ID
+ * @returns {string} Sanitized model ID or default
+ */
+function sanitizeModel(model) {
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  return MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+}
+
+/**
+ * Rate-limited model sanitization with tracking
+ * @param {string} model - User-supplied model ID
+ * @param {number} clientId - Optional client identifier for rate limiting
+ * @returns {string} Sanitized model ID or default
+ */
+function sanitizeModelWithRateLimit(model, clientId) {
+  const now = Date.now();
+  const clientKey = clientId || 'default';
+
+  // Rate limiting for failed validation attempts
+  if (!clientRateLimit) clientRateLimit = new Map();
+
+  const clientData = clientRateLimit.get(clientKey) || { count: 0, resetTime: now + 60000 }; // 1-minute window
+
+  // Reset if window has passed
+  if (now > clientData.resetTime) {
+    clientData.count = 0;
+    clientData.resetTime = now + 60000;
+  }
+
+  clientData.count++;
+  clientRateLimit.set(clientKey, clientData);
+
+  // If too many rapid failures, temporarily deny
+  const RATE_LIMIT_THRESHOLD = process.env.RATE_LIMIT_THRESHOLD || 50;
+  if (clientData.count > RATE_LIMIT_THRESHOLD) {
+    console.warn(`[Security] Rate limit exceeded for client ${clientId}, temporarily denying requests`);
+    return DEFAULT_MODEL;
+  }
+
+  // Sanitization logic
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  const result = MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+
+  // Log sanitization attempts for security monitoring
+  if (result === DEFAULT_MODEL && model.trim() !== DEFAULT_MODEL) {
+    console.warn(`[Security] Model validation failed`);
+  }
+
+  return result;
+}
+
+// Internal rate limit tracking
+let clientRateLimit = new Map();
+
+/**
+ * Reset client rate limit for testing/admin purposes
+ * @param {string} clientId - Client identifier to reset
+ */
+function resetClientRateLimit(clientId) {
+  if (clientRateLimit) {
+    clientRateLimit.delete(clientId);
+    console.log(`[Security] Rate limit reset for client: ${clientId}`);
+  }
+}
+
+/**
+ * Get current rate limit statistics for monitoring
+ * @returns {Object} Rate limit statistics
+ */
+function getRateLimitStats() {
+  if (!clientRateLimit) return {};
+  const stats = {};
+  for (const [clientId, data] of clientRateLimit.entries()) {
+    stats[clientId] = {
+      attempts: data.count,
+      resetInMs: Math.max(0, data.resetTime - Date.now()),
+      windowRemaining: Math.max(0, 60000 - (Date.now() - (data.resetTime - 60000)))
+    };
+  }
+  return stats;
+}
+
+// Internal rate limit tracking
+let clientRateLimit = new Map();
+
+// ─── Exported Functions ────────────────────────────────────────────────────
+module.exports = {
+  MODELS,
+  ROUTES,
+  DAILY_LIMITS,
+  getRoute,
+  getModel,
+  getAllRoutes,
+  getAllModels,
+  validateRoutes,
+  sanitizeModel,
+  sanitizeModelWithRateLimit,
+  // Security-related exports
+  resetClientRateLimit,
+  getRateLimitStats
+};
+
+/**
+ * Rate-limited model sanitization with tracking
+ * @param {string} model - User-supplied model ID
+ * @param {number} clientId - Optional client identifier for rate limiting
+ * @returns {string} Sanitized model ID or default
+ */
+function sanitizeModelWithRateLimit(model, clientId) {
+  const now = Date.now();
+  const clientKey = clientId || 'default';
+
+  // Rate limiting for failed validation attempts
+  if (!clientRateLimit) clientRateLimit = new Map();
+
+  const clientData = clientRateLimit.get(clientKey) || { count: 0, resetTime: now + 60000 }; // 1-minute window
+
+  // Reset if window has passed
+  if (now > clientData.resetTime) {
+    clientData.count = 0;
+    clientData.resetTime = now + 60000;
+  }
+
+  clientData.count++;
+  clientRateLimit.set(clientKey, clientData);
+
+  // If too many rapid failures, temporarily deny
+  if (clientData.count > 20) {
+    console.warn(`[Security] Rate limit exceeded for client ${clientId}, temporarily denying requests`);
+    return DEFAULT_MODEL;
+  }
+
+  // Sanitization logic
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  const result = MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+
+  // Log sanitization attempts for security monitoring
+  if (result === DEFAULT_MODEL && model.trim() !== DEFAULT_MODEL) {
+    console.warn(`[Security] Model validation failed for client ${clientId}`);
+  }
+
+  return result;
+}
+
+/**
+ * Reset client rate limit for testing/admin purposes
+ * @param {string} clientId - Client identifier to reset
+ */
+function resetClientRateLimit(clientId) {
+  if (clientRateLimit) {
+    clientRateLimit.delete(clientId);
+    console.log(`[Security] Rate limit reset for client: ${clientId}`);
+  }
+}
+
+/**
+ * Get current rate limit statistics for monitoring
+ * @returns {Object} Rate limit statistics
+ */
+function getRateLimitStats() {
+  if (!clientRateLimit) return {};
+  const stats = {};
+  for (const [clientId, data] of clientRateLimit.entries()) {
+    stats[clientId] = {
+      attempts: data.count,
+      resetInMs: Math.max(0, data.resetTime - Date.now()),
+      windowRemaining: Math.max(0, 60000 - (Date.now() - (data.resetTime - 60000)))
+    };
+  }
+  return stats;
+}
+
+// Internal rate limit tracking
+let clientRateLimit = new Map();
+
+/**
+ * Rate-limited model sanitization with tracking
+ * @param {string} model - User-supplied model ID
+ * @param {number} clientId - Optional client identifier for rate limiting
+ * @returns {string} Sanitized model ID or default
+ */
+function sanitizeModel(model, clientId) {
+  const now = Date.now();
+  const clientKey = clientId || 'default';
+
+  // Rate limiting for failed validation attempts
+  if (!clientRateLimit) clientRateLimit = new Map();
+
+  const clientData = clientRateLimit.get(clientKey) || { count: 0, resetTime: now + 60000 }; // 1-minute window
+
+  // Reset if window has passed
+  if (now > clientData.resetTime) {
+    clientData.count = 0;
+    clientData.resetTime = now + 60000;
+  }
+
+  clientData.count++;
+  clientRateLimit.set(clientKey, clientData);
+
+  // If too many rapid failures, temporarily deny
+  if (clientData.count > 50) {
+    console.warn(`[Security] Rate limit exceeded for client ${clientId}, temporarily denying requests`);
+    return DEFAULT_MODEL;
+  }
+
+  // Sanitization logic
+  if (!model || typeof model !== 'string') return DEFAULT_MODEL;
+  const result = MODEL_PATTERN.test(model.trim()) ? model.trim() : DEFAULT_MODEL;
+
+  // Log sanitization attempts for security monitoring
+  if (result === DEFAULT_MODEL && model.trim() !== DEFAULT_MODEL) {
+    console.warn(`[Security] Model validation failed for client ${clientId}, input: ${model.substring(0, 100)}...`);
+  }
+
+  return result;
+}
+
+/**
+ * Reset client rate limit for testing/admin purposes
+ * @param {string} clientId - Client identifier to reset
+ */
+function resetClientRateLimit(clientId) {
+  if (clientRateLimit) {
+    clientRateLimit.delete(clientId);
+    console.log(`[Security] Rate limit reset for client: ${clientId}`);
+  }
+}
+
+/**
+ * Get current rate limit statistics for monitoring
+ * @returns {Object} Rate limit statistics
+ */
+function getRateLimitStats() {
+  if (!clientRateLimit) return {};
+  const stats = {};
+  for (const [clientId, data] of clientRateLimit.entries()) {
+    stats[clientId] = {
+      attempts: data.count,
+      resetInMs: Math.max(0, data.resetTime - Date.now()),
+      windowRemaining: Math.max(0, 60000 - (Date.now() - (data.resetTime - 60000)))
+    };
+  }
+  return stats;
+}
+
+// Internal rate limit tracking
+let clientRateLimit = new Map();
 
 /**
  * Get all routes as a formatted summary (for debugging/display)
