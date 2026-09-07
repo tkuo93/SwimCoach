@@ -450,10 +450,6 @@ function getRateLimitStats() {
 
 // Internal rate limit tracking - initialize with secure random seed
 // Internal rate limit tracking
-// Internal rate limit tracking
-// Internal rate limit tracking
-// Internal rate limit tracking - single declaration only
-// Internal rate limit tracking
 let clientRateLimit = new Map();
 
 /**
@@ -587,6 +583,7 @@ function getRateLimitStats() {
 // Internal rate limit tracking
 // Internal rate limit tracking
 // Internal rate limit tracking
+// Internal rate limit tracking
 let clientRateLimit = new Map();
 
 /**
@@ -664,6 +661,7 @@ function getRateLimitStats() {
 // Internal rate limit tracking - single declaration only
 // Internal rate limit tracking - single declaration only
 // Internal rate limit tracking - single declaration only
+// Internal rate limit tracking
 // Internal rate limit tracking
 // Internal rate limit tracking
 // Internal rate limit tracking
