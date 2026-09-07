@@ -1,12 +1,17 @@
 /**
  * Model Routes Configuration
  *
- * Maps each feature/task to an OpenRouter model.
- * Model IDs intentionally use the existing openrouter/... format.
+ * Every route has exactly:
+ *   1. primary model
+ *   2. secondary model
+ *   3. openrouter/free as the ultimate fallback
+ *
+ * Model IDs use the existing openrouter/... format used by this project.
  */
 
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
 const DEFAULT_MODEL = 'openrouter/nvidia/nemotron-3.5-lightning:free';
+const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
@@ -27,14 +32,15 @@ const MODELS = {
       'high-throughput workloads'
     ],
     bestFor: [
-      'fallback:general',
-      'fallback:fast',
+      'workout:modify',
+      'workout:quick-edit',
       'coach:chat',
       'ui:autocomplete',
       'ui:validate',
       'util:classify',
       'util:extract',
-      'workout:modify'
+      'fallback:general',
+      'fallback:fast'
     ]
   },
 
@@ -55,37 +61,12 @@ const MODELS = {
     ],
     bestFor: [
       'workout:generate',
-      'workout:modify',
       'analysis:season',
       'analysis:progress',
       'analysis:taper',
-      'fallback:general',
+      'coach:technique',
       'fallback:chat'
     ]
-  },
-
-  'openrouter/poolside/laguna-s-2.1:free': {
-    name: 'Poolside Laguna S 2.1',
-    params: '118B (8B active)',
-    context: 262144,
-    latencyMs: 1520,
-    throughput: 31,
-    weeklyTokens: 472e9,
-    dailyLimit: 1000,
-    strengths: ['code', 'structured JSON', 'workout schemas'],
-    bestFor: ['workout:generate', 'workout:modify']
-  },
-
-  'openrouter/poolside/laguna-xs-2.1:free': {
-    name: 'Poolside Laguna XS 2.1',
-    params: '33B (3B active)',
-    context: 262144,
-    latencyMs: 776,
-    throughput: 64,
-    weeklyTokens: 190e9,
-    dailyLimit: 4000,
-    strengths: ['fast code', 'structured edits', 'lower latency'],
-    bestFor: ['workout:modify', 'workout:quick-edit']
   },
 
   'openrouter/inclusionai/ling-3.0-flash:free': {
@@ -97,48 +78,11 @@ const MODELS = {
     weeklyTokens: 1.41e12,
     dailyLimit: 20000,
     strengths: ['reasoning', 'conversation', 'analysis'],
-    bestFor: ['coach:chat', 'coach:technique', 'analysis:progress']
-  },
-
-  'openrouter/nvidia/nemotron-3-ultra:free': {
-    name: 'NVIDIA Nemotron 3 Ultra',
-    params: '550B MoE (55B active)',
-    context: 1000000,
-    latencyMs: 24813,
-    throughput: 8,
-    weeklyTokens: 2.88e12,
-    dailyLimit: 50,
-    strengths: ['long context', 'deep reasoning', 'season analysis'],
-    bestFor: ['analysis:season', 'analysis:full-history']
-  },
-
-  'openrouter/nvidia/nemotron-3-super:free': {
-    name: 'NVIDIA Nemotron 3 Super',
-    params: '~300B+',
-    context: 262144,
-    latencyMs: 1549,
-    throughput: 53,
-    weeklyTokens: 380e9,
-    dailyLimit: 5000,
-    strengths: ['balanced', 'reasoning', 'good speed'],
-    bestFor: ['analysis:progress', 'fallback:general']
-  },
-
-  'openrouter/nvidia/nemotron-3-nano-30b-a3b:free': {
-    name: 'NVIDIA Nemotron 3 Nano 30B A3B',
-    params: '30B MoE (3B active)',
-    context: 256000,
-    latencyMs: 615,
-    throughput: 75,
-    weeklyTokens: 49.4e9,
-    dailyLimit: 100000,
-    strengths: ['speed', 'efficiency', 'high rate limit'],
     bestFor: [
-      'ui:autocomplete',
-      'ui:validate',
-      'util:classify',
-      'fallback:fast',
-      'workout:generate:high-volume'
+      'coach:chat',
+      'coach:technique',
+      'analysis:progress',
+      'fallback:general'
     ]
   },
 
@@ -150,11 +94,13 @@ const MODELS = {
     throughput: 94,
     weeklyTokens: 36.8e9,
     dailyLimit: 100000,
-    strengths: ['fastest', 'multimodal ready', 'high rate limit'],
+    strengths: ['fast', 'efficient', 'high rate limit'],
     bestFor: [
+      'workout:generate:high-volume',
       'ui:autocomplete',
       'ui:validate',
       'util:classify',
+      'util:extract',
       'fallback:fast'
     ]
   },
@@ -168,7 +114,7 @@ const MODELS = {
     weeklyTokens: 1.67e9,
     dailyLimit: 4000,
     strengths: ['general chat', 'fast', 'reliable'],
-    bestFor: ['fallback:chat', 'coach:chat']
+    bestFor: ['coach:chat', 'fallback:chat']
   },
 
   'openrouter/cohere/north-mini-code:free': {
@@ -180,7 +126,25 @@ const MODELS = {
     weeklyTokens: 300e9,
     dailyLimit: 8000,
     strengths: ['code', 'structured output'],
-    bestFor: ['fallback:code', 'workout:modify']
+    bestFor: ['fallback:code']
+  },
+
+  // Dynamic OpenRouter router. OpenRouter selects an available free model.
+  'openrouter/free': {
+    name: 'OpenRouter Dynamic Free Router',
+    params: 'Provider-selected',
+    context: null,
+    latencyMs: null,
+    throughput: null,
+    weeklyTokens: null,
+    dailyLimit: 1000,
+    strengths: [
+      'dynamic provider selection',
+      'availability fallback',
+      'free models'
+    ],
+    bestFor: ['ultimate fallback'],
+    dynamic: true
   }
 };
 
@@ -188,16 +152,11 @@ const MODELS = {
 
 const ROUTES = {
   'workout:generate': {
-    description: 'Generate new structured workout from profile and preferences',
+    description: 'Generate a new structured workout',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
-      'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/cohere/north-mini-code:free',
-      'openrouter/poolside/laguna-s-2.1:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -205,14 +164,11 @@ const ROUTES = {
   },
 
   'workout:generate:high-volume': {
-    description: 'High-volume workout generation for multiple users',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    description: 'High-volume workout generation',
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
-      'openrouter/minimax/minimax-m3:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/cohere/north-mini-code:free'
+      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
     timeout: 60000,
@@ -224,9 +180,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/minimax/minimax-m3:free',
-      'openrouter/poolside/laguna-xs-2.1:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/cohere/north-mini-code:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
     timeout: 60000,
@@ -238,8 +192,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
     timeout: 30000,
@@ -251,8 +204,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/minimax/minimax-m3:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/google/gemma-4-31b:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
     timeout: 30000,
@@ -264,8 +216,7 @@ const ROUTES = {
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/google/gemma-4-31b:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
     timeout: 30000,
@@ -277,7 +228,7 @@ const ROUTES = {
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/nvidia/nemotron-3-super:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
     timeout: 180000,
@@ -290,8 +241,7 @@ const ROUTES = {
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/nvidia/nemotron-3-super:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
     timeout: 60000,
@@ -303,8 +253,7 @@ const ROUTES = {
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/nvidia/nemotron-3-super:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
     timeout: 60000,
@@ -312,12 +261,11 @@ const ROUTES = {
   },
 
   'ui:autocomplete': {
-    description: 'Typeahead suggestions for workout builder',
+    description: 'Typeahead suggestions for the workout builder',
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
     timeout: 5000,
@@ -329,7 +277,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
     timeout: 5000,
@@ -341,8 +289,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
     timeout: 5000,
@@ -350,12 +297,11 @@ const ROUTES = {
   },
 
   'util:classify': {
-    description: 'Classify or extract workout tags and stroke types',
+    description: 'Classify workout tags, intervals, and stroke types',
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
     timeout: 5000,
@@ -366,9 +312,8 @@ const ROUTES = {
     description: 'Extract structured data from unstructured text',
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free',
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/poolside/laguna-xs-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
     timeout: 5000,
@@ -376,12 +321,11 @@ const ROUTES = {
   },
 
   'fallback:general': {
-    description: 'General purpose fallback',
+    description: 'General-purpose fallback',
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/minimax/minimax-m3:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/nvidia/nemotron-3-super:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
     timeout: 30000,
@@ -393,9 +337,7 @@ const ROUTES = {
     primary: 'openrouter/cohere/north-mini-code:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3.5-lightning:free',
-      'openrouter/minimax/minimax-m3:free',
-      'openrouter/poolside/laguna-xs-2.1:free',
-      'openrouter/poolside/laguna-s-2.1:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
     timeout: 60000,
@@ -407,7 +349,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
-      'openrouter/nvidia/nemotron-3-nano-30b-a3b:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
     timeout: 10000,
@@ -419,8 +361,7 @@ const ROUTES = {
     primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
     fallbacks: [
       'openrouter/minimax/minimax-m3:free',
-      'openrouter/inclusionai/ling-3.0-flash:free',
-      'openrouter/google/gemma-4-31b:free'
+      ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
     timeout: 30000,
@@ -433,18 +374,14 @@ const ROUTES = {
 const DAILY_LIMITS = {
   'openrouter/nvidia/nemotron-3.5-lightning:free': 1000,
   'openrouter/minimax/minimax-m3:free': 1000,
-  'openrouter/poolside/laguna-s-2.1:free': 1000,
-  'openrouter/poolside/laguna-xs-2.1:free': 4000,
   'openrouter/inclusionai/ling-3.0-flash:free': 20000,
-  'openrouter/nvidia/nemotron-3-ultra:free': 50,
-  'openrouter/nvidia/nemotron-3-super:free': 5000,
-  'openrouter/nvidia/nemotron-3-nano-30b-a3b:free': 100000,
   'openrouter/nvidia/nemotron-3-nano:free': 100000,
   'openrouter/google/gemma-4-31b:free': 4000,
-  'openrouter/cohere/north-mini-code:free': 8000
+  'openrouter/cohere/north-mini-code:free': 8000,
+  'openrouter/free': 1000
 };
 
-// ─── Lookup Helpers ────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────
 
 function getRoute(routeKey) {
   return ROUTES[routeKey] || null;
@@ -459,6 +396,8 @@ function getAllRoutes() {
     key,
     description: config.description,
     primary: config.primary,
+    secondary: config.fallbacks[0],
+    ultimateFallback: config.fallbacks[1],
     fallbacks: [...config.fallbacks],
     maxTokens: config.maxTokens,
     timeout: config.timeout,
@@ -477,27 +416,9 @@ function getAllModels() {
     throughput: config.throughput,
     dailyLimit: DAILY_LIMITS[id] ?? config.dailyLimit,
     strengths: config.strengths,
-    bestFor: config.bestFor
+    bestFor: config.bestFor,
+    dynamic: config.dynamic === true
   }));
-}
-
-// ─── Rate-Limited Sanitization ─────────────────────────────────────────
-
-const clientRateLimit = new Map();
-
-const DEFAULT_RATE_LIMIT_THRESHOLD = 50;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-
-function getRateLimitThreshold() {
-  const configuredThreshold = Number.parseInt(
-    process.env.RATE_LIMIT_THRESHOLD,
-    10
-  );
-
-  return Number.isInteger(configuredThreshold) &&
-    configuredThreshold > 0
-    ? configuredThreshold
-    : DEFAULT_RATE_LIMIT_THRESHOLD;
 }
 
 function sanitizeModel(model) {
@@ -515,6 +436,24 @@ function sanitizeModel(model) {
   }
 
   return normalizedModel;
+}
+
+// ─── Rate Limiting ──────────────────────────────────────────────────────
+
+const clientRateLimit = new Map();
+const DEFAULT_RATE_LIMIT_THRESHOLD = 50;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+function getRateLimitThreshold() {
+  const configuredThreshold = Number.parseInt(
+    process.env.RATE_LIMIT_THRESHOLD,
+    10
+  );
+
+  return Number.isInteger(configuredThreshold) &&
+    configuredThreshold > 0
+    ? configuredThreshold
+    : DEFAULT_RATE_LIMIT_THRESHOLD;
 }
 
 function sanitizeModelWithRateLimit(
@@ -576,31 +515,42 @@ function getRateLimitStats() {
 
     stats[clientId] = {
       attempts: data.count,
-      resetInMs: Math.max(0, data.resetTime - now),
-      windowRemaining: Math.max(0, data.resetTime - now)
+      resetInMs: data.resetTime - now
     };
   }
 
   return stats;
 }
 
-// ─── Validation ────────────────────────────────────────────────────────
+// ─── Validation ─────────────────────────────────────────────────────────
 
 function validateRoutes() {
   const errors = [];
   const allModelIds = new Set(Object.keys(MODELS));
 
   for (const [routeKey, config] of Object.entries(ROUTES)) {
+    if (config.fallbacks.length !== 2) {
+      errors.push(
+        `Route ${routeKey}: expected exactly 2 fallbacks`
+      );
+    }
+
+    if (config.fallbacks[1] !== ULTIMATE_FALLBACK) {
+      errors.push(
+        `Route ${routeKey}: ultimate fallback must be "${ULTIMATE_FALLBACK}"`
+      );
+    }
+
     if (!allModelIds.has(config.primary)) {
       errors.push(
-        `Route ${routeKey}: primary model "${config.primary}" is not defined in MODELS`
+        `Route ${routeKey}: primary model "${config.primary}" is not defined`
       );
     }
 
     for (const fallback of config.fallbacks) {
       if (!allModelIds.has(fallback)) {
         errors.push(
-          `Route ${routeKey}: fallback model "${fallback}" is not defined in MODELS`
+          `Route ${routeKey}: fallback model "${fallback}" is not defined`
         );
       }
     }
@@ -609,7 +559,7 @@ function validateRoutes() {
   for (const modelId of allModelIds) {
     if (!Object.prototype.hasOwnProperty.call(DAILY_LIMITS, modelId)) {
       errors.push(
-        `Model ${modelId}: no daily limit defined in DAILY_LIMITS`
+        `Model ${modelId}: no daily limit is defined`
       );
     }
   }
@@ -620,12 +570,14 @@ function validateRoutes() {
   };
 }
 
-// ─── Exports ───────────────────────────────────────────────────────────
+// ─── Exports ────────────────────────────────────────────────────────────
 
 module.exports = {
   MODELS,
   ROUTES,
   DAILY_LIMITS,
+  DEFAULT_MODEL,
+  ULTIMATE_FALLBACK,
   getRoute,
   getAllRoutes,
   getModel,
