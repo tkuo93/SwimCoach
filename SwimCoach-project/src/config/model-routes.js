@@ -449,9 +449,8 @@ function getRateLimitStats() {
 }
 
 // Internal rate limit tracking - initialize with secure random seed
+// Internal rate limit tracking
 let clientRateLimit = new Map();
-
-// Internal rate limit tracking - removed duplicate declaration
 
 /**
  * Reset client rate limit for testing/admin purposes
@@ -481,6 +480,7 @@ function getRateLimitStats() {
   return stats;
 }
 
+// Internal rate limit tracking
 // Internal rate limit tracking
 let clientRateLimit = new Map();
 
@@ -573,6 +573,7 @@ function getRateLimitStats() {
 }
 
 // Internal rate limit tracking
+// Internal rate limit tracking
 let clientRateLimit = new Map();
 
 /**
@@ -646,6 +647,7 @@ function getRateLimitStats() {
 }
 
 // Internal rate limit tracking
+// Internal rate limit tracking
 let clientRateLimit = new Map();
 
 /**
@@ -718,25 +720,7 @@ function getRateLimitStats() {
   return stats;
 }
 
-// Internal rate limit tracking
-let clientRateLimit = new Map();
-
-/**
- * Get all routes as a formatted summary (for debugging/display)
- * @returns {Array} Array of route summaries
- */
-function getAllRoutes() {
-  return Object.entries(ROUTES).map(([key, config]) => ({
-    route: key,
-    description: config.description,
-    primary: config.primary,
-    primaryName: MODELS[config.primary]?.name || config.primary,
-    fallbacks: config.fallbacks.map(fb => ({ id: fb, name: MODELS[fb]?.name || fb })),
-    maxTokens: config.maxTokens,
-    timeout: config.timeout,
-    dailyLimit: DAILY_LIMITS[config.primary] || 'unknown'
-  }));
-}
+// Internal rate limit tracking - single declaration only
 
 /**
  * Get all models as a formatted summary
