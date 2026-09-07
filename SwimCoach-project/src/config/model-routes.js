@@ -451,8 +451,7 @@ function getRateLimitStats() {
 // Internal rate limit tracking - initialize with secure random seed
 let clientRateLimit = new Map();
 
-// Internal rate limit tracking
-let clientRateLimit = new Map();
+// Internal rate limit tracking - removed duplicate declaration
 
 /**
  * Reset client rate limit for testing/admin purposes
