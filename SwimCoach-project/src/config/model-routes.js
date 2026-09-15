@@ -10,37 +10,28 @@
  */
 
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
-const DEFAULT_MODEL = 'openrouter/nvidia/nemotron-3.5-lightning:free';
+const DEFAULT_MODEL = 'openrouter/minimax/minimax-m3:free';
 const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
 const MODELS = {
-  'openrouter/nvidia/nemotron-3.5-lightning:free': {
-    name: 'NVIDIA Nemotron 3.5 Lightning',
-    params: '30B MoE (3B active)',
-    context: 1000000,
-    latencyMs: 2500,
-    throughput: 33,
-    weeklyTokens: null,
-    dailyLimit: 1000,
-    strengths: [
-      'fast',
-      'reasoning',
-      'long context',
-      'tool use',
-      'high-throughput workloads'
-    ],
+  'openrouter/inclusionai/ling-3.0-flash-vl:free': {
+    name: 'InclusionAI Ling 3.0 Flash VL',
+    params: '262K context, multimodal, visual perception, advanced visual agent capabilities',
+    context: 262144,
+    latencyMs: 1946,
+    throughput: 80,
+    weeklyTokens: 1.41e12,
+    dailyLimit: 20000,
+    strengths: ['multimodal', 'reasoning', 'conversation', 'analysis', 'visual understanding', 'native visual perception', 'advanced visual agent capabilities'],
     bestFor: [
-      'workout:modify',
-      'workout:quick-edit',
+      'workout:generate:high-volume',
       'coach:chat',
-      'ui:autocomplete',
-      'ui:validate',
-      'util:classify',
-      'util:extract',
+      'coach:technique',
+      'analysis:progress',
       'fallback:general',
-      'fallback:fast'
+      'ultimate fallback'
     ]
   },
 
@@ -69,23 +60,6 @@ const MODELS = {
     ]
   },
 
-  'openrouter/inclusionai/ling-3.0-flash:free': {
-    name: 'InclusionAI Ling 3.0 Flash',
-    params: '124B MoE (5.1B active)',
-    context: 262144,
-    latencyMs: 1946,
-    throughput: 80,
-    weeklyTokens: 1.41e12,
-    dailyLimit: 20000,
-    strengths: ['reasoning', 'conversation', 'analysis'],
-    bestFor: [
-      'coach:chat',
-      'coach:technique',
-      'analysis:progress',
-      'fallback:general'
-    ]
-  },
-
   'openrouter/nvidia/nemotron-3-nano:free': {
     name: 'NVIDIA Nemotron 3 Nano',
     params: '~37B',
@@ -96,37 +70,13 @@ const MODELS = {
     dailyLimit: 100000,
     strengths: ['fast', 'efficient', 'high rate limit'],
     bestFor: [
-      'workout:generate:high-volume',
       'ui:autocomplete',
       'ui:validate',
+      'ui:suggest',
       'util:classify',
       'util:extract',
       'fallback:fast'
     ]
-  },
-
-  'openrouter/google/gemma-4-31b:free': {
-    name: 'Google Gemma 4 31B',
-    params: '31B',
-    context: 262144,
-    latencyMs: 1171,
-    throughput: 18,
-    weeklyTokens: 1.67e9,
-    dailyLimit: 4000,
-    strengths: ['general chat', 'fast', 'reliable'],
-    bestFor: ['coach:chat', 'fallback:chat']
-  },
-
-  'openrouter/cohere/north-mini-code:free': {
-    name: 'Cohere North Mini Code',
-    params: '30B MoE (3B active)',
-    context: 256000,
-    latencyMs: 1597,
-    throughput: 19,
-    weeklyTokens: 300e9,
-    dailyLimit: 8000,
-    strengths: ['code', 'structured output'],
-    bestFor: ['fallback:code']
   },
 
   // Dynamic OpenRouter router. OpenRouter selects an available free model.
@@ -155,7 +105,7 @@ const ROUTES = {
     description: 'Generate a new structured workout',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/inclusionai/ling-3.0-flash-vl:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -165,9 +115,9 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation',
-    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    primary: 'openrouter/inclusionai/ling-3.0-flash-vl:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/minimax/minimax-m3:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -177,9 +127,9 @@ const ROUTES = {
 
   'workout:modify': {
     description: 'Modify an existing workout',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -189,7 +139,7 @@ const ROUTES = {
 
   'workout:quick-edit': {
     description: 'Make a small targeted workout edit',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -201,9 +151,9 @@ const ROUTES = {
 
   'coach:chat': {
     description: 'Conversational chat with the AI coach',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/inclusionai/ling-3.0-flash-vl:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -215,7 +165,7 @@ const ROUTES = {
     description: 'Technique-specific questions and explanations',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -227,7 +177,7 @@ const ROUTES = {
     description: 'Full season analysis',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -240,7 +190,7 @@ const ROUTES = {
     description: 'Progress insights over recent workouts',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -252,7 +202,7 @@ const ROUTES = {
     description: 'Competition taper planning and guidance',
     primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -262,7 +212,7 @@ const ROUTES = {
 
   'ui:autocomplete': {
     description: 'Typeahead suggestions for the workout builder',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -274,7 +224,7 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -286,7 +236,7 @@ const ROUTES = {
 
   'ui:suggest': {
     description: 'Quick workout suggestions',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -298,7 +248,7 @@ const ROUTES = {
 
   'util:classify': {
     description: 'Classify workout tags, intervals, and stroke types',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -310,7 +260,7 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
       'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
@@ -322,9 +272,9 @@ const ROUTES = {
 
   'fallback:general': {
     description: 'General-purpose fallback',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/nvidia/nemotron-3-nano:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -334,9 +284,9 @@ const ROUTES = {
 
   'fallback:code': {
     description: 'Code and structured-output fallback',
-    primary: 'openrouter/cohere/north-mini-code:free',
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3.5-lightning:free',
+      'openrouter/minimax/minimax-m3:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -346,9 +296,9 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fast available model fallback',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/nvidia/nemotron-3-nano:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/inclusionai/ling-3.0-flash-vl:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -358,9 +308,9 @@ const ROUTES = {
 
   'fallback:chat': {
     description: 'Chat and conversation fallback',
-    primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
+    primary: 'openrouter/minimax/minimax-m3:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/inclusionai/ling-3.0-flash-vl:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -372,12 +322,10 @@ const ROUTES = {
 // ─── Daily Rate Limits ─────────────────────────────────────────────────
 
 const DAILY_LIMITS = {
-  'openrouter/nvidia/nemotron-3.5-lightning:free': 1000,
+  'openrouter/inclusionai/ling-3.0-flash-vl:free': 20000,
   'openrouter/minimax/minimax-m3:free': 1000,
-  'openrouter/inclusionai/ling-3.0-flash:free': 20000,
   'openrouter/nvidia/nemotron-3-nano:free': 100000,
-  'openrouter/google/gemma-4-31b:free': 4000,
-  'openrouter/cohere/north-mini-code:free': 8000,
+  'openrouter/nvidia/nemotron-3.5-lightning:free': 1000,
   'openrouter/free': 1000
 };
 
