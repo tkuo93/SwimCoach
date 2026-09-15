@@ -22,7 +22,7 @@ const { rateLimitedAxiosCall } = require('../openrouter-rate-limiter');
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'inclusionai/ling-3.0-flash-vl:free';
 const MAX_AGENT_ITERATIONS = 5;
 const MAX_HISTORY_TOKENS = 1500;
 
