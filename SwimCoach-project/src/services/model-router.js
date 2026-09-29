@@ -260,10 +260,7 @@ async function callByRoute(routeKey, messages, options = {}) {
 
   // Universal last-resort fallbacks (used only if ALL route-specific fallbacks fail)
   const UNIVERSAL_FALLBACKS = [
-    'openrouter/minimax/minimax-m3:free',      // fallback:general - best all-rounder
-    'openrouter/nvidia/nemotron-3-nano:free', // fallback:fast - fastest, high rate limit
-    'openrouter/nvidia/nemotron-3.5-lightning:free', // fallback:chat - good for conversation
-    'openrouter/inclusionai/ling-3.0-flash-vl:free' // fallback:code - good for structured output
+    'openrouter/free'
   ];
 
   // Build model chain: primary + route fallbacks + universal fallbacks
