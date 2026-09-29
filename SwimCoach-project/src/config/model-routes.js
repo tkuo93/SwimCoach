@@ -129,6 +129,7 @@ const MODELS = {
     bestFor: ['fallback:code']
   },
 
+
   // Dynamic OpenRouter router. OpenRouter selects an available free model.
   'openrouter/free': {
     name: 'OpenRouter Dynamic Free Router',
