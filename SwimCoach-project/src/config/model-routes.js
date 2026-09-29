@@ -10,74 +10,16 @@
  */
 
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
-const DEFAULT_MODEL = 'openrouter/minimax/minimax-m3:free';
+const DEFAULT_MODEL = 'openrouter/poolside/laguna-s-2.1:free';
 const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
-const MODELS = {
-  'openrouter/inclusionai/ling-3.0-flash-vl:free': {
-    name: 'InclusionAI Ling 3.0 Flash VL',
-    params: '262K context, multimodal, visual perception, advanced visual agent capabilities',
-    context: 262144,
-    latencyMs: 1946,
-    throughput: 80,
-    weeklyTokens: 1.41e12,
-    dailyLimit: 20000,
-    strengths: ['multimodal', 'reasoning', 'conversation', 'analysis', 'visual understanding', 'native visual perception', 'advanced visual agent capabilities'],
-    bestFor: [
-      'workout:generate:high-volume',
-      'coach:chat',
-      'coach:technique',
-      'analysis:progress',
-      'fallback:general',
-      'ultimate fallback'
-    ]
-  },
 
-  'openrouter/minimax/minimax-m3:free': {
-    name: 'MiniMax M3',
-    params: 'Large-scale reasoning model',
-    context: 1048576,
-    latencyMs: 2570,
-    throughput: 33,
-    weeklyTokens: null,
-    dailyLimit: 1000,
-    strengths: [
-      'complex reasoning',
-      'structured planning',
-      'long context',
-      'workout generation',
-      'season analysis'
-    ],
-    bestFor: [
-      'workout:generate',
-      'analysis:season',
-      'analysis:progress',
-      'analysis:taper',
-      'coach:technique',
-      'fallback:chat'
-    ]
-  },
 
-  'openrouter/nvidia/nemotron-3-nano:free': {
-    name: 'NVIDIA Nemotron 3 Nano',
-    params: '~37B',
-    context: 256000,
-    latencyMs: 664,
-    throughput: 94,
-    weeklyTokens: 36.8e9,
-    dailyLimit: 100000,
-    strengths: ['fast', 'efficient', 'high rate limit'],
-    bestFor: [
-      'ui:autocomplete',
-      'ui:validate',
-      'ui:suggest',
-      'util:classify',
-      'util:extract',
-      'fallback:fast'
-    ]
-  },
+  
+
+  
 
   // Dynamic OpenRouter router. OpenRouter selects an available free model.
   'openrouter/free': {
@@ -103,9 +45,9 @@ const MODELS = {
 const ROUTES = {
   'workout:generate': {
     description: 'Generate a new structured workout',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/inclusionai/ling-3.0-flash-vl:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -115,9 +57,9 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation',
-    primary: 'openrouter/inclusionai/ling-3.0-flash-vl:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -127,9 +69,9 @@ const ROUTES = {
 
   'workout:modify': {
     description: 'Modify an existing workout',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -139,9 +81,9 @@ const ROUTES = {
 
   'workout:quick-edit': {
     description: 'Make a small targeted workout edit',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -151,9 +93,9 @@ const ROUTES = {
 
   'coach:chat': {
     description: 'Conversational chat with the AI coach',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/inclusionai/ling-3.0-flash-vl:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -163,9 +105,9 @@ const ROUTES = {
 
   'coach:technique': {
     description: 'Technique-specific questions and explanations',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -175,9 +117,9 @@ const ROUTES = {
 
   'analysis:season': {
     description: 'Full season analysis',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -188,9 +130,9 @@ const ROUTES = {
 
   'analysis:progress': {
     description: 'Progress insights over recent workouts',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -200,9 +142,9 @@ const ROUTES = {
 
   'analysis:taper': {
     description: 'Competition taper planning and guidance',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -212,9 +154,9 @@ const ROUTES = {
 
   'ui:autocomplete': {
     description: 'Typeahead suggestions for the workout builder',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
@@ -224,9 +166,9 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
@@ -236,9 +178,9 @@ const ROUTES = {
 
   'ui:suggest': {
     description: 'Quick workout suggestions',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -248,9 +190,9 @@ const ROUTES = {
 
   'util:classify': {
     description: 'Classify workout tags, intervals, and stroke types',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -260,9 +202,9 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -272,9 +214,9 @@ const ROUTES = {
 
   'fallback:general': {
     description: 'General-purpose fallback',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/nvidia/nemotron-3-nano:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -284,9 +226,9 @@ const ROUTES = {
 
   'fallback:code': {
     description: 'Code and structured-output fallback',
-    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/minimax/minimax-m3:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -296,9 +238,9 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fast available model fallback',
-    primary: 'openrouter/nvidia/nemotron-3-nano:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/inclusionai/ling-3.0-flash-vl:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -308,9 +250,9 @@ const ROUTES = {
 
   'fallback:chat': {
     description: 'Chat and conversation fallback',
-    primary: 'openrouter/minimax/minimax-m3:free',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
     fallbacks: [
-      'openrouter/inclusionai/ling-3.0-flash-vl:free',
+      'openrouter/poolside/laguna-xs-2.1:free',
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
