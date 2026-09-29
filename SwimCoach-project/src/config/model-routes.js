@@ -10,16 +10,71 @@
  */
 
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
+
 const DEFAULT_MODEL = 'openrouter/poolside/laguna-s-2.1:free';
 const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
+const MODELS = {
+  'openrouter/poolside/laguna-s-2.1:free': {
+    name: 'Poolside Laguna S 2.1',
+    params: null,
+    context: 1048576,
+    latencyMs: null,
+    throughput: null,
+    weeklyTokens: null,
+    dailyLimit: 1000,
+    strengths: [
+      'general reasoning',
+      'workout generation',
+      'coach chat',
+      'structured output',
+      'long-context tasks'
+    ],
+    bestFor: [
+      'workout:generate',
+      'workout:generate:high-volume',
+      'workout:modify',
+      'workout:quick-edit',
+      'coach:chat',
+      'coach:technique',
+      'analysis:season',
+      'analysis:progress',
+      'analysis:taper',
+      'ui:autocomplete',
+      'ui:validate',
+      'ui:suggest',
+      'util:classify',
+      'util:extract',
+      'fallback:general',
+      'fallback:code',
+      'fallback:fast',
+      'fallback:chat'
+    ]
+  },
 
-
-  
-
-  
+  'openrouter/poolside/laguna-xs-2.1:free': {
+    name: 'Poolside Laguna XS 2.1',
+    params: null,
+    context: 262144,
+    latencyMs: null,
+    throughput: null,
+    weeklyTokens: null,
+    dailyLimit: 1000,
+    strengths: [
+      'fast fallback',
+      'general reasoning',
+      'compact responses',
+      'tool calling',
+      'structured output'
+    ],
+    bestFor: [
+      'secondary model',
+      'fallback',
+      'fast response'
+    ]
+  },
 
   // Dynamic OpenRouter router. OpenRouter selects an available free model.
   'openrouter/free': {
@@ -264,10 +319,8 @@ const ROUTES = {
 // ─── Daily Rate Limits ─────────────────────────────────────────────────
 
 const DAILY_LIMITS = {
-  'openrouter/inclusionai/ling-3.0-flash-vl:free': 20000,
-  'openrouter/minimax/minimax-m3:free': 1000,
-  'openrouter/nvidia/nemotron-3-nano:free': 100000,
-  'openrouter/nvidia/nemotron-3.5-lightning:free': 1000,
+  'openrouter/poolside/laguna-s-2.1:free': 1000,
+  'openrouter/poolside/laguna-xs-2.1:free': 1000,
   'openrouter/free': 1000
 };
 
@@ -419,10 +472,11 @@ function validateRoutes() {
   const allModelIds = new Set(Object.keys(MODELS));
 
   for (const [routeKey, config] of Object.entries(ROUTES)) {
-    if (config.fallbacks.length !== 2) {
+    if (!Array.isArray(config.fallbacks) || config.fallbacks.length !== 2) {
       errors.push(
         `Route ${routeKey}: expected exactly 2 fallbacks`
       );
+      continue;
     }
 
     if (config.fallbacks[1] !== ULTIMATE_FALLBACK) {
