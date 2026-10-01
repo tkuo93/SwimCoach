@@ -1065,8 +1065,10 @@ function saveWorkoutEdits(){
   const sections=document.querySelectorAll('.timeline-section');
   const pool=currentWorkout.poolWorkout||{};
   const gym=currentWorkout.gymWorkout||{};
+  const gymExercises = (gym.mainSet || []).slice();
   // Rebuild mainSet from edited sections
   const newMainSet=[];
+  let gymIdx = -1;
   sections.forEach(sec=>{
     const name=sec.querySelector('.edit-name')?.value;
     const desc=sec.querySelector('.edit-desc')?.value;
@@ -1083,6 +1085,21 @@ function saveWorkoutEdits(){
         description:sec.querySelector('.edit-notes')?.value||'',
       });
     }
+    // Collect gym exercise edits — gym sections render as "Exercise N" and their desc
+    // has sets×reps but no stroke/unit pattern, so it won't match the pool regex above
+    if (name.startsWith('Exercise')) {
+      gymIdx++;
+      if (gymIdx < gymExercises.length) {
+        const parts = desc.split(' · ');
+        const setsRepsMatch = parts[1]?.match(/(\d+)×(\d+)/);
+        gymExercises[gymIdx] = {
+          ...gymExercises[gymIdx],
+          exercise: parts[0] || gymExercises[gymIdx].exercise,
+          sets: setsRepsMatch ? parseInt(setsRepsMatch[1]) : gymExercises[gymIdx].sets,
+          repetitions: setsRepsMatch ? parseInt(setsRepsMatch[2]) : gymExercises[gymIdx].repetitions,
+        };
+      }
+    }
   });
   currentWorkout.poolWorkout=pool;
   pool.mainSet=newMainSet;
@@ -1091,6 +1108,7 @@ function saveWorkoutEdits(){
   // Also save workout title and date if edited
   const editTitle = document.getElementById('edit-workout-title');
   const editDate = document.getElementById('edit-workout-date');
+  gym.mainSet = gymExercises;
   const updateData = {
     poolWorkout: pool,
     gymWorkout: gym
@@ -1102,9 +1120,13 @@ function saveWorkoutEdits(){
   api.workouts.update(currentWorkout._id, updateData).then(res=>{
     if(res.success){
       currentWorkout = res.data;
-      toggleWorkoutEdit();
+      workoutEditMode = false;
+      document.getElementById('workoutEditBtn').textContent = '✏️';
+      renderToday();
     }
     else{alert('Failed to save: '+(res.error||'Unknown'));}
+  }).catch(err=>{
+    alert('Failed to save: '+(err.message||'Unknown error'));
   });
 }
 

@@ -1,0 +1,54 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: 🔒
+      - heading "Your Privacy Matters" [level=3] [ref=e7]
+      - paragraph [ref=e8]: "This app uses AI services that may use your conversations for model training. Please avoid sharing:"
+      - list [ref=e9]:
+        - listitem [ref=e10]: Sensitive personal information
+        - listitem [ref=e11]: Health or medical details
+        - listitem [ref=e12]: Financial information
+        - listitem [ref=e13]: Any data you're not comfortable being used for AI training
+      - paragraph [ref=e14]:
+        - text: By continuing, you agree to our
+        - link "Privacy Policy" [ref=e15] [cursor=pointer]:
+          - /url: /privacy-policy.html
+        - text: and
+        - link "Terms of Use" [ref=e16] [cursor=pointer]:
+          - /url: /terms-of-use.html
+        - text: .
+    - button "Acknowledge & Continue" [ref=e18] [cursor=pointer]
+  - generic [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22] [cursor=pointer]: 🏊
+      - heading "SwimCoach" [level=2] [ref=e23]
+      - paragraph [ref=e24]: Personalized swim and gym workouts, plus an AI coach powered by sports science research.
+    - generic [ref=e25]:
+      - button "Continue with Google" [ref=e26] [cursor=pointer]
+      - generic [ref=e33]: or
+      - button "Create New Profile" [ref=e35] [cursor=pointer]
+      - button "Quick Workout" [ref=e36] [cursor=pointer]
+    - generic [ref=e37]:
+      - link "Privacy Policy" [ref=e38] [cursor=pointer]:
+        - /url: /privacy-policy.html
+      - link "Terms of Use" [ref=e39] [cursor=pointer]:
+        - /url: /terms-of-use.html
+      - link "Cookie Policy" [ref=e40] [cursor=pointer]:
+        - /url: /cookie-policy.html
+  - navigation [ref=e41]:
+    - generic [ref=e42] [cursor=pointer]:
+      - generic [ref=e43]: 📋
+      - generic [ref=e44]: Today
+    - generic [ref=e45] [cursor=pointer]:
+      - generic [ref=e46]: 📅
+      - generic [ref=e47]: Week
+    - generic [ref=e48] [cursor=pointer]:
+      - generic [ref=e49]: 📊
+      - generic [ref=e50]: History
+    - generic [ref=e51] [cursor=pointer]:
+      - generic [ref=e52]: 💬
+      - generic [ref=e53]: Coach
+    - link "Give Feedback" [ref=e54] [cursor=pointer]:
+      - /url: https://forms.gle/ybW5Xd5hyuguAcQZ7
+      - generic [ref=e55]: 💡
+      - generic [ref=e56]: Feedback
