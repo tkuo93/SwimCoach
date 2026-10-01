@@ -1147,7 +1147,7 @@ function renderExecSidebar(){
   currentSections.forEach((s,i)=>{
     const div=document.createElement('div');
     div.className='exec-set-item'+(i===curSetIdx?' active':'')+(i<curSetIdx?' done':'');
-    div.innerHTML=`<div class="num">${s.name}</div><div class="dist">${s.dist?s.dist+(currentWorkout?.poolWorkout?.poolUnit==='yards'?'yd':'m'):''}</div>`;
+    div.innerHTML=`<div class="num">${esc(s.name)}</div><div class="dist">${s.dist?s.dist+(currentWorkout?.poolWorkout?.poolUnit==='yards'?'yd':'m'):''}</div>`;
     div.onclick=()=>{curSetIdx=i;updateExec();};
     list.appendChild(div);
   });
