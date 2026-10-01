@@ -1,7 +1,7 @@
 const Workout = require('../models/Workout');
 const { generateWorkout: generateWorkoutAI, resolvePoolLength, isPoolYards, resolveEquipment, resolvePrimaryEvents } = require('./workout-ai');
 // interval-calculator.js is pure computation (no network I/O) - calculates swim intervals from CSS/race pace
-const { getCSS, validateAndCorrectIntervals, formatSecondsToSendOff } = require('../utils/interval-calculator');
+const { getCSS, validateAndCorrectIntervals, formatSecondsToSendOff, formatIntervalToDisplay } = require('../utils/interval-calculator');
 // Duration validation and adjustment
 const { calculateWorkoutDuration, validateWorkoutDuration, adjustWorkoutToDuration } = require('../utils/workout-duration');
 
@@ -93,17 +93,17 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
         if (typeof s.interval === 'object' && s.interval.sendOff) {
           // Format 1: Full interval object
           intervalDetail = s.interval;
-          intervalStr = s.interval.sendOff;
+          intervalStr = formatIntervalToDisplay(s.interval.sendOff);
         } else if (typeof s.restInterval === 'object' && s.restInterval.sendOff) {
           // Alternative: restInterval as object
           intervalDetail = s.restInterval;
-          intervalStr = s.restInterval.sendOff;
+          intervalStr = formatIntervalToDisplay(s.restInterval.sendOff);
         } else if (s.interval && typeof s.interval === 'string') {
           // Format 2: interval as string
-          intervalStr = s.interval;
+          intervalStr = formatIntervalToDisplay(s.interval);
         } else if (s.restInterval && typeof s.restInterval === 'string') {
           // Format 2: restInterval as string
-          intervalStr = s.restInterval;
+          intervalStr = formatIntervalToDisplay(s.restInterval);
         } else if (s.sendOff || s.targetPace) {
           // Format 3: Flat fields - construct interval object
           intervalDetail = {
@@ -113,7 +113,7 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
             type: s.intervalType || 'fixed',
             progression: s.progression,
           };
-          intervalStr = s.sendOff;
+          intervalStr = formatIntervalToDisplay(s.sendOff);
         } else if (typeof s.sendOff === 'number' && typeof s.targetPace === 'number') {
           // Format 4: Validated numeric fields
           intervalDetail = {

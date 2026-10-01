@@ -464,30 +464,52 @@ function calculateMainSetIntervals(mainSet, profile) {
 }
 
 /**
- * Format seconds to time string (M:SS or M:SS.hh)
+ * Format seconds to time string (M:SS.hh)
+ * Always returns M:SS.hh format — e.g. 65 → "1:05.00", 35 → "0:35.00"
  */
 function formatSecondsToTime(seconds) {
   if (seconds == null) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const hundredths = Math.round((seconds % 1) * 100);
-  if (mins > 0) {
-    return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  }
-  return `${secs}.${hundredths.toString().padStart(2, '0')}`;
+  const mins = Math.floor(Number(seconds) / 60);
+  const secs = Math.floor(Number(seconds) % 60);
+  const hundredths = Math.round((Number(seconds) % 1) * 100);
+  return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
 }
 
 /**
  * Format seconds to send-off string (M:SS)
+ * Always returns M:SS format — e.g. 65 → "1:05", 35 → "0:35"
  */
 function formatSecondsToSendOff(seconds) {
   if (seconds == null) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  if (mins > 0) {
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const mins = Math.floor(Number(seconds) / 60);
+  const secs = Math.floor(Number(seconds) % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Normalize any interval value to M:SS display format.
+ * Accepts: number (65), string seconds ("65"), string with 's' suffix ("90s"),
+ *          or already-formatted string ("1:05", "2:00.50").
+ * Returns: M:SS or M:SS.hh string.
+ */
+function formatIntervalToDisplay(interval) {
+  if (interval == null || interval === '') return '';
+
+  const str = String(interval).trim();
+
+  // Already formatted like "M:SS" or "M:SS.hh"
+  if (str.includes(':')) return str;
+
+  // "90s" format
+  if (str.endsWith('s')) {
+    const secs = parseFloat(str.slice(0, -1));
+    return formatSecondsToSendOff(secs);
   }
-  return `${secs}s`;
+
+  // Raw seconds (number or numeric string)
+  const secs = parseFloat(str);
+  if (isNaN(secs)) return String(interval);
+  return formatSecondsToSendOff(secs);
 }
 
 module.exports = {
@@ -498,6 +520,9 @@ module.exports = {
   getRacePacePer100,
   findBestTime,
   parseFocusZone,
+  formatSecondsToSendOff,
+  formatSecondsToTime,
+  formatIntervalToDisplay,
   formatSecondsToTime,
   formatSecondsToSendOff,
   WORK_REST_RATIOS,

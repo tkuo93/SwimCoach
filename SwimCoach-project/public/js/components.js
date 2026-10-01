@@ -670,29 +670,27 @@ function buildEmptyState(emoji, title, message, action) {
  * Format seconds to time string (M:SS or M:SS.hh)
  * Used for displaying target pace and rest intervals
  */
+/**
+ * Format seconds to time string (M:SS.hh)
+ * Always returns M:SS.hh format — e.g. 65 → "1:05.00", 35 → "0:35.00"
+ */
 function formatSecondsToTime(seconds) {
   if (seconds == null) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const hundredths = Math.round((seconds % 1) * 100);
-  if (mins > 0) {
-    return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  }
-  return `${secs}.${hundredths.toString().padStart(2, '0')}`;
+  const mins = Math.floor(Number(seconds) / 60);
+  const secs = Math.floor(Number(seconds) % 60);
+  const hundredths = Math.round((Number(seconds) % 1) * 100);
+  return `${mins}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
 }
 
 /**
  * Format seconds to send-off string (M:SS)
- * Used for displaying send-off intervals
+ * Always returns M:SS format — e.g. 65 → "1:05", 35 → "0:35"
  */
 function formatSecondsToSendOff(seconds) {
   if (seconds == null) return '';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  if (mins > 0) {
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${secs}s`;
+  const mins = Math.floor(Number(seconds) / 60);
+  const secs = Math.floor(Number(seconds) % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 function escapeHtml(str) {
