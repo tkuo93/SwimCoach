@@ -10,7 +10,8 @@ const {
   getRoute,
   getModel,
   DAILY_LIMITS,
-  validateRoutes
+  validateRoutes,
+  normalizeModelForApi
 } = require('../config/model-routes');
 const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
 
@@ -177,11 +178,14 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
     timeout = 60000
   } = options;
 
+  // Normalize model ID for the API: strip internal 'openrouter/' prefix
+  const apiModel = normalizeModelForApi(model);
+
   try {
     const response = await rateLimitedAxiosCall(() => axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
       {
-        model,
+        model: apiModel,
         messages,
         temperature,
         max_tokens: maxTokens,

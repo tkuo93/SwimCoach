@@ -9,6 +9,8 @@
  * Model IDs use the existing openrouter/... format used by this project.
  */
 
+// Accepts model IDs in either internal prefixed format ("openrouter/poolside/...")
+// or bare OpenRouter format ("poolside/..."). Bare IDs are normalized to prefixed form.
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
 
 const DEFAULT_MODEL = 'openrouter/poolside/laguna-s-2.1:free';
@@ -369,7 +371,13 @@ function sanitizeModel(model) {
     return DEFAULT_MODEL;
   }
 
-  const normalizedModel = model.trim();
+  let normalizedModel = model.trim();
+
+  // Accept bare OpenRouter model IDs (without the 'openrouter/' prefix)
+  // by normalizing to the internal prefixed form used throughout this config
+  if (!normalizedModel.startsWith('openrouter/') && normalizedModel.includes('/')) {
+    normalizedModel = `openrouter/${normalizedModel}`;
+  }
 
   if (
     !MODEL_PATTERN.test(normalizedModel) ||
@@ -397,6 +405,22 @@ function getRateLimitThreshold() {
     configuredThreshold > 0
     ? configuredThreshold
     : DEFAULT_RATE_LIMIT_THRESHOLD;
+}
+
+/**
+ * Strip the 'openrouter/' prefix from a model ID for use with the OpenRouter API.
+ * OpenRouter expects bare provider IDs like 'poolside/laguna-s-2.1:free',
+ * not the prefixed 'openrouter/poolside/laguna-s-2.1:free' used internally.
+ * The special 'openrouter/free' dynamic router is left as-is.
+ *
+ * @param {string} modelId - Internal model ID (may have openrouter/ prefix)
+ * @returns {string} API-ready model ID
+ */
+function normalizeModelForApi(modelId) {
+  if (typeof modelId !== 'string') return modelId;
+  if (modelId === 'openrouter/free') return modelId;
+  const stripped = modelId.replace(/^openrouter\//, '');
+  return stripped || modelId;
 }
 
 function sanitizeModelWithRateLimit(
@@ -528,6 +552,7 @@ module.exports = {
   getAllModels,
   validateRoutes,
   sanitizeModel,
+  normalizeModelForApi,
   sanitizeModelWithRateLimit,
   resetClientRateLimit,
   getRateLimitStats

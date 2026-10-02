@@ -26,7 +26,7 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
-        value: poolside/laguna-m.1:free
+        value: poolside/laguna-s-2.1:free
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_WEBHOOK_URL

@@ -12,7 +12,7 @@ const { getFeedbackSummary } = require('./memory');
 const CoachingMemory = require('../models/CoachingMemory');
 const { getCSS, formatSecondsToSendOff, formatSecondsToTime } = require('../utils/interval-calculator');
 const { callByRoute } = require('./model-router');
-const { sanitizeModel } = require('../config/model-routes');
+const { sanitizeModel, normalizeModelForApi } = require('../config/model-routes');
 
 const OPEN_NOTEBOOK_URL = process.env.OPEN_NOTEBOOK_URL || 'http://localhost:8502';
 const OPEN_NOTEBOOK_MODEL = process.env.OPEN_NOTEBOOK_MODEL || '';
@@ -1030,6 +1030,7 @@ module.exports = {
   resolveEquipment,
   resolvePrimaryEvents,
   sanitizeModel,
+  normalizeModelForApi,
   getCoachingObservations,
   extractActivePhysicalNotes,
 };

@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const CoachingMemory = require('../../models/CoachingMemory');
 const { getToolDefinitions, executeTool } = require('./coach-tools');
-const { sanitizeModel } = require('../workout-ai');
+const { sanitizeModel, normalizeModelForApi } = require('../workout-ai');
 const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('../prompt-sanitizer');
 const { rateLimitedAxiosCall } = require('../openrouter-rate-limiter');
 
@@ -398,8 +398,11 @@ function sleep(ms) {
  * @returns {Promise<Object>} API response data
  */
 async function callLLM(model, messages, tools, attempt = 1) {
+  // Normalize model ID for the API: strip internal 'openrouter/' prefix
+  const apiModel = normalizeModelForApi(model);
+
   const body = {
-    model,
+    model: apiModel,
     messages,
     temperature: 0.7,
     max_tokens: 2048,
