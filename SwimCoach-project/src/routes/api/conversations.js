@@ -18,9 +18,10 @@ router.get('/', async (req, res) => {
     if (process.env.NODE_ENV !== 'production') console.log('Found conversations:', conversations.length);
 
     // Filter out any conversations with invalid _id (e.g., UUID strings from old bug)
-    // Valid ObjectId is 24 hex chars
+    // Valid ObjectId is 24 hex chars. Use toString() since .lean() may return
+    // _id as either an ObjectId instance or a string depending on driver version.
     const validConversations = conversations.filter(c =>
-      c._id && typeof c._id === 'object' && c._id.toString().match(/^[0-9a-fA-F]{24}$/)
+      c._id && c._id.toString().match(/^[0-9a-fA-F]{24}$/)
     );
 
     if (process.env.NODE_ENV !== 'production') console.log('Valid conversations:', validConversations.length);
