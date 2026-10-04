@@ -91,21 +91,14 @@ router.post('/chat', async (req, res) => {
       // Add proposals if any
       if (proposals.length > 0) {
         conversation.proposals = [...(conversation.proposals || []), ...proposals];
-        // Set expiry for proposals (10 min from now) ONLY for conversations that have no prior messages
-        // (i.e., proposals-only conversations created by backend). Frontend-created conversations
-        // persist indefinitely and are deleted explicitly when proposals are confirmed/dismissed.
-        const hasUserMessages = conversation.messages.some(m => m.role === 'user');
-        if (!hasUserMessages || conversation.messages.length <= 2) { // Only the two we just added
-          conversation.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        }
         // Update contextWorkoutId if provided and not already set
         if (workoutId && !conversation.contextWorkoutId) {
           conversation.contextWorkoutId = workoutId;
         }
-      } else {
-        // No proposals - clear any existing expiresAt (e.g., from previous proposal interactions)
-        conversation.expiresAt = undefined;
       }
+      // Frontend-created conversations persist indefinitely.
+      // Clear any existing expiresAt so the conversation isn't auto-deleted by TTL.
+      conversation.expiresAt = undefined;
       // Always save the conversation to persist messages
       if (process.env.NODE_ENV !== 'production') console.log('Saving conversation, messages:', conversation.messages.length);
       await conversation.save();
