@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SwimCoach - Today Screen Design Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #faf8f4;
+  --surface: #ffffff;
+  --border: #e8e2d8;
+  --border-light: #f0ebe3;
+  --sage: #5b7a5e;
+  --sage-light: #e8efe6;
+  --sage-dark: #3d5440;
+  --coral: #e8654a;
+  --coral-light: #fdf0ec;
+  --text: #1a1a1a;
+  --text-sec: #6b6560;
+  --text-mut: #9e978e;
+  --font-d: 'Fraunces', serif;
+  --font-b: 'Inter Tight', sans-serif;
+  --font-m: 'JetBrains Mono', monospace;
+  --r: 20px;
+  --rs: 12px;
+  --rf: 100px;
+  --sh: 0 4px 16px rgba(0,0,0,0.06);
+  --cream-warm: #fdfaf6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:var(--text);-webkit-font-smoothing:antialiased}
+.app{max-width:100%;min-height:100vh;background:var(--cream-warm)}
+
+.screen-content{padding-bottom:calc(70px + env(safe-area-inset-bottom, 0))}
+
+/* Top Bar */
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;gap:12px;background:var(--surface);border-bottom:1px solid var(--border-light);position:sticky;top:0;z-index:10}
+.top-bar h1{font-family:var(--font-d);font-size:18px;font-weight:600;letter-spacing:-.01em;flex:1}
+.top-back{font-size:20px;color:var(--text-mut);cursor:pointer;padding:6px 8px;margin-left:-8px;border-radius:8px;transition:all .15s}
+.top-back:hover{background:var(--surface);color:var(--text)}
+.top-bar-profile{background:none;border:none;font-size:20px;color:var(--text-sec);cursor:pointer;padding:6px 8px;border-radius:8px;transition:all .15s;margin-left:auto}
+.top-bar-profile:hover{background:var(--cream-warm);color:var(--text)}
+.coach-fab{background:none;border:none;font-size:20px;color:var(--text-mut);cursor:pointer;padding:6px 8px;border-radius:8px;transition:all .15s}
+.coach-fab:hover{background:var(--cream-warm);color:var(--text)}
+
+/* Empty State */
+.empty-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;text-align:center}
+.empty-illustration{font-size:56px;margin-bottom:24px;opacity:.5}
+.empty-title{font-family:var(--font-d);font-size:26px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px;line-height:1.2}
+.empty-desc{font-size:14px;color:var(--text-sec);margin-bottom:32px;line-height:1.5}
+.empty-btn{padding:16px 32px;background:var(--sage);color:#fff;border:none;border-radius:var(--rf);font-family:var(--font-b);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;box-shadow:var(--sh);margin-bottom:24px}
+.empty-btn:hover{background:var(--sage-dark)}
+.empty-btn:active{transform:scale(.96)}
+
+/* Slim Workout Card (reused from week view) */
+.slim-workout-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--rs);padding:16px;margin:0 24px 16px;cursor:pointer;transition:all .15s}
+.slim-workout-card:hover{box-shadow:var(--sh);border-color:var(--sage);transform:translateY(-1px)}
+.slim-workout-card.pool{border-left:3px solid var(--sage)}
+.slim-workout-card.gym{border-left:3px solid var(--coral)}
+.slim-workout-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.slim-workout-name{font-family:var(--font-d);font-size:16px;font-weight:600;color:var(--text)}
+.slim-workout-type{font-size:10px;padding:2px 8px;border-radius:100px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.slim-workout-type.swim{background:var(--sage-light);color:var(--sage-dark)}
+.slim-workout-type.gym{background:var(--coral-light);color:var(--coral)}
+.slim-workout-details{display:flex;flex-wrap:wrap;gap:12px;font-family:var(--font-m);font-size:12px;color:var(--text-sec);line-height:1.4}
+.slim-workout-detail{display:flex;align-items:center;gap:4px}
+.slim-workout-coaching{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-mut);line-height:1.5;font-style:italic;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.slim-workout-actions{display:flex;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-light)}
+.slim-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border:none;border-radius:var(--rs);font-family:var(--font-b);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none}
+.slim-btn-coach{background:var(--cream-warm);color:var(--text-sec);border:1px solid var(--border-light)}
+.slim-btn-coach:hover{background:var(--surface)}
+.slim-btn-start{background:var(--coral);color:#fff;box-shadow:0 4px 16px rgba(232,101,74,.2)}
+.slim-btn-start:hover{box-shadow:0 4px 20px rgba(232,101,74,.3)}
+
+/* Stats Row */
+.stats-row{display:flex;gap:10px;padding:20px 24px 24px}
+.stat-item{flex:1;text-align:center;padding:14px 8px;background:var(--surface);border-radius:var(--rs);border:1px solid var(--border-light)}
+.stat-value{font-family:var(--font-d);font-size:22px;font-weight:600;color:var(--sage);line-height:1}
+.stat-label{font-size:10px;color:var(--text-mut);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+
+/* Nav Bar */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border-light);display:flex;padding:8px 0 20px;flex-shrink:0;z-index:50;padding-bottom:calc(20px + env(safe-area-inset-bottom, 0))}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;cursor:pointer;color:var(--text-mut);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;transition:color .15s}
+.nav-tab.active{color:var(--sage)}
+.nav-tab .icon{font-size:20px}
+
+/* Demo toggle */
+.toggle-note{font-family:var(--font-m);font-size:11px;color:var(--text-mut);margin-top:16px;text-align:center;cursor:pointer}
+.toggle-note:hover{color:var(--text-sec)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Today Screen - No Workout Generated -->
+  <!-- The generate button sits above the slim card. When there's no workout, only the button shows. -->
+  <!-- This mock shows the state with a slim card already generated. -->
+  <div class="screen active" id="s-empty">
+    <div class="screen-content">
+      <div class="top-bar">
+        <h1>SwimCoach</h1>
+        <button class="top-bar-profile" onclick="showScreen('s-today')">👤</button>
+      </div>
+      <div class="empty-view">
+        <div class="empty-illustration">🏊</div>
+        <div class="empty-title">Ready to train?</div>
+        <div class="empty-desc">Generate a personalized workout for today.</div>
+        <button class="empty-btn" onclick="showScreen('s-today')">Generate Today's Workout</button>
+
+        <!-- Slim card appears below the generate button when a workout exists -->
+      <!-- The button stays so you can generate additional workouts -->
+      <div class="slim-workout-card pool">
+          <div class="slim-workout-card-header">
+            <span class="slim-workout-name">Freestyle Speed</span>
+            <span class="slim-workout-type swim">Swim</span>
+          </div>
+          <div class="slim-workout-details">
+            <span class="slim-workout-detail">🏊 3,000m</span>
+            <span class="slim-workout-detail">⏱ 60min</span>
+            <span class="slim-workout-detail">🔥 Zone 3-4</span>
+          </div>
+          <div class="slim-workout-coaching">Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue.</div>
+          <div class="slim-workout-actions">
+            <a href="#" class="slim-btn slim-btn-coach">💬 Ask Coach</a>
+            <a href="#" class="slim-btn slim-btn-start">▶ Start Workout</a>
+          </div>
+        </div>
+
+        <div class="toggle-note">← Pure empty state (no card) for reference</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today Screen - With Workout Generated -->
+  <!-- Generate button stays visible so you can add more workouts -->
+  <div class="screen" id="s-today">
+    <div class="screen-content">
+      <div class="top-bar">
+        <span class="top-back" onclick="showScreen('s-empty')">←</span>
+        <h1>Today</h1>
+        <button class="coach-fab">✏️</button>
+        <button class="top-bar-profile" onclick="showScreen('s-empty')">👤</button>
+      </div>
+
+      <!-- Generate button stays visible, centered -->
+      <div style="display:flex;justify-content:center;padding:16px 24px">
+        <button class="empty-btn">+ Add Another Workout</button>
+      </div>
+
+      <!-- Slim card is the primary view -->
+      <div class="slim-workout-card pool">
+        <div class="slim-workout-card-header">
+          <span class="slim-workout-name">Freestyle Speed</span>
+          <span class="slim-workout-type swim">Swim</span>
+        </div>
+        <div class="slim-workout-details">
+          <span class="slim-workout-detail">🏊 3,000m</span>
+          <span class="slim-workout-detail">⏱ 60min</span>
+          <span class="slim-workout-detail">🔥 Zone 3-4</span>
+        </div>
+        <div class="slim-workout-coaching">Today focuses on speed endurance. The main set descends in rest to simulate late-race fatigue.</div>
+        <div class="slim-workout-actions">
+          <a href="#" class="slim-btn slim-btn-coach">💬 Ask Coach</a>
+          <a href="#" class="slim-btn slim-btn-start">▶ Start Workout</a>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-value">3,000</div>
+          <div class="stat-label">meters</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">60</div>
+          <div class="stat-label">minutes</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">Zone 3-4</div>
+          <div class="stat-label">intensity</div>
+        </div>
+      </div>
+
+      <div class="toggle-note" onclick="showScreen('s-empty')">← Back to empty state</div>
+    </div>
+  </div>
+
+  <!-- Pure empty state (no card) -->
+  <div class="screen" id="s-no-card">
+    <div class="screen-content">
+      <div class="top-bar">
+        <h1>SwimCoach</h1>
+        <button class="top-bar-profile">👤</button>
+      </div>
+      <div class="empty-view">
+        <div class="empty-illustration">🏊</div>
+        <div class="empty-title">Ready to train?</div>
+        <div class="empty-desc">Generate a personalized workout for today.</div>
+        <button class="empty-btn">Generate Today's Workout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav Bar -->
+  <nav class="nav-bar visible">
+    <div class="nav-tab active"><span class="icon">📋</span><span>Today</span></div>
+    <div class="nav-tab"><span class="icon">📅</span><span>Week</span></div>
+    <div class="nav-tab"><span class="icon">📊</span><span>History</span></div>
+    <div class="nav-tab"><span class="icon">💬</span><span>Coach</span></div>
+  </nav>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
