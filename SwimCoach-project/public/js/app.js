@@ -1283,7 +1283,7 @@ async function generateWorkout(form) {
           workout_type: genData.workoutType,
         });
       }
-      if (result.data.partial) {
+      if (result.data.partial && generated < total) {
         const failedSessions = result.data.errors?.map(e => e.dayOfWeek ? `${e.dayOfWeek} (${e.sessionType})` : `session ${e.session}`).join(', ');
         const detail = failedSessions ? ` Missing: ${failedSessions}.` : '';
         showToast(`Program partially generated: ${generated}/${total} workouts created.${detail} Try regenerating the missing ones.`, 'warning');

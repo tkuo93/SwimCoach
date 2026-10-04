@@ -135,8 +135,9 @@ function buildWorkoutCard(workout) {
         <div class="workout-section">
           <div class="empty-state" style="padding: var(--space-xl);">
             <span class="emoji">🤔</span>
-            <h3>No structured workout generated</h3>
-            <p>The AI coach couldn't generate a structured workout this time. Try regenerating or adjusting your preferences.</p>
+            <h3>Incomplete workout generated</h3>
+            <p>The AI coach generated this workout but it's missing structured content (main sets, warm-up, etc.). Try regenerating or adjusting your preferences.</p>
+            <button onclick="regenerateWorkout('${w._id}')" class="btn btn-sm btn-primary" style="margin-top: var(--space-md);">Regenerate Workout</button>
           </div>
         </div>
       </div>`;

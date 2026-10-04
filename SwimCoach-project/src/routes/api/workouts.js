@@ -473,6 +473,18 @@ function buildPredictedSessionSummary(workoutType, sessionIndex, sessionType, pr
 }
 
 /**
+ * Check if a workout has meaningful structured content (not just an empty shell).
+ * A workout with empty mainSet arrays and no descriptions is treated as a failure.
+ */
+function hasWorkoutContent(workout) {
+  const pool = workout.poolWorkout || {};
+  const gym = workout.gymWorkout || {};
+  const hasPoolContent = pool.mainSet?.length > 0 || pool.warmUp?.description || pool.coolDown?.description;
+  const hasGymContent = gym.mainSet?.length > 0 || gym.warmUp?.description || gym.coolDown?.description;
+  return hasPoolContent || hasGymContent;
+}
+
+/**
  * Generate multiple workouts in parallel for a program.
  * All workouts share the same programContext (pre-fetched notes, feedback, observations).
  * Each workout gets its own workoutType and programIndex.
@@ -520,12 +532,12 @@ async function generateWorkoutsParallel(profile, sessionCustomizations, programC
   const errors = [];
 
   results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value) {
+    if (result.status === 'fulfilled' && result.value && hasWorkoutContent(result.value)) {
       workouts.push({ ...result.value, programIndex: index });
     } else {
       errors.push({
         session: index + 1,
-        error: result.reason?.message || 'Unknown error'
+        error: result.reason?.message || result.value ? 'Workout generated but has no structured content' : (result.reason?.message || 'Unknown error')
       });
     }
   });

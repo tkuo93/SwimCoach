@@ -234,6 +234,14 @@ async function generateWorkout(profile, customization = {}, opts = {}) {
     },
   });
 
+  // If the workout has no structured content, throw before saving.
+  // The AI returned parseable JSON but with empty main sets and no descriptions.
+  const poolHasContent = workout.poolWorkout?.mainSet?.length > 0 || workout.poolWorkout?.warmUp?.description || workout.poolWorkout?.coolDown?.description;
+  const gymHasContent = workout.gymWorkout?.mainSet?.length > 0 || workout.gymWorkout?.warmUp?.description || workout.gymWorkout?.coolDown?.description;
+  if (!poolHasContent && !gymHasContent) {
+    throw new Error('Workout generated but has no structured content');
+  }
+
   // Post-process: validate and correct pool distances if AI used wrong unit
   if (includePool && isPoolYards(customization, profile)) {
     validateYardsDistances(workout);

@@ -1583,7 +1583,14 @@ function confirmGenerateWeek(){
     clearInterval(progressInterval);
     stopLoadingTimer();
     if(res.success){
-      setLoadingProgress(numSessions,numSessions,'Done!');
+      // Check if any workouts failed to generate
+      const generated = res.data.generatedCount || res.data.workouts.length;
+      const total = res.data.totalSessions || numSessions;
+      if (generated < total) {
+        const failed = total - generated;
+        alert(`Generated ${generated}/${total} workouts. ${failed} failed to generate. They will not appear in your week view.`);
+      }
+      setLoadingProgress(total,total,'Done!');
       // Replace any existing workouts in the same date range instead of duplicating.
       // Without this, regenerating a week stacks duplicate days and the week view
       // (which shows the first match per day) can surface a stale workout.
@@ -2199,8 +2206,16 @@ function genNewWorkout(){
       stopLoadingTimer();
       if(res.success&&res.data){
         const w=res.data;
-        workouts.push(w);currentWorkout=w;
-        renderToday();showScreen('s-today');
+        // Validate the workout has actual structured content
+        const hasPoolContent = w.poolWorkout?.mainSet?.length > 0 || w.poolWorkout?.warmUp?.description;
+        const hasGymContent = w.gymWorkout?.mainSet?.length > 0 || w.gymWorkout?.warmUp?.description;
+        if(!hasPoolContent && !hasGymContent){
+          alert('Failed to generate a structured workout. Please try again.');
+          showScreen('s-empty');
+        }else{
+          workouts.push(w);currentWorkout=w;
+          renderToday();showScreen('s-today');
+        }
       }else{
         alert('Failed: '+(res.error||'Unknown'));
         showScreen('s-empty');
