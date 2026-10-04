@@ -290,6 +290,19 @@ router.post('/:id/chat', async (req, res) => {
         };
         if (llmModel) customization.llmModel = llmModel;
         regeneratedWorkout = await regenerateWorkout(req.params.id, profile, customization, { mode: 'direct' });
+
+        // Update workout notes to reflect the swap/regeneration reason
+        if (action.reason && regeneratedWorkout) {
+          const swapNote = `Coach swapped this workout: ${action.reason}`;
+          const existingNotes = regeneratedWorkout.trainingNotes || [];
+          if (!existingNotes.includes(swapNote)) {
+            existingNotes.push(swapNote);
+            regeneratedWorkout.trainingNotes = existingNotes;
+            regeneratedWorkout.generationInfo.generatedBy = 'user-customized';
+            await regeneratedWorkout.save();
+          }
+        }
+
         processedActions.push({ ...action, applied: true });
       } else {
         // modifyWorkout proposals are returned to frontend for confirmation

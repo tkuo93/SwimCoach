@@ -265,6 +265,18 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
 
       const newWorkout = await regenerateWorkout(proposal.workoutId, profile, customization, { mode: 'direct' });
 
+      // Update workout notes to reflect the swap/regeneration reason
+      if (proposal.reason && newWorkout) {
+        const swapNote = `Coach swapped this workout: ${proposal.reason}`;
+        const existingNotes = newWorkout.trainingNotes || [];
+        if (!existingNotes.includes(swapNote)) {
+          existingNotes.push(swapNote);
+          newWorkout.trainingNotes = existingNotes;
+          newWorkout.generationInfo.generatedBy = 'user-customized';
+          await newWorkout.save();
+        }
+      }
+
       // Track workout regeneration
       track('workout_regenerated', {
         original_workout_id: proposal.workoutId,
