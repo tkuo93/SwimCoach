@@ -208,6 +208,17 @@ router.post('/chat/:conversationId/confirm', async (req, res) => {
         { new: true, runValidators: true },
       );
 
+      // Update workout notes to reflect the coach's modification
+      const modNote = `Coach modified this workout: ${proposal.description}`;
+      if (updated && !updated.trainingNotes?.includes(modNote)) {
+        updated.trainingNotes = [...(updated.trainingNotes || []), modNote];
+        updated.generationInfo = {
+          ...updated.generationInfo,
+          generatedBy: 'user-customized',
+        };
+        await updated.save();
+      }
+
       // Track workout modification
       track('workout_modified', {
         workout_id: proposal.workoutId,

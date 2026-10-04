@@ -400,12 +400,28 @@ router.put('/:id', async (req, res) => {
     const editableFields = {};
     const allowedTopLevel = [
       'workoutName', 'workoutType', 'date', 'duration', 'intensity',
-      'poolWorkout', 'gymWorkout', 'trainingNotes', 'progression',
+      'poolWorkout', 'gymWorkout', 'trainingNotes', 'progression', 'generationInfo',
     ];
 
+    // Top-level keys (full object replacement)
     for (const key of allowedTopLevel) {
       if (req.body[key] !== undefined) {
         editableFields[key] = req.body[key];
+      }
+    }
+
+    // Dot-notation field paths for partial nested updates (e.g. gymWorkout.mainSet.0.exercise)
+    for (const key of Object.keys(req.body)) {
+      if (key.includes('.')) {
+        const root = key.split('.')[0];
+        if (allowedTopLevel.includes(root)) {
+          // Sanitize exercise name fields: strip sets/reps/weight suffixes
+          if (key.endsWith('.exercise')) {
+            editableFields[key] = sanitizeExerciseName(req.body[key]);
+          } else {
+            editableFields[key] = req.body[key];
+          }
+        }
       }
     }
 

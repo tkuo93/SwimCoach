@@ -1783,6 +1783,18 @@ async function initChatHandler(workoutId) {
                       const update = {};
                       update[action.field] = parseActionValue(action.newValue, action.field);
                       update.updatedAt = new Date().toISOString();
+
+                      // Append a note explaining the coach's modification
+                      if (action.description) {
+                        const modNote = `Coach modified this workout: ${action.description}`;
+                        // Fetch current workout to get latest training notes
+                        const currentResult = await api.workouts.get(action.workoutId);
+                        const currentNotes = currentResult?.data?.trainingNotes || [];
+                        if (!currentNotes.includes(modNote)) {
+                          update.trainingNotes = [...currentNotes, modNote];
+                        }
+                      }
+
                       const result = await api.workouts.update(action.workoutId, update);
                       proposalEl.remove();
                       showToast('Change applied!', 'success');
