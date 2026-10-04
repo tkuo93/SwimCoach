@@ -1781,7 +1781,7 @@ async function initChatHandler(workoutId) {
                     // Apply modification directly via workout update endpoint
                     try {
                       const update = {};
-                      update[action.field] = parseActionValue(action.newValue);
+                      update[action.field] = parseActionValue(action.newValue, action.field);
                       update.updatedAt = new Date().toISOString();
                       const result = await api.workouts.update(action.workoutId, update);
                       proposalEl.remove();
@@ -2396,12 +2396,30 @@ function dismissCoachAction(conversationId, actionIndex, proposalEl) {
   if (proposalEl) proposalEl.remove();
 }
 
-function parseActionValue(val) {
+function parseActionValue(val, field) {
   if (val === 'true') return true;
   if (val === 'false') return false;
   if (val === 'null') return null;
+  // Sanitize exercise name fields: strip sets/reps/weight suffixes the LLM
+  // may have included (e.g. "Lat Pulldown 3x10 @ 75lbs" → "Lat Pulldown")
+  if (field && typeof val === 'string' && (field.endsWith('.exercise') || field === 'exercise')) {
+    return sanitizeExerciseName(val);
+  }
   if (!isNaN(val) && val !== '') return Number(val);
   return val;
+}
+
+/**
+ * Strip sets/reps/weight suffixes from an exercise name string.
+ * Prevents the LLM from including context info in the exercise name field.
+ */
+function sanitizeExerciseName(name) {
+  if (typeof name !== 'string') return name;
+  return name
+    .replace(/\s*\d+\s*[x×]\s*\d+(?:\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?)?$/, '')
+    .replace(/\s*\(\s*\d+\s*(?:sets|reps)\s*x\s*\d+\s*(?:reps|sets)?\s*\)$/i, '')
+    .replace(/\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?$/, '')
+    .trim();
 }
 
 // ─── Program Page ───

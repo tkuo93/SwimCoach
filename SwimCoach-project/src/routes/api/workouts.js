@@ -396,6 +396,16 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Sanitize exercise names in gymWorkout.mainSet: strip sets/reps/weight
+    // suffixes the LLM may have included (e.g. "Lat Pulldown 3x10 @ 75lbs" → "Lat Pulldown")
+    if (editableFields.gymWorkout?.mainSet) {
+      editableFields.gymWorkout.mainSet.forEach(ex => {
+        if (ex.exercise) {
+          ex.exercise = sanitizeExerciseName(ex.exercise);
+        }
+      });
+    }
+
     // Always update the updatedAt timestamp
     editableFields.updatedAt = new Date();
 
@@ -857,5 +867,19 @@ router.post('/generate/program', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+/**
+ * Strip sets/reps/weight suffixes from an exercise name string.
+ * Prevents the LLM from including context info in the exercise name field.
+ * e.g. "Lat Pulldown 3x10 @ 75lbs" → "Lat Pulldown"
+ */
+function sanitizeExerciseName(name) {
+  if (typeof name !== 'string') return name;
+  return name
+    .replace(/\s*\d+\s*[x×]\s*\d+(?:\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?)?$/, '')
+    .replace(/\s*\(\s*\d+\s*(?:sets|reps)\s*x\s*\d+\s*(?:reps|sets)?\s*\)$/i, '')
+    .replace(/\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?$/, '')
+    .trim();
+}
 
 module.exports = router;

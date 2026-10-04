@@ -135,6 +135,66 @@ describe('Coach Tools - Execution', () => {
       }, { profile: mockProfile, workout: null });
       expect(result).toContain('No workout loaded');
     });
+
+    test('sanitizes new exercise name by stripping sets/reps', async () => {
+      const result = await executeTool('modifyWorkout', {
+        description: 'Swap Lat Pulldown for Seated Cable Row',
+        field: 'gymWorkout.mainSet.0.exercise',
+        currentValue: 'Lat Pulldown',
+        newValue: 'Seated Cable Row 3x10 @ 75lbs',
+      }, { profile: mockProfile, workout: mockWorkout });
+
+      const parsed = JSON.parse(result);
+      expect(parsed.newValue).toBe('Seated Cable Row');
+    });
+
+    test('sanitizes new exercise name with × multiplier', async () => {
+      const result = await executeTool('modifyWorkout', {
+        description: 'Swap exercise',
+        field: 'gymWorkout.mainSet.1.exercise',
+        currentValue: 'Old Exercise',
+        newValue: 'Barbell Row 4×8 @ 135lbs',
+      }, { profile: mockProfile, workout: mockWorkout });
+
+      const parsed = JSON.parse(result);
+      expect(parsed.newValue).toBe('Barbell Row');
+    });
+
+    test('sanitizes new exercise name with parenthetical sets/reps', async () => {
+      const result = await executeTool('modifyWorkout', {
+        description: 'Swap exercise',
+        field: 'gymWorkout.mainSet.0.exercise',
+        currentValue: 'Old Exercise',
+        newValue: 'Push-up (3 sets x 15 reps)',
+      }, { profile: mockProfile, workout: mockWorkout });
+
+      const parsed = JSON.parse(result);
+      expect(parsed.newValue).toBe('Push-up');
+    });
+
+    test('preserves clean exercise names unchanged', async () => {
+      const result = await executeTool('modifyWorkout', {
+        description: 'Swap exercise',
+        field: 'gymWorkout.mainSet.0.exercise',
+        currentValue: 'Old',
+        newValue: 'Seated Cable Row',
+      }, { profile: mockProfile, workout: mockWorkout });
+
+      const parsed = JSON.parse(result);
+      expect(parsed.newValue).toBe('Seated Cable Row');
+    });
+
+    test('does not sanitize non-exercise fields', async () => {
+      const result = await executeTool('modifyWorkout', {
+        description: 'Change reps',
+        field: 'gymWorkout.mainSet.0.repetitions',
+        currentValue: '10',
+        newValue: '12',
+      }, { profile: mockProfile, workout: mockWorkout });
+
+      const parsed = JSON.parse(result);
+      expect(parsed.newValue).toBe('12');
+    });
   });
 
   describe('regenerateWorkout', () => {

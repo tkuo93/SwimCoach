@@ -415,8 +415,27 @@ function parseValue(val, field) {
     return num;
   }
 
+  // Sanitize exercise name fields: strip sets/reps/weight suffixes the LLM
+  // may have included (e.g. "Lat Pulldown 3x10 @ 75lbs" → "Lat Pulldown")
+  if (field.endsWith('.exercise')) {
+    return sanitizeExerciseName(val);
+  }
+
   if (!isNaN(val) && val !== '') return Number(val);
   return val;
+}
+
+/**
+ * Strip sets/reps/weight suffixes from an exercise name string.
+ * Prevents the LLM from including context info in the exercise name field.
+ */
+function sanitizeExerciseName(name) {
+  if (typeof name !== 'string') return name;
+  return name
+    .replace(/\s*\d+\s*[x×]\s*\d+(?:\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?)?$/, '')
+    .replace(/\s*\(\s*\d+\s*(?:sets|reps)\s*x\s*\d+\s*(?:reps|sets)?\s*\)$/i, '')
+    .replace(/\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?$/, '')
+    .trim();
 }
 
 module.exports = router;

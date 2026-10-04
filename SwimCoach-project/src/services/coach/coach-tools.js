@@ -303,7 +303,7 @@ const modifyWorkoutTool = {
           },
           newValue: {
             type: 'string',
-            description: 'Proposed new value for the field',
+            description: 'Proposed new value for the field. For exercise name fields (e.g. gymWorkout.mainSet.0.exercise), include ONLY the exercise name itself (e.g. "Seated Cable Row"), not sets, reps, or weight.',
           },
         },
         required: ['description', 'field', 'currentValue', 'newValue'],
@@ -316,6 +316,13 @@ const modifyWorkoutTool = {
     // Validate field path — reject dangerous paths
     if (field.includes('$') || field.includes('..') || field.startsWith('_')) {
       return `Invalid field path: "${field}". Only workout data fields can be modified.`;
+    }
+
+    // Sanitize newValue: when modifying an exercise name field, strip any
+    // sets/reps/weight suffixes the LLM may have included. The exercise name
+    // should be just the name (e.g. "Seated Cable Row"), not "Seated Cable Row 3x10 @ 75lbs".
+    if (field.endsWith('exercise')) {
+      newValue = sanitizeExerciseName(newValue);
     }
 
     // Return a proposal — the frontend will confirm before applying
@@ -515,6 +522,28 @@ async function executeTool(name, args, context) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Strip sets/reps/weight suffixes from an exercise name string.
+ * The LLM sometimes includes context like "Seated Cable Row 3x10 @ 75lbs"
+ * when proposing a swap. We want only the exercise name.
+ *
+ * Removes patterns like:
+ *   "Exercise Name 3x12"       → "Exercise Name"
+ *   "Exercise Name 3x12 @ 75"  → "Exercise Name"
+ *   "Exercise Name (3 sets x 12 reps)" → "Exercise Name"
+ */
+function sanitizeExerciseName(name) {
+  if (typeof name !== 'string') return name;
+  // Strip trailing "NxM" patterns (e.g., " 3x10", " 3×10")
+  // Also strip trailing "@ weight" patterns
+  // Also strip parenthetical set/reps like "(3 sets x 12 reps)"
+  return name
+    .replace(/\s*\d+\s*[x×]\s*\d+(?:\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?)?$/, '')
+    .replace(/\s*\(\s*\d+\s*(?:sets|reps)\s*x\s*\d+\s*(?:reps|sets)?\s*\)$/i, '')
+    .replace(/\s*@\s*[\d.]+\s*(?:lbs|kg|kgs)?$/, '')
+    .trim();
+}
 
 function mode(arr) {
   const counts = {};
