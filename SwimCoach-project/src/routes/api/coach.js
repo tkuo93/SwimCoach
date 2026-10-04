@@ -66,6 +66,7 @@ router.post('/chat', async (req, res) => {
     // If conversationId provided, try to find and append to existing conversation
     if (conversationId) {
       let conversation = await Conversation.findById(conversationId);
+
       if (conversation && conversation.swimmerId.toString() === req.user._id.toString()) {
         // Conversation found and owned by user
         if (process.env.NODE_ENV !== 'production') console.log('Found existing conversation');
@@ -96,8 +97,9 @@ router.post('/chat', async (req, res) => {
           conversation.contextWorkoutId = workoutId;
         }
       }
-      // Frontend-created conversations persist indefinitely.
-      // Clear any existing expiresAt so the conversation isn't auto-deleted by TTL.
+      // Frontend-created conversations (those with a conversationId) persist
+      // indefinitely. Only backend-created proposals-only conversations
+      // (created below via Conversation.create) use the 10-min TTL.
       conversation.expiresAt = undefined;
       // Always save the conversation to persist messages
       if (process.env.NODE_ENV !== 'production') console.log('Saving conversation, messages:', conversation.messages.length);
