@@ -1446,6 +1446,10 @@ function renderWeek(){
           e.stopPropagation();
           currentWorkout = w;
           renderToday();
+          // Viewing a week workout on Today — push Week so back returns there
+          if(navStack[navStack.length-1]!=='s-week'){
+            navStack.push('s-week');
+          }
           showScreen('s-today');
         };
         workoutList.appendChild(card);
