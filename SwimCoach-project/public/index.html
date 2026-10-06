@@ -529,7 +529,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
         <span class="top-back" onclick="goBack()">←</span>
         <h1>Today</h1>
         <button class="coach-fab" onclick="toggleWorkoutEdit()" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:18px" id="workoutEditBtn">✏️</button>
-        <button class="top-bar-profile" onclick="navigateTo('s-profile')">👤</button>
+        <button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button>
       </div>
       <div class="workout-date"><div class="date-label" id="dateLbl"></div><div class="workout-title-large" id="wTitle"></div></div>
       <div class="stats-row" id="statsRow"></div>
@@ -572,7 +572,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- WEEK -->
   <div class="screen" id="s-week">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>This Week</h1><button class="top-bar-profile" onclick="navigateTo('s-profile')">👤</button></div>
+      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>This Week</h1><button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button></div>
       <div class="week-header"><button class="week-nav" onclick="changeWeek(-1)">‹</button><div class="week-title" id="weekTitle"></div><button class="week-nav" onclick="changeWeek(1)">›</button></div>
       <div class="week-strip" id="weekStrip"></div>
       <div class="week-stats" id="weekStats"></div>
@@ -584,7 +584,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- HISTORY -->
   <div class="screen" id="s-history">
     <div class="screen-content">
-      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="top-bar-profile" onclick="navigateTo('s-profile')">👤</button></div>
+      <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button></div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -619,8 +619,8 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <!-- Global Nav Bar (fixed at bottom) -->
   <nav class="nav-bar" id="globalNavBar">
     <div class="nav-tab active" onclick="goToday()"><span class="icon">📋</span><span>Today</span></div>
-    <div class="nav-tab" onclick="navigateTo('s-week')"><span class="icon">📅</span><span>Week</span></div>
-    <div class="nav-tab" onclick="navigateTo('s-history')"><span class="icon">📊</span><span>History</span></div>
+    <div class="nav-tab" onclick="showScreen('s-week',true);renderWeek()"><span class="icon">📅</span><span>Week</span></div>
+    <div class="nav-tab" onclick="showScreen('s-history',true);renderHistory()"><span class="icon">📊</span><span>History</span></div>
     <div class="nav-tab" onclick="openCoach()"><span class="icon">💬</span><span>Coach</span></div>
     <a href="https://forms.gle/ybW5Xd5hyuguAcQZ7" target="_blank" rel="noopener" class="nav-tab feedback-link" aria-label="Give Feedback" style="color: var(--coral);">
       <span class="icon">💡</span><span>Feedback</span>
@@ -2069,10 +2069,13 @@ let navStack = [];
 function navigateTo(id){
   const current=document.querySelector('.screen.active');
   const currentId=current?current.id:'s-today';
-  // Push the current screen onto the stack so we can go back to it,
-  // unless we're already on the target or the current screen is a tab home
-  // (navigating between tab homes shouldn't add history).
-  if(currentId!==id&&currentId!=='s-coach'&&!TAB_HOME_SCREENS.has(currentId)){
+  // Push the current screen onto the stack so we can go back to it.
+  // Tab homes are pushed when diving into a sub-screen (Settings, Debug,
+  // Execute, Onboarding) but NOT when switching between tab homes — that
+  // case is handled by the caller (with clearStack=true) to keep back
+  // scoped within the current tab.
+  const targetIsHome = TAB_HOME_SCREENS.has(id);
+  if(currentId!==id&&currentId!=='s-coach'&&!targetIsHome){
     if(navStack[navStack.length-1]!==currentId){
       navStack.push(currentId);
       if(navStack.length>20)navStack.shift();
@@ -2082,8 +2085,7 @@ function navigateTo(id){
 }
 function goBack(){
   if(navStack.length===0){
-    // On a tab home with no history — if we're on a sub-screen, hide back.
-    // Onboarding back should always go to landing.
+    // No navigation history — if on onboarding, return to landing.
     const currentId=document.querySelector('.screen.active')?.id;
     if(currentId==='s-onboard'){
       showScreen('s-landing');
@@ -2182,7 +2184,12 @@ const navTabMap = {
   's-profile': -1,  // No bottom nav tab corresponds to Profile
   's-empty': 0
 };
-function showScreen(id){
+function showScreen(id, clearStack=false){
+  // Navigating to a tab home clears the back stack — you're starting fresh
+  // from that tab's root, so back should stay within the current tab flow.
+  if(clearStack){
+    navStack = [];
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('s-coach').classList.remove('active');
@@ -2200,7 +2207,7 @@ function showScreen(id){
     navBar.classList.remove('visible');
   }
 
-  // Show/hide back button based on whether the current tab has a back-stack entry
+  // Show/hide back button based on whether the stack has entries
   const backEls = document.querySelectorAll('.top-back');
   const hasBack = getBackStackDepth() > 0;
   backEls.forEach(el => {
@@ -2213,8 +2220,8 @@ function showScreen(id){
   if(id==='s-settings')renderSettings();
   if(id==='s-debug')renderDebug();
 }
-function goToday(){if(currentWorkout){renderToday();showScreen('s-today')}else{showScreen('s-empty')}}
-function goEmpty(){showScreen('s-empty')}
+function goToday(){if(currentWorkout){renderToday();showScreen('s-today',true)}else{showScreen('s-empty',true)}}
+function goEmpty(){showScreen('s-empty',true)}
 let loadingTimerInterval=null;
 function startLoadingTimer(){
   const start=Date.now();
