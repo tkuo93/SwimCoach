@@ -827,15 +827,12 @@ function startOnboard(skipProfileQuestions = false) {
   qIdx = skipProfileQuestions ? 3 : 0;
   answers = {};
   document.getElementById('conv').innerHTML = '';
-  // Onboarding is a top-level flow; track it so the back button returns to
-  // whatever screen launched it (landing, empty, etc.)
+  // Onboarding launched from landing/empty — those are tab homes so they won't
+  // be pushed by navigateTo. Push the current screen manually so back works.
   const current=document.querySelector('.screen.active');
   const currentId=current?current.id:'s-landing';
-  const currentTab=tabOf(currentId);
-  if(currentId!=='s-onboard'&&currentTab){
-    if(navStacks[currentTab][navStacks[currentTab].length-1]!==currentId){
-      navStacks[currentTab].push(currentId);
-    }
+  if(currentId!=='s-onboard'&&navStack[navStack.length-1]!==currentId){
+    navStack.push(currentId);
   }
   showScreen('s-onboard');
   showQ(qIdx);
@@ -1685,10 +1682,9 @@ function viewHistoryWorkout(id){
     if(res.data){
       currentWorkout=res.data;
       renderToday();
-      // We're viewing a history workout on Today — push History onto the
-      // Today stack so back returns to the history list.
-      if(navStacks.today.length<1 || navStacks.today[navStacks.today.length-1]!=='s-history'){
-        navStacks.today.push('s-history');
+      // Viewing a history workout on Today — push History so back returns there
+      if(navStack[navStack.length-1]!=='s-history'){
+        navStack.push('s-history');
       }
       showScreen('s-today');
     }
@@ -2059,83 +2055,46 @@ let currentConversationId=null;
 let sidebarVisible=true;
 
 let previousScreen='s-today';
-// Per-tab back stacks: each tab (today/week/history/profile) maintains its own
-// navigation history so "back" always returns to the previous screen *within
-// the selected tab*. Tab home screens (s-today, s-week, s-history, s-profile)
-// start a fresh stack, so the back button is hidden when there's nowhere
-// within that tab to go back to.
-const HOME_SCREENS = {
-  's-today': 'today',
-  's-execute': 'today',   // Workout execution viewer — within Today tab
-  's-week': 'week',
-  's-history': 'history',
-  's-profile': 'profile',
-  's-empty': 'today',   // Today without a workout — same tab
-  's-settings': 'profile',
-  's-debug': 'profile',
-  's-onboard': 'onboard',
-  's-landing': 'onboard',
-};
+// Tab home screens — when you're on one of these, the back button is hidden
+// unless there's deeper navigation within the current tab flow.
+const TAB_HOME_SCREENS = new Set([
+  's-today', 's-week', 's-history', 's-profile', 's-empty', 's-landing',
+]);
 
-const TAB_HOME = {
-  today: 's-today',
-  week: 's-week',
-  history: 's-history',
-  profile: 's-profile',
-  onboard: 's-landing',
-};
+// Navigation stack: tracks the screen history so back always returns to the
+// previous page. Tab homes pushed multiple times are de-duplicated so switching
+// between tabs doesn't build up redundant entries.
+let navStack = [];
 
-const navStacks = {
-  today: [],
-  week: [],
-  history: [],
-  profile: [],
-  onboard: [],
-};
-function tabOf(id){
-  return HOME_SCREENS[id] || null;
-}
 function navigateTo(id){
   const current=document.querySelector('.screen.active');
   const currentId=current?current.id:'s-today';
-  const targetTab=tabOf(id);
-  // Push the current screen onto the stack of its own tab (so we can return
-  // to it), unless we're already on the target or the current screen is the
-  // coach overlay.
-  if(currentId!==id&&currentId!=='s-coach'){
-    const curTab=tabOf(currentId);
-    if(curTab){
-      const stack=navStacks[curTab];
-      // Avoid pushing the same screen twice in a row
-      if(stack[stack.length-1]!==currentId){
-        stack.push(currentId);
-        if(stack.length>10)stack.shift();
-      }
+  // Push the current screen onto the stack so we can go back to it,
+  // unless we're already on the target or the current screen is a tab home
+  // (navigating between tab homes shouldn't add history).
+  if(currentId!==id&&currentId!=='s-coach'&&!TAB_HOME_SCREENS.has(currentId)){
+    if(navStack[navStack.length-1]!==currentId){
+      navStack.push(currentId);
+      if(navStack.length>20)navStack.shift();
     }
   }
   showScreen(id);
 }
 function goBack(){
-  const currentId=document.querySelector('.screen.active')?.id||'s-today';
-  const currentTab=tabOf(currentId);
-  if(!currentTab){
-    // Not on a tracked tab — nothing to go back to
+  if(navStack.length===0){
+    // On a tab home with no history — if we're on a sub-screen, hide back.
+    // Onboarding back should always go to landing.
+    const currentId=document.querySelector('.screen.active')?.id;
+    if(currentId==='s-onboard'){
+      showScreen('s-landing');
+    }
     return;
   }
-  const stack=navStacks[currentTab];
-  const prev=stack.pop();
-  if(prev){
-    showScreen(prev);
-  }else if(currentId==='s-onboard'){
-    // Onboarding with no history — return to landing
-    showScreen('s-landing');
-  }
-  // At the tab's home screen — no where to go back to; stay put
+  const prev=navStack.pop();
+  showScreen(prev);
 }
 function getBackStackDepth(){
-  const currentTab=tabOf(document.querySelector('.screen.active')?.id||'s-today');
-  if(!currentTab)return 0;
-  return navStacks[currentTab].length;
+  return navStack.length;
 }
 function openCoach(){
   document.querySelectorAll('.screen.active').forEach(s=>{if(s.id!=='s-coach')previousScreen=s.id});
