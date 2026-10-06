@@ -831,8 +831,11 @@ function startOnboard(skipProfileQuestions = false) {
   // whatever screen launched it (landing, empty, etc.)
   const current=document.querySelector('.screen.active');
   const currentId=current?current.id:'s-landing';
-  if(currentId!=='s-onboard'&&currentId!=='s-coach'){
-    navStacks.profile.push(currentId);
+  const currentTab=tabOf(currentId);
+  if(currentId!=='s-onboard'&&currentTab){
+    if(navStacks[currentTab][navStacks[currentTab].length-1]!==currentId){
+      navStacks[currentTab].push(currentId);
+    }
   }
   showScreen('s-onboard');
   showQ(qIdx);
@@ -2123,6 +2126,9 @@ function goBack(){
   const prev=stack.pop();
   if(prev){
     showScreen(prev);
+  }else if(currentId==='s-onboard'){
+    // Onboarding with no history — return to landing
+    showScreen('s-landing');
   }
   // At the tab's home screen — no where to go back to; stay put
 }
