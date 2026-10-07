@@ -1100,11 +1100,12 @@ function renderToday(){
     return;
   }
 
-  // View mode: slim card layout
+  // View mode: slim card layout — hide all detail sections
   dateHeader.style.display = 'none';
   statsRow.style.display = 'none';
   totalBar.style.display = 'none';
   workoutActions.style.display = 'none';
+  feedbackSection.style.display = 'none';
 
   const workoutType = isGym && !isPool ? 'gym' : 'pool';
   const typeLabel = isGym && !isPool ? 'Gym' : 'Swim';
@@ -1113,6 +1114,12 @@ function renderToday(){
   const distDisplay = isPool ? `<span class="week-workout-detail">🏊 ${dist.toLocaleString()}${unit}</span>` : '';
 
   timeline.innerHTML = `
+    <div style="padding:24px;text-align:center">
+      <div class="empty-illustration">🏊</div>
+      <div class="empty-title" style="margin-bottom:8px">Ready to train?</div>
+      <div style="font-size:14px;color:var(--text-sec);margin-bottom:16px">Your personalized workout for today is ready below.</div>
+      <button class="empty-btn" onclick="genNewWorkout()" style="margin-bottom:16px">Generate Another Workout</button>
+    </div>
     <div class="week-workout-card ${workoutType}" style="margin:0 24px 16px">
       <div class="week-workout-card-header">
         <span class="week-workout-name">${esc(w.workoutName || w.workoutType || 'Workout')}</span>
@@ -1130,9 +1137,6 @@ function renderToday(){
       </div>
     </div>
   `;
-
-  // Render feedback section
-  setTimeout(() => renderFeedback(), 0);
 }
 function saveWorkoutEdits(){
   if(!currentWorkout)return;
