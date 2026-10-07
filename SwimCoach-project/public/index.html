@@ -1360,7 +1360,7 @@ function renderWeek(){
       ? (isGym?'<div class="week-day-check">🏋 gym</div>':'<div class="week-day-check">🏊 '+dist+unit+'</div>')
       : '';
     div.innerHTML=`<div class="week-day-name">${dayNames[i]}</div><div class="week-day-num">${d.getUTCDate()}</div>${meta}`;
-    div.onclick=()=>{if(w){currentWorkout=w;showScreen('s-today')};
+    div.onclick=()=>{if(w){currentWorkout=w;showScreen('s-today')};}
     strip.appendChild(div);
   });
   const weekWorkouts=workoutsInWeek(weekOffset);
