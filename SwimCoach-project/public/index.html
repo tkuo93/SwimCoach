@@ -933,7 +933,6 @@ function finishOnboard() {
         goal: Array.isArray(profile.goal) ? profile.goal : [profile.goal],
       });
     }
-    renderToday();
     showScreen('s-today');
   }, 1200);
 }
@@ -979,7 +978,28 @@ function toggleWorkoutEdit(){
   }
 }
 function renderToday(){
-  if(!currentWorkout)return;
+  if(!currentWorkout){
+    // Show empty state in the today screen — the nav tab still works,
+    // back button still works, and generate can be called from here.
+    const tl = document.getElementById('timeline');
+    tl.innerHTML = `<div class="empty-view"><div class="empty-illustration">🏊</div><div class="empty-title">Ready to train?</div><div class="empty-desc">Generate a personalized workout for today.</div><button class="empty-btn" onclick="genNewWorkout()">Generate Today's Workout</button></div>`;
+    // Hide workout detail sections
+    document.querySelector('.workout-date').style.display = 'none';
+    document.getElementById('statsRow').style.display = 'none';
+    document.querySelector('.total-bar').style.display = 'none';
+    document.querySelector('.workout-actions').style.display = 'none';
+    document.getElementById('feedbackSection').style.display = 'none';
+    // Hide edit button
+    document.getElementById('workoutEditBtn').style.display = 'none';
+    return;
+  }
+  // Restore hidden sections for when a workout exists
+  document.querySelector('.workout-date').style.display = '';
+  document.getElementById('statsRow').style.display = '';
+  document.querySelector('.total-bar').style.display = '';
+  document.querySelector('.workout-actions').style.display = '';
+  document.getElementById('feedbackSection').style.display = '';
+  document.getElementById('workoutEditBtn').style.display = '';
   const w=currentWorkout;
   const pool=w.poolWorkout||{};
   const gym=w.gymWorkout||{};
@@ -1340,7 +1360,7 @@ function renderWeek(){
       ? (isGym?'<div class="week-day-check">🏋 gym</div>':'<div class="week-day-check">🏊 '+dist+unit+'</div>')
       : '';
     div.innerHTML=`<div class="week-day-name">${dayNames[i]}</div><div class="week-day-num">${d.getUTCDate()}</div>${meta}`;
-    div.onclick=()=>{if(w){currentWorkout=w;renderToday();showScreen('s-today')}};
+    div.onclick=()=>{if(w){currentWorkout=w;showScreen('s-today')};
     strip.appendChild(div);
   });
   const weekWorkouts=workoutsInWeek(weekOffset);
@@ -1404,7 +1424,6 @@ function renderWeek(){
     header.onclick = () => {
       if (dayWorkouts.length > 0) {
         currentWorkout = dayWorkouts[0];
-        renderToday();
         showScreen('s-today');
       }
     };
@@ -1445,7 +1464,6 @@ function renderWeek(){
         card.onclick = (e) => {
           e.stopPropagation();
           currentWorkout = w;
-          renderToday();
           // Viewing a week workout on Today — push Week so back returns there
           if(navStack[navStack.length-1]!=='s-week'){
             navStack.push('s-week');
@@ -1675,6 +1693,11 @@ async function deleteWorkout(id){
   if(!confirm('Delete this workout?'))return;
   await api.workouts.delete(id);
   await refreshWorkouts();
+  // Clear currentWorkout if we deleted the one being shown on Today
+  if (currentWorkout && (currentWorkout._id === id || currentWorkout.id === id)) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    currentWorkout = workouts.find(w => workoutLocalDate(w) === todayStr) || null;
+  }
   // Re-render whichever view is active so the count/strip update immediately
   const active = document.querySelector('.screen.active');
   if (active?.id === 's-week') renderWeek();
@@ -1685,7 +1708,6 @@ function viewHistoryWorkout(id){
   api.workouts.get(id).then(res=>{
     if(res.data){
       currentWorkout=res.data;
-      renderToday();
       // Viewing a history workout on Today — push History so back returns there
       if(navStack[navStack.length-1]!=='s-history'){
         navStack.push('s-history');
@@ -2218,13 +2240,14 @@ function showScreen(id, clearStack=false){
     el.style.display = hasBack ? '' : 'none';
   });
 
+  if(id==='s-today')renderToday();
   if(id==='s-week')renderWeek();
   if(id==='s-history')renderHistory();
   if(id==='s-profile')renderProfile();
   if(id==='s-settings')renderSettings();
   if(id==='s-debug')renderDebug();
 }
-function goToday(){if(currentWorkout){renderToday();showScreen('s-today',true)}else{showScreen('s-empty',true)}}
+function goToday(){showScreen('s-today',true)}
 function goEmpty(){showScreen('s-empty',true)}
 let loadingTimerInterval=null;
 function startLoadingTimer(){
@@ -2262,7 +2285,6 @@ function genNewWorkout(){
       const storageKey = profile._id && profile._id.startsWith('anon_') ? profile._id : (profile.email || 'guest');
       localStorage.setItem('sc_workouts_' + storageKey, JSON.stringify(workouts));
       stopLoadingTimer();
-      renderToday();
       showScreen('s-today');
     }, 1200);
   } else {
@@ -2276,16 +2298,16 @@ function genNewWorkout(){
         const hasGymContent = w.gymWorkout?.mainSet?.length > 0 || w.gymWorkout?.warmUp?.description;
         if(!hasPoolContent && !hasGymContent){
           alert('Failed to generate a structured workout. Please try again.');
-          showScreen('s-empty');
+          showScreen('s-today');
         }else{
           workouts.push(w);currentWorkout=w;
-          renderToday();showScreen('s-today');
+          showScreen('s-today');
         }
       }else{
         alert('Failed: '+(res.error||'Unknown'));
-        showScreen('s-empty');
+        showScreen('s-today');
       }
-    }).catch(()=>{stopLoadingTimer();alert('Failed to generate');showScreen('s-empty')});
+    }).catch(()=>{stopLoadingTimer();alert('Failed to generate');showScreen('s-today')});
   }
 }
 
@@ -2377,7 +2399,7 @@ function loadProfile(id){
       const storedWorkouts = JSON.parse(localStorage.getItem('sc_workouts_' + storageKey) || '[]');
       workouts = storedWorkouts;
       currentWorkout = workouts.find(w => workoutLocalDate(w) === today) || null;
-      if (currentWorkout) { renderToday(); showScreen('s-today') } else { showScreen('s-empty') }
+      showScreen('s-today');
       return;
     }
   }
@@ -2390,7 +2412,7 @@ function loadProfile(id){
       api.workouts.list().then(wres=>{
         workouts=wres.data||[];
         currentWorkout=workouts.find(w=>workoutLocalDate(w)===today)||null;
-        if(currentWorkout){renderToday();showScreen('s-today')}else{showScreen('s-empty')}
+        showScreen('s-today');
       });
     }
   }).catch(()=>{alert('Failed to load profile')});
