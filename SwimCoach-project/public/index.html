@@ -1107,11 +1107,48 @@ function renderToday(){
   workoutActions.style.display = 'none';
   feedbackSection.style.display = 'none';
 
-  const workoutType = isGym && !isPool ? 'gym' : 'pool';
-  const typeLabel = isGym && !isPool ? 'Gym' : 'Swim';
-  const typeClass = isGym && !isPool ? 'gym' : 'swim';
-  const coachingNote = w.trainingNotes?.[0] || pool.trainingNotes?.[0] || gym.trainingNotes?.[0] || '';
-  const distDisplay = isPool ? `<span class="week-workout-detail">🏊 ${dist.toLocaleString()}${unit}</span>` : '';
+  // Collect all of today's workouts
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayWorkouts = workouts.filter(ww => workoutLocalDate(ww) === todayStr) || [];
+  // Ensure currentWorkout is in the list
+  if (w && !todayWorkouts.includes(w)) {
+    todayWorkouts.unshift(w);
+  }
+
+  // Generate a slim card for each workout
+  const cardsHtml = todayWorkouts.map((ww, idx) => {
+    const p = ww.poolWorkout || {};
+    const g = ww.gymWorkout || {};
+    const u = p.poolUnit === 'yards' ? 'yd' : 'm';
+    const d = p.totalDistance || 0;
+    const dur = ww.duration || 60;
+    const inten = ww.intensity || 'moderate';
+    const poolD = d > 0;
+    const gymD = g.mainSet?.length > 0;
+    const wType = gymD && !poolD ? 'gym' : 'pool';
+    const tLabel = gymD && !poolD ? 'Gym' : 'Swim';
+    const tClass = gymD && !poolD ? 'gym' : 'swim';
+    const note = ww.trainingNotes?.[0] || p.trainingNotes?.[0] || g.trainingNotes?.[0] || '';
+    const distDisp = poolD ? `<span class="week-workout-detail">🏊 ${d.toLocaleString()}${u}</span>` : '';
+
+    return `
+      <div class="week-workout-card ${wType}" style="margin:0 24px 16px" onclick="selectTodayWorkout(${idx})">
+        <div class="week-workout-card-header">
+          <span class="week-workout-name">${esc(ww.workoutName || ww.workoutType || 'Workout')}</span>
+          <span class="week-workout-type ${tClass}">${tLabel}</span>
+        </div>
+        <div class="week-workout-details">
+          ${distDisp}
+          <span class="week-workout-detail">⏱ ${dur}min</span>
+          <span class="week-workout-detail">🔥 ${esc(inten.charAt(0).toUpperCase() + inten.slice(1))}</span>
+        </div>
+        ${note ? `<div class="week-workout-coaching">${esc(note)}</div>` : ''}
+        <div class="slim-workout-actions">
+          <a href="#" class="slim-btn slim-btn-coach" onclick="setCurrentAndCoach(${idx});return false">💬 Ask Coach</a>
+          <a href="#" class="slim-btn slim-btn-start" onclick="startTodayWorkout(${idx});return false">▶ Start Workout</a>
+        </div>
+      </div>`;
+  }).join('');
 
   timeline.innerHTML = `
     <div style="padding:24px;text-align:center">
@@ -1120,22 +1157,7 @@ function renderToday(){
       <div style="font-size:14px;color:var(--text-sec);margin-bottom:16px">Your personalized workout for today is ready below.</div>
       <button class="empty-btn" onclick="genNewWorkout()" style="margin-bottom:16px">Generate Another Workout</button>
     </div>
-    <div class="week-workout-card ${workoutType}" style="margin:0 24px 16px">
-      <div class="week-workout-card-header">
-        <span class="week-workout-name">${esc(w.workoutName || w.workoutType || 'Workout')}</span>
-        <span class="week-workout-type ${typeClass}">${typeLabel}</span>
-      </div>
-      <div class="week-workout-details">
-        ${distDisplay}
-        <span class="week-workout-detail">⏱ ${duration}min</span>
-        <span class="week-workout-detail">🔥 ${esc(intensity.charAt(0).toUpperCase() + intensity.slice(1))}</span>
-      </div>
-      ${coachingNote ? `<div class="week-workout-coaching">${esc(coachingNote)}</div>` : ''}
-      <div class="slim-workout-actions">
-        <a href="#" class="slim-btn slim-btn-coach" onclick="openCoachWithWorkout();return false">💬 Ask Coach</a>
-        <a href="#" class="slim-btn slim-btn-start" onclick="goExecute();return false">▶ Start Workout</a>
-      </div>
-    </div>
+    ${cardsHtml}
   `;
 }
 function saveWorkoutEdits(){
@@ -1206,6 +1228,33 @@ function saveWorkoutEdits(){
   }).catch(err=>{
     alert('Failed to save: '+(err.message||'Unknown error'));
   });
+}
+
+// === Today workout helpers ===
+function getTodayWorkouts(){
+  const todayStr = new Date().toISOString().split('T')[0];
+  return workouts.filter(ww => workoutLocalDate(ww) === todayStr) || [];
+}
+function selectTodayWorkout(idx){
+  const todayW = getTodayWorkouts();
+  if (todayW[idx]) {
+    currentWorkout = todayW[idx];
+    renderToday();
+  }
+}
+function setCurrentAndCoach(idx){
+  const todayW = getTodayWorkouts();
+  if (todayW[idx]) {
+    currentWorkout = todayW[idx];
+    openCoachWithWorkout();
+  }
+}
+function startTodayWorkout(idx){
+  const todayW = getTodayWorkouts();
+  if (todayW[idx]) {
+    currentWorkout = todayW[idx];
+    goExecute();
+  }
 }
 
 // === EXECUTE ===
