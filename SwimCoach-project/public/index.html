@@ -547,6 +547,23 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
     </div>
   </div>
 
+  <!-- WORKOUT DETAIL -->
+  <div class="screen" id="s-workout">
+    <div class="screen-content">
+      <div class="top-bar">
+        <span class="top-back" onclick="goBack()">←</span>
+        <h1>Workout</h1>
+        <button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button>
+      </div>
+      <div class="workout-date"><div class="date-label" id="workoutDate"></div><div class="workout-title-large" id="workoutTitle"></div></div>
+      <div class="stats-row" id="workoutStatsRow"></div>
+      <div class="timeline" id="workoutTimeline"></div>
+      <div class="total-bar"><div><div class="total-main" id="workoutTotDist"></div><div class="total-sub">total distance</div></div><div class="total-duration"><div class="num" id="workoutTotDur"></div><div class="lbl">duration</div></div></div>
+      <div class="workout-actions"><div class="btn-row"><button class="btn btn-outline" style="flex:1" onclick="openCoachWithWorkout()">💬 Coach</button><button class="btn btn-coral" style="flex:2" onclick="goExecute()">▶ Start Workout</button></div></div>
+      <div id="workoutFeedbackSection"></div>
+    </div>
+  </div>
+
   <!-- EXECUTE -->
   <div class="screen" id="s-execute">
     <div class="exec-layout">
@@ -1065,7 +1082,8 @@ function selectTodayWorkout(idx){
   const todayW = getTodayWorkouts();
   if (todayW[idx]) {
     currentWorkout = todayW[idx];
-    renderToday();
+    navStack.push('s-today');
+    showScreen('s-workout');
   }
 }
 function setCurrentAndCoach(idx){
@@ -1081,6 +1099,105 @@ function startTodayWorkout(idx){
     currentWorkout = todayW[idx];
     goExecute();
   }
+}
+
+// === WORKOUT DETAIL ===
+function renderWorkout(){
+  if(!currentWorkout)return;
+  const w = currentWorkout;
+  const pool = w.poolWorkout || {};
+  const gym = w.gymWorkout || {};
+  const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
+  const dist = pool.totalDistance || 0;
+  const duration = w.duration || 60;
+  const intensity = w.intensity || 'moderate';
+
+  // Date and title
+  document.getElementById('workoutDate').textContent = w.date || w.createdAt;
+  document.getElementById('workoutTitle').textContent = w.workoutName || w.workoutType || 'Workout';
+
+  // Stats row
+  document.getElementById('workoutStatsRow').innerHTML = `<div class="stat-item"><div class="stat-value">${dist.toLocaleString()}</div><div class="stat-label">${unit}</div></div><div class="stat-item"><div class="stat-value">${duration}</div><div class="stat-label">minutes</div></div><div class="stat-item"><div class="stat-value">${esc(intensity)}</div><div class="stat-label">intensity</div></div>`;
+  document.getElementById('workoutTotDist').textContent = dist.toLocaleString() + unit;
+  document.getElementById('workoutTotDur').textContent = '~' + duration + ' min';
+
+  const tl = document.getElementById('workoutTimeline');
+  tl.innerHTML = '';
+
+  // Workout goals
+  const purposeNotes = w.trainingNotes || [];
+  if (purposeNotes.length) {
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'callout';
+    noteDiv.innerHTML = '<div class="callout-label">🎯 Workout Goals</div><ul style="padding-left:18px;margin-top:8px;">' + purposeNotes.map(n => '<li style="margin-bottom:4px">' + esc(n) + '</li>').join('') + '</ul>';
+    tl.appendChild(noteDiv);
+  }
+
+  // Pool workout timeline
+  if (pool.mainSet?.length || pool.warmUp?.description || pool.coolDown?.description) {
+    const sections = [];
+    if (pool.warmUp?.description) sections.push({name: 'Warmup', dist: pool.warmUp.distance || 0, desc: pool.warmUp.description, notes: pool.warmUp.description, dur: pool.warmUp.duration});
+    pool.mainSet?.forEach((s, i) => sections.push({name: 'Set ' + (i + 1), dist: s.distance * s.repetitions, desc: `${s.repetitions}× ${s.distance}${unit} ${s.stroke || 'freestyle'}${s.interval ? ' · ' + s.interval : ''}${s.focus ? ' · ' + s.focus : ''}`, notes: s.description}));
+    if (pool.coolDown?.description) sections.push({name: 'Cooldown', dist: pool.coolDown.distance || 0, desc: pool.coolDown.description, notes: pool.coolDown.description, dur: pool.coolDown.duration});
+    sections.forEach((s) => {
+      const sec = document.createElement('div');
+      sec.className = 'timeline-section done';
+      sec.innerHTML = `<div class="timeline-card"><div class="timeline-card-head"><h4>${esc(s.name)}</h4><span class="dist">${s.dist}${unit}</span></div><div class="sets">${esc(s.desc).replace(/\n/g, '<br>')}</div><div class="coaching">${esc(s.notes || '')}</div><div class="set-total">Total: ${s.dist}${unit}</div></div>`;
+      tl.appendChild(sec);
+    });
+  }
+
+  // Gym workout timeline
+  (gym.mainSet || []).forEach((e, i) => {
+    const sec = document.createElement('div');
+    sec.className = 'timeline-section done';
+    const desc = `${e.exercise} · ${e.sets}×${e.repetitions}${e.weight ? ' · ' + e.weight + (e.weightUnit || 'lbs') : ''}${e.muscleGroup ? ' · ' + e.muscleGroup : ''}`;
+    sec.innerHTML = `<div class="timeline-card"><div class="timeline-card-head"><h4>Exercise ${i + 1}</h4></div><div class="sets">${esc(desc)}</div></div>`;
+    tl.appendChild(sec);
+  });
+
+  // Training notes
+  const sectionNotes = [...(pool.trainingNotes || []), ...(gym.trainingNotes || [])];
+  if (sectionNotes.length) {
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'callout coral';
+    summaryDiv.innerHTML = '<div class="callout-label">📝 Training Notes</div><ul style="padding-left:18px;margin-top:8px;">' + sectionNotes.map(n => '<li style="margin-bottom:6px">' + esc(n) + '</li>').join('') + '</ul>';
+    tl.appendChild(summaryDiv);
+  }
+
+  // Feedback
+  setTimeout(() => {
+    const c = document.getElementById('workoutFeedbackSection');
+    if (!c) return;
+    const fb = w.userFeedback || {};
+    const rating = fb.rating || 0;
+    const sel = (opts, selected) => opts.map(v => `<option value="${v}" ${selected === v ? 'selected' : ''}>${v.replace(/-/g, ' ')}</option>`).join('');
+    c.innerHTML = `<div style="margin-top:16px;padding:18px;background:var(--surface);border-radius:var(--r);border:1px solid var(--border-light)"><h4 style="font-family:var(--font-d);font-size:14px;margin-bottom:14px">📝 How was this workout?</h4><div class="edit-field"><label>Rating</label><div class="star-rating" id="wf-stars">${[1, 2, 3, 4, 5].map(n => `<span class="star ${n <= rating ? 'filled' : ''}" onclick="setWorkoutRating(${n})">★</span>`).join('')}</div></div><div class="edit-field"><label>Difficulty</label><select id="wf-diff" class="edit-input"><option value="">Select…</option>${sel(['too-easy', 'easy', 'just-right', 'hard', 'too-hard'], fb.difficultyPerception)}</select></div><div class="edit-field"><label>Enjoyment</label><select id="wf-enjoy" class="edit-input"><option value="">Select…</option>${sel(['did-not-enjoy', 'neutral', 'enjoyed', 'loved'], fb.enjoyment)}</select></div><div class="edit-field"><label>Quality</label><select id="wf-quality" class="edit-input"><option value="">Select…</option>${sel(['poor', 'below-average', 'average', 'good', 'excellent'], fb.quality)}</select></div><div class="edit-field"><label>Accuracy</label><select id="wf-accuracy" class="edit-input"><option value="">Select…</option>${sel(['way-off', 'close-but-off', 'mostly-accurate', 'spot-on'], fb.accuracy)}</select></div><div class="edit-field"><label>Comments (optional)</label><textarea id="wf-comments" class="edit-input" rows="2" placeholder="What worked? What didn't?">${esc(fb.comments || '')}</textarea></div><button class="btn btn-coral" onclick="submitWorkoutFeedback()" style="width:100%;margin-top:12px">${rating ? 'Update Feedback' : 'Submit Feedback'}</button></div>`;
+  }, 0);
+}
+function setWorkoutRating(n){
+  const stars = document.querySelectorAll('#wf-stars .star');
+  stars.forEach((s, i) => {s.classList.toggle('filled', i < n)});
+  document.getElementById('wf-stars').dataset.rating = n;
+}
+function submitWorkoutFeedback(){
+  const rating = parseInt(document.getElementById('wf-stars').dataset.rating) || 0;
+  const difficulty = document.getElementById('wf-diff').value;
+  const enjoyment = document.getElementById('wf-enjoy').value;
+  const quality = document.getElementById('wf-quality').value;
+  const accuracy = document.getElementById('wf-accuracy').value;
+  const comments = document.getElementById('wf-comments').value;
+  if (!rating) {alert('Please select a rating'); return;}
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  api.workouts.feedback(currentWorkout._id, {rating, difficultyPerception: difficulty, enjoyment, quality, accuracy, comments}).then(res => {
+    if (res.success) {
+      currentWorkout.userFeedback = {rating, difficultyPerception: difficulty, enjoyment, quality, accuracy, comments};
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => renderWorkout(), 1000);
+    } else {alert('Failed: ' + (res.error || 'Unknown')); btn.disabled = false; btn.textContent = 'Submit Feedback';}
+  });
 }
 
 // === EXECUTE ===
@@ -1286,7 +1403,7 @@ function renderWeek(){
       ? (isGym?'<div class="week-day-check">🏋 gym</div>':'<div class="week-day-check">🏊 '+dist+unit+'</div>')
       : '';
     div.innerHTML=`<div class="week-day-name">${dayNames[i]}</div><div class="week-day-num">${d.getUTCDate()}</div>${meta}`;
-    div.onclick=()=>{if(w){currentWorkout=w;showScreen('s-today')};}
+    div.onclick=()=>{if(w){currentWorkout=w;navStack.push('s-week');showScreen('s-workout')};}
     strip.appendChild(div);
   });
   const weekWorkouts=workoutsInWeek(weekOffset);
@@ -1390,11 +1507,11 @@ function renderWeek(){
         card.onclick = (e) => {
           e.stopPropagation();
           currentWorkout = w;
-          // Viewing a week workout on Today — push Week so back returns there
+          // Viewing a week workout on Workout detail — push Week so back returns there
           if(navStack[navStack.length-1]!=='s-week'){
             navStack.push('s-week');
           }
-          showScreen('s-today');
+          showScreen('s-workout');
         };
         workoutList.appendChild(card);
       });
@@ -1634,11 +1751,11 @@ function viewHistoryWorkout(id){
   api.workouts.get(id).then(res=>{
     if(res.data){
       currentWorkout=res.data;
-      // Viewing a history workout on Today — push History so back returns there
+      // Viewing a history workout — push History so back returns there
       if(navStack[navStack.length-1]!=='s-history'){
         navStack.push('s-history');
       }
-      showScreen('s-today');
+      showScreen('s-workout');
     }
   });
 }
@@ -2167,6 +2284,7 @@ function showScreen(id, clearStack=false){
   });
 
   if(id==='s-today')renderToday();
+  if(id==='s-workout')renderWorkout();
   if(id==='s-week')renderWeek();
   if(id==='s-history')renderHistory();
   if(id==='s-profile')renderProfile();
