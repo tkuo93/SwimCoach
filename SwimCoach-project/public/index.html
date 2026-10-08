@@ -536,7 +536,6 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
       <div class="top-bar">
         <span class="top-back" onclick="goBack()">←</span>
         <h1>Today</h1>
-        <button class="coach-fab" onclick="toggleWorkoutEdit()" style="background:transparent;color:var(--text-mut);box-shadow:none;font-size:18px" id="workoutEditBtn">✏️</button>
         <button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button>
       </div>
       <div class="workout-date"><div class="date-label" id="dateLbl"></div><div class="workout-title-large" id="wTitle"></div></div>
@@ -972,32 +971,20 @@ function genWorkout(p){
 }
 
 // === RENDER TODAY ===
-// === WORKOUT EDIT ===
-let workoutEditMode=false;
-function toggleWorkoutEdit(){
-  if (workoutEditMode) {
-    // Currently in edit mode, save changes
-    saveWorkoutEdits();
-  } else {
-    // Enter edit mode
-    workoutEditMode = true;
-    document.getElementById('workoutEditBtn').textContent = '💾';
-    renderToday();
-  }
-}
 function renderToday(){
   const w = currentWorkout;
-  const pool = w ? (w.poolWorkout || {}) : {};
-  const gym = w ? (w.gymWorkout || {}) : {};
-  const unit = pool.poolUnit === 'yards' ? 'yd' : 'm';
-  const dist = pool.totalDistance || 0;
-  const duration = w ? (w.duration || 60) : 0;
-  const intensity = w ? (w.intensity || 'moderate') : '';
-  const isPool = dist > 0;
-  const isGym = gym.mainSet?.length > 0;
 
-  // Show/hide edit button based on whether a workout exists
-  const editBtn = document.getElementById('workoutEditBtn');
+  // Collect all of today's workouts
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayWorkouts = workouts.filter(ww => workoutLocalDate(ww) === todayStr) || [];
+  // Ensure currentWorkout is in the list
+  if (w && !todayWorkouts.includes(w)) {
+    todayWorkouts.unshift(w);
+  }
+
+  const hasWorkout = todayWorkouts.length > 0;
+
+  // Elements to show/hide
   const dateHeader = document.querySelector('.workout-date');
   const statsRow = document.getElementById('statsRow');
   const totalBar = document.querySelector('.total-bar');
@@ -1005,9 +992,8 @@ function renderToday(){
   const timeline = document.getElementById('timeline');
   const feedbackSection = document.getElementById('feedbackSection');
 
-  if (!w) {
-    // Empty state: hide workout details, show empty illustration + generate button
-    editBtn.style.display = 'none';
+  if (!hasWorkout) {
+    // Empty state: hide all detail sections, show generate button
     dateHeader.style.display = 'none';
     statsRow.style.display = 'none';
     totalBar.style.display = 'none';
@@ -1017,103 +1003,12 @@ function renderToday(){
     return;
   }
 
-  // Workout exists — show slim card layout (or expanded editor in edit mode)
-  editBtn.style.display = '';
-  editBtn.textContent = workoutEditMode ? '💾' : '✏️';
-  feedbackSection.style.display = '';
-
-  if (workoutEditMode) {
-    // Expanded editor: show date header, stats, timeline with edit inputs, total bar, action buttons
-    dateHeader.style.display = '';
-    statsRow.style.display = '';
-    totalBar.style.display = '';
-    workoutActions.style.display = '';
-
-    // Editable date and title
-    const dateLblEl = document.getElementById('dateLbl');
-    const wTitleEl = document.getElementById('wTitle');
-    const dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.className = 'edit-input';
-    dateInput.id = 'edit-workout-date';
-    dateInput.value = w.date ? w.date.split('T')[0] : (w.createdAt ? w.createdAt.split('T')[0] : '');
-    dateInput.style.cssText = 'width:auto;padding:8px 12px;font-family:var(--font-b);font-size:13px';
-    dateLblEl.innerHTML = '';
-    dateLblEl.appendChild(dateInput);
-
-    const titleInput = document.createElement('input');
-    titleInput.type = 'text';
-    titleInput.className = 'edit-input';
-    titleInput.id = 'edit-workout-title';
-    titleInput.value = w.workoutName || w.workoutType || 'Workout';
-    titleInput.style.cssText = 'width:100%;font-family:var(--font-d);font-size:32px;font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px 0';
-    wTitleEl.innerHTML = '';
-    wTitleEl.appendChild(titleInput);
-
-    statsRow.innerHTML = `<div class="stat-item"><div class="stat-value">${dist.toLocaleString()}</div><div class="stat-label">${unit}</div></div><div class="stat-item"><div class="stat-value">${duration}</div><div class="stat-label">minutes</div></div><div class="stat-item"><div class="stat-value">${esc(intensity)}</div><div class="stat-label">intensity</div></div>`;
-    document.getElementById('totDist').textContent = dist.toLocaleString() + unit;
-    document.getElementById('totDur').textContent = '~' + duration + ' min';
-
-    // Build expanded timeline with edit inputs
-    const sections = [];
-    if (pool.warmUp?.description) sections.push({name: 'Warmup', dist: pool.warmUp.distance || 0, desc: pool.warmUp.description, duration: pool.warmUp.duration, type: 'warmup', idx: 0});
-    pool.mainSet?.forEach((s, i) => sections.push({name: 'Set ' + (i + 1), dist: s.distance * s.repetitions, desc: `${s.repetitions}× ${s.distance}${unit} ${s.stroke || 'freestyle'}${s.interval ? ' · ' + s.interval : ''}${s.focus ? ' · ' + s.focus : ''}`, notes: s.description, type: 'set', idx: i, reps: s.repetitions, distance: s.distance, stroke: s.stroke, interval: s.interval, focus: s.focus}));
-    if (pool.coolDown?.description) sections.push({name: 'Cooldown', dist: pool.coolDown.distance || 0, desc: pool.coolDown.description, duration: pool.coolDown.duration, type: 'cooldown', idx: 0});
-
-    timeline.innerHTML = '';
-
-    // Workout goals
-    const purposeNotes = w.trainingNotes || [];
-    if (purposeNotes.length) {
-      const noteDiv = document.createElement('div');
-      noteDiv.className = 'callout';
-      noteDiv.innerHTML = '<div class="callout-label">🎯 Workout Goals</div><ul style="padding-left:18px;margin-top:8px;">' + purposeNotes.map(n => '<li style="margin-bottom:4px">' + esc(n) + '</li>').join('') + '</ul>';
-      timeline.appendChild(noteDiv);
-    }
-
-    // Pool sections
-    sections.forEach((s, i) => {
-      const sec = document.createElement('div');
-      sec.className = 'timeline-section done';
-      sec.innerHTML = `<div class="timeline-card"><div class="timeline-card-head"><input class="edit-input edit-name" value="${esc(s.name)}" style="flex:1;font-family:var(--font-d);font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px"></div><div class="sets"><input class="edit-input edit-desc" value="${esc(s.desc)}" style="width:100%;padding:8px 0;border:none;border-bottom:1px solid var(--border-light)"></div><div class="coaching"><textarea class="edit-input edit-notes" rows="2" style="width:100%;padding:8px 0;border:none">${esc(s.notes || '')}</textarea></div><div class="set-total"><button class="history-action-btn del" onclick="this.closest('.timeline-section').remove()">Remove</button></div></div>`;
-      timeline.appendChild(sec);
-    });
-
-    // Gym exercises
-    (gym.mainSet || []).forEach((e, i) => {
-      const sec = document.createElement('div');
-      sec.className = 'timeline-section done';
-      const desc = `${e.exercise} · ${e.sets}×${e.repetitions}${e.weight ? ' · ' + e.weight + (e.weightUnit || 'lbs') : ''}${e.muscleGroup ? ' · ' + e.muscleGroup : ''}`;
-      sec.innerHTML = `<div class="timeline-card"><div class="timeline-card-head"><input class="edit-input edit-name" value="Exercise ${i + 1}" style="flex:1;font-family:var(--font-d);font-weight:600;color:var(--sage);border:none;border-bottom:1px solid var(--border);padding:4px"></div><div class="sets"><input class="edit-input edit-desc" value="${esc(desc)}" style="width:100%;padding:8px 0"></div></div>`;
-      timeline.appendChild(sec);
-    });
-
-    // Training notes
-    const sectionNotes = [...(pool.trainingNotes || []), ...(gym.trainingNotes || [])];
-    if (sectionNotes.length) {
-      const summaryDiv = document.createElement('div');
-      summaryDiv.className = 'callout coral';
-      summaryDiv.innerHTML = '<div class="callout-label">📝 Training Notes</div><ul style="padding-left:18px;margin-top:8px;">' + sectionNotes.map(n => '<li style="margin-bottom:6px">' + esc(n) + '</li>').join('') + '</ul>';
-      timeline.appendChild(summaryDiv);
-    }
-    setTimeout(() => renderFeedback(), 0);
-    return;
-  }
-
-  // View mode: slim card layout — hide all detail sections
+  // Workout(s) exist — show slim card layout
   dateHeader.style.display = 'none';
   statsRow.style.display = 'none';
   totalBar.style.display = 'none';
   workoutActions.style.display = 'none';
   feedbackSection.style.display = 'none';
-
-  // Collect all of today's workouts
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayWorkouts = workouts.filter(ww => workoutLocalDate(ww) === todayStr) || [];
-  // Ensure currentWorkout is in the list
-  if (w && !todayWorkouts.includes(w)) {
-    todayWorkouts.unshift(w);
-  }
 
   // Generate a slim card for each workout
   const cardsHtml = todayWorkouts.map((ww, idx) => {
@@ -1159,75 +1054,6 @@ function renderToday(){
     </div>
     ${cardsHtml}
   `;
-}
-function saveWorkoutEdits(){
-  if(!currentWorkout)return;
-  const sections=document.querySelectorAll('.timeline-section');
-  const pool=currentWorkout.poolWorkout||{};
-  const gym=currentWorkout.gymWorkout||{};
-  const gymExercises = (gym.mainSet || []).slice();
-  // Rebuild mainSet from edited sections
-  const newMainSet=[];
-  let gymIdx = -1;
-  sections.forEach(sec=>{
-    const name=sec.querySelector('.edit-name')?.value;
-    const desc=sec.querySelector('.edit-desc')?.value;
-    if(!name||!desc)return;
-    // Parse description like "8× 50m freestyle · 1:30 · power"
-    const match=desc.match(/(\d+)\s*×\s*(\d+)\s*(m|yd|yards?|meters?)?\s*(\w+)?/i);
-    if(match&&name!=='Gym'&&name!=='Warmup'&&name!=='Cooldown'){
-      newMainSet.push({
-        repetitions:parseInt(match[1])||1,
-        distance:parseInt(match[2])||0,
-        stroke:match[4]||'freestyle',
-        interval:desc.match(/·\s*([\d:]+)/)?.[1]||'',
-        focus:desc.match(/·\s*([a-zA-Z]+)$/)?.[1]||'',
-        description:sec.querySelector('.edit-notes')?.value||'',
-      });
-    }
-    // Collect gym exercise edits — gym sections render as "Exercise N" and their desc
-    // has sets×reps but no stroke/unit pattern, so it won't match the pool regex above
-    if (name.startsWith('Exercise')) {
-      gymIdx++;
-      if (gymIdx < gymExercises.length) {
-        const parts = desc.split(' · ');
-        const setsRepsMatch = parts[1]?.match(/(\d+)×(\d+)/);
-        gymExercises[gymIdx] = {
-          ...gymExercises[gymIdx],
-          exercise: parts[0] || gymExercises[gymIdx].exercise,
-          sets: setsRepsMatch ? parseInt(setsRepsMatch[1]) : gymExercises[gymIdx].sets,
-          repetitions: setsRepsMatch ? parseInt(setsRepsMatch[2]) : gymExercises[gymIdx].repetitions,
-        };
-      }
-    }
-  });
-  currentWorkout.poolWorkout=pool;
-  pool.mainSet=newMainSet;
-  pool.totalDistance=newMainSet.reduce((s,e)=>s+e.distance*e.repetitions,0)+(pool.warmUp?.distance||0)+(pool.coolDown?.distance||0);
-
-  // Also save workout title and date if edited
-  const editTitle = document.getElementById('edit-workout-title');
-  const editDate = document.getElementById('edit-workout-date');
-  gym.mainSet = gymExercises;
-  const updateData = {
-    poolWorkout: pool,
-    gymWorkout: gym
-  };
-  if (editTitle) updateData.workoutName = editTitle.value;
-  if (editDate) updateData.date = editDate.value;
-
-  // Save to API
-  api.workouts.update(currentWorkout._id, updateData).then(res=>{
-    if(res.success){
-      currentWorkout = res.data;
-      workoutEditMode = false;
-      document.getElementById('workoutEditBtn').textContent = '✏️';
-      renderToday();
-    }
-    else{alert('Failed to save: '+(res.error||'Unknown'));}
-  }).catch(err=>{
-    alert('Failed to save: '+(err.message||'Unknown error'));
-  });
 }
 
 // === Today workout helpers ===
