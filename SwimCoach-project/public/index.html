@@ -324,7 +324,20 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .week-day-empty.rest-day{opacity:.5}
 
 /* History */
+.history-filter-bar{padding:0 24px 16px}
+.history-filter-nav{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:12px}
+.history-month-year{font-family:var(--font-d);font-size:18px;font-weight:600;color:var(--text);background:none;border:1px solid var(--border);border-radius:var(--rs);padding:6px 16px;cursor:pointer;transition:all .2s}
+.history-month-year:hover{border-color:var(--sage);color:var(--sage-dark)}
+.history-quick-filters{display:flex;gap:8px;overflow-x:auto;padding:0 0 4px;font-size:12px;scrollbar-width: none}
+.history-quick-filters::-webkit-scrollbar{display:none}
+.history-quick-filters .filter-pill{background:var(--sage-light);color:var(--sage-dark);border:none;border-radius:100px;padding:6px 14px;cursor:pointer;font-family:var(--font-b);font-weight:500;white-space:nowrap;transition:all .2s}
+.history-quick-filters .filter-pill:hover{background:var(--sage);color:#fff}
+.history-quick-filters .filter-pill.active{background:var(--coral);color:#fff}
 .history-list{padding:0 24px 100px}
+.history-month-header{padding:8px 0 4px;font-family:var(--font-d);font-size:13px;font-weight:600;color:var(--sage);text-transform:uppercase;letter-spacing:.06em;cursor:pointer;display:flex;align-items:center;gap:6px}
+.history-month-header:hover .history-month-chevron{opacity:.6}
+.history-month-chevron{font-size:14px;color:var(--text-mut);transition:transform .2s}
+.history-month-chevron.collapsed{transform:rotate(-90deg)}
 .history-card{background:var(--surface);border:1px solid var(--border-light);border-radius:var(--r);padding:18px;margin-bottom:12px;transition:all .2s;cursor:pointer}
 .history-card:hover{box-shadow:var(--sh)}
 .history-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -609,6 +622,14 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
   <div class="screen" id="s-history">
     <div class="screen-content">
       <div class="top-bar"><span class="top-back" onclick="goBack()">←</span><h1>History</h1><button class="top-bar-profile" onclick="showScreen('s-profile',true)">👤</button></div>
+      <div class="history-filter-bar" id="historyFilterBar">
+        <div class="history-filter-nav">
+          <button class="week-nav" id="historyMonthPrev" onclick="historyPrevMonth()">‹</button>
+          <button class="history-month-year" id="historyMonthYear" onclick="openHistoryMonthPicker()">Oct 2025</button>
+          <button class="week-nav" id="historyMonthNext" onclick="historyNextMonth()">›</button>
+        </div>
+        <div class="history-quick-filters" id="historyQuickFilters"></div>
+      </div>
       <div class="history-list" id="historyList"></div>
     </div>
   </div>
@@ -1681,45 +1702,218 @@ function confirmGenerateWeek(){
 }
 
 // === HISTORY ===
+// State for month/year filtering
+let historyState = {
+  selectedYear: null,  // null = all years
+  selectedMonth: null, // null = all months within selected year
+  collapsedMonths: new Set(), // set of "YYYY-MM" keys that are collapsed
+};
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function historyMonthYearLabel() {
+  if (historyState.selectedYear === null) return 'All Time';
+  if (historyState.selectedMonth === null) return `${historyState.selectedYear}`;
+  return `${MONTH_NAMES[historyState.selectedMonth]} ${historyState.selectedYear}`;
+}
+
+function historyPrevMonth() {
+  if (historyState.selectedYear === null) {
+    // Start from current month
+    const now = new Date();
+    historyState.selectedYear = now.getUTCFullYear();
+    historyState.selectedMonth = now.getUTCMonth();
+  } else if (historyState.selectedMonth === null) {
+    // Go back a year
+    historyState.selectedYear--;
+  } else {
+    historyState.selectedMonth--;
+    if (historyState.selectedMonth < 0) {
+      historyState.selectedMonth = 11;
+      historyState.selectedYear--;
+    }
+  }
+  renderHistory();
+}
+
+function historyNextMonth() {
+  const now = new Date();
+  if (historyState.selectedYear === null) {
+    historyState.selectedYear = now.getUTCFullYear();
+    historyState.selectedMonth = now.getUTCMonth();
+  } else if (historyState.selectedMonth === null) {
+    historyState.selectedYear++;
+  } else {
+    historyState.selectedMonth++;
+    if (historyState.selectedMonth > 11) {
+      historyState.selectedMonth = 0;
+      historyState.selectedYear++;
+    }
+  }
+  renderHistory();
+}
+
+function openHistoryMonthPicker() {
+  // Build a simple overlay picker for year/month selection
+  const allWorkouts = (window._historyAllWorkouts || []).sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!allWorkouts.length) {
+    alert('No workouts to filter yet.');
+    return;
+  }
+  // Collect available years and months
+  const years = new Set();
+  const monthsByYear = {};
+  allWorkouts.forEach(w => {
+    const d = new Date(w.date || w.createdAt);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    years.add(y);
+    if (!monthsByYear[y]) monthsByYear[y] = new Set();
+    monthsByYear[y].add(m);
+  });
+  const yearArr = Array.from(years).sort((a, b) => b - a);
+
+  let options = '<option value="all">All Time</option>';
+  yearArr.forEach(y => {
+    options += `<option value="y-${y}">${y}</option>`;
+    const months = Array.from(monthsByYear[y]).sort((a, b) => b - a);
+    months.forEach(m => {
+      options += `<option value="m-${y}-${m}">${MONTH_NAMES[m]} ${y}</option>`;
+    });
+  });
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:500';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:var(--r);padding:24px;max-width:280px;width:90%;box-shadow:var(--shadow-lg)">
+      <h3 style="font-family:var(--font-d);font-size:16px;font-weight:600;margin-bottom:16px">Filter by Month</h3>
+      <select id="historyMonthPickerSelect" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--rs);font-family:var(--font-b);font-size:14px;color:var(--text);background:var(--surface);outline:none;cursor:pointer;margin-bottom:16px">${options}</select>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="this.closest('div').parentElement.remove()" style="padding:8px 18px;border:1px solid var(--border);border-radius:var(--rs);background:transparent;font-family:var(--font-b);font-size:13px;color:var(--text-sec);cursor:pointer">Cancel</button>
+        <button onclick="applyHistoryMonthPicker();this.closest('div').parentElement.remove()" style="padding:8px 18px;border:none;border-radius:var(--rs);background:var(--coral);color:#fff;font-family:var(--font-d);font-size:13px;font-weight:600;cursor:pointer">Go</button>
+      </div>
+    </div>
+  `;
+  // Position the inner div inside the overlay for easier removal
+  overlay.querySelector('div').style.background = 'var(--surface)';
+  document.body.appendChild(overlay);
+
+  // Pre-select the current filter
+  const sel = document.getElementById('historyMonthPickerSelect');
+  if (historyState.selectedYear !== null && historyState.selectedMonth !== null) {
+    sel.value = `m-${historyState.selectedYear}-${historyState.selectedMonth}`;
+  } else if (historyState.selectedYear !== null) {
+    sel.value = `y-${historyState.selectedYear}`;
+  }
+
+  // Close on outside click
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+function applyHistoryMonthPicker() {
+  const sel = document.getElementById('historyMonthPickerSelect');
+  const val = sel?.value;
+  if (val === 'all') {
+    historyState.selectedYear = null;
+    historyState.selectedMonth = null;
+  } else if (val.startsWith('y-')) {
+    historyState.selectedYear = parseInt(val.split('-')[1], 10);
+    historyState.selectedMonth = null;
+  } else if (val.startsWith('m-')) {
+    const parts = val.split('-');
+    historyState.selectedYear = parseInt(parts[1], 10);
+    historyState.selectedMonth = parseInt(parts[2], 10);
+  }
+  // Clear collapsed months so everything shows
+  historyState.collapsedMonths.clear();
+  renderHistory();
+}
+
 function renderHistory(){
-  const list=document.getElementById('historyList');list.innerHTML='';
+  const list=document.getElementById('historyList');
+
+  // Update the month/year label (filter bar is always in DOM)
+  document.getElementById('historyMonthYear').textContent = historyMonthYearLabel();
+
   list.innerHTML='<div style="text-align:center;padding:24px"><div class="loading-spinner" style="margin:0 auto 12px"></div></div>';
+
   api.workouts.list().then(res=>{
-    const sorted=(res.data||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
-    if(!sorted.length){list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">No workouts yet. Generate your first one!</div>';return}
+    const allWorkouts=(res.data||[]).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    // Cache for the month picker
+    window._historyAllWorkouts = allWorkouts;
+
+    // Render quick-filter pills now that we have data
+    renderHistoryQuickFilters(allWorkouts);
+
+    if(!allWorkouts.length){
+      list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">No workouts yet. Generate your first one!</div>';
+      return;
+    }
+
+    // Apply month/year filter
+    let filtered = allWorkouts;
+    if (historyState.selectedYear !== null) {
+      filtered = filtered.filter(w => {
+        const d = new Date(w.date || w.createdAt);
+        return d.getUTCFullYear() === historyState.selectedYear;
+      });
+      if (historyState.selectedMonth !== null) {
+        filtered = filtered.filter(w => {
+          const d = new Date(w.date || w.createdAt);
+          return d.getUTCMonth() === historyState.selectedMonth;
+        });
+      }
+    }
+
     list.innerHTML='';
 
-    // Group workouts by week (Monday-Sunday)
-    const workoutsByWeek = {};
-    sorted.forEach(w => {
+    if(!filtered.length){
+      const label = historyMonthYearLabel();
+      list.innerHTML=`<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">No workouts in ${label}.</div>`;
+      return;
+    }
+
+    // Group workouts by month
+    const workoutsByMonth = {};
+    filtered.forEach(w => {
       const date = new Date(w.date || w.createdAt);
-      // Get Monday of that week
-      const day = date.getUTCDay(); // 0=Sun ... 6=Sat
-      const monday = new Date(date);
-      monday.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
-      monday.setUTCHours(0,0,0,0);
-      const weekKey = monday.toISOString().split('T')[0];
-      if (!workoutsByWeek[weekKey]) workoutsByWeek[weekKey] = [];
-      workoutsByWeek[weekKey].push(w);
+      const monthKey = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+      if (!workoutsByMonth[monthKey]) workoutsByMonth[monthKey] = [];
+      workoutsByMonth[monthKey].push(w);
     });
 
-    // Render weeks in descending order (most recent first)
-    Object.keys(workoutsByWeek).sort().reverse().forEach(weekKey => {
-      const weekWorkouts = workoutsByWeek[weekKey];
-      const monday = new Date(weekKey + 'T00:00:00Z');
-      const sunday = new Date(monday);
-      sunday.setUTCDate(monday.getUTCDate() + 6);
-      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const weekLabel = `${monthNames[monday.getUTCMonth()]} ${monday.getUTCDate()} - ${monthNames[sunday.getUTCMonth()]} ${sunday.getUTCDate()}, ${monday.getUTCFullYear()}`;
+    // Render months in descending order (most recent first)
+    Object.keys(workoutsByMonth).sort().reverse().forEach(monthKey => {
+      const monthWorkouts = workoutsByMonth[monthKey];
+      const [yearStr, monthStr] = monthKey.split('-');
+      const monthIdx = parseInt(monthStr, 10) - 1;
+      const monthLabel = `${MONTH_NAMES[monthIdx]} ${yearStr}`;
 
-      // Week header
-      const weekHeader = document.createElement('div');
-      weekHeader.style.cssText = 'padding:16px 24px 8px;font-family:var(--font-d);font-size:14px;font-weight:600;color:var(--sage);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border-light);margin-bottom:8px';
-      weekHeader.textContent = weekLabel;
-      list.appendChild(weekHeader);
+      const isCollapsed = historyState.collapsedMonths.has(monthKey);
 
-      // Workouts in this week
-      weekWorkouts.forEach(w => {
+      // Month header (clickable to toggle collapse)
+      const monthHeader = document.createElement('div');
+      monthHeader.className = 'history-month-header';
+      monthHeader.innerHTML = `
+        <span class="history-month-chevron ${isCollapsed ? 'collapsed' : ''}">›</span>
+        ${monthLabel}
+      `;
+      monthHeader.onclick = () => {
+        if (isCollapsed) {
+          historyState.collapsedMonths.delete(monthKey);
+        } else {
+          historyState.collapsedMonths.add(monthKey);
+        }
+        renderHistory();
+      };
+      list.appendChild(monthHeader);
+
+      if (isCollapsed) return;
+
+      // Workouts in this month
+      monthWorkouts.forEach(w => {
         const card=document.createElement('div');card.className='history-card';
         const stars=[1,2,3,4,5].map(s=>`<span class="star ${w.userFeedback?.rating&&w.userFeedback.rating>=s?'filled':''}" onclick="rateWorkout('${w._id}',${s})">★</span>`).join('');
         const dist=(w.poolWorkout?.totalDistance||0);
@@ -1729,6 +1923,54 @@ function renderHistory(){
     });
   }).catch(()=>{list.innerHTML='<div style="text-align:center;padding:48px 24px;color:var(--text-mut)">Failed to load workouts</div>'});
 }
+
+function renderHistoryQuickFilters(allWorkouts) {
+  // Collect unique months from all workouts
+  const months = new Set();
+  allWorkouts.forEach(w => {
+    const d = new Date(w.date || w.createdAt);
+    months.add(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`);
+  });
+
+  // Sort descending, take last 6 months
+  const monthKeys = Array.from(months).sort().reverse().slice(0, 6);
+
+  const container = document.getElementById('historyQuickFilters');
+  container.innerHTML = '';
+
+  // "All Time" pill
+  const allPill = document.createElement('button');
+  allPill.className = 'filter-pill';
+  allPill.textContent = 'All Time';
+  if (historyState.selectedYear === null) allPill.classList.add('active');
+  allPill.onclick = () => {
+    historyState.selectedYear = null;
+    historyState.selectedMonth = null;
+    historyState.collapsedMonths.clear();
+    renderHistory();
+  };
+  container.appendChild(allPill);
+
+  monthKeys.forEach(monthKey => {
+    const [yearStr, monthStr] = monthKey.split('-');
+    const monthIdx = parseInt(monthStr, 10) - 1;
+    const label = `${MONTH_NAMES[monthIdx]} ${yearStr}`;
+    const pill = document.createElement('button');
+    pill.className = 'filter-pill';
+    pill.textContent = label;
+    if (historyState.selectedYear === parseInt(yearStr, 10) && historyState.selectedMonth === monthIdx) {
+      pill.classList.add('active');
+    }
+    pill.onclick = () => {
+      historyState.selectedYear = parseInt(yearStr, 10);
+      historyState.selectedMonth = monthIdx;
+      historyState.collapsedMonths.clear();
+      renderHistory();
+    };
+    container.appendChild(pill);
+  });
+}
+
 function rateWorkout(id,rating){
   api.workouts.feedback(id, {rating,difficultyPerception:'just-right',enjoyment:4,quality:4,accuracy:4}).then(()=>renderHistory());
 }
