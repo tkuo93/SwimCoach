@@ -4,10 +4,9 @@ const Workout = require('../../models/Workout');
 const SwimmerProfile = require('../../models/SwimmerProfile');
 const { generateWorkout, regenerateWorkout } = require('../../services/workout-generator');
 const { syncFeedbackToMemory, detectTrends } = require('../../services/coaching-memory-sync');
-const { getFeedbackSummary, deriveLearning } = require('../../services/memory');
-const { getCoachingObservations, getAllNotebookNotes } = require('../../services/workout-ai');
-const { chat: legacyChat } = require('../../services/chat-with-coach');
 const { chat: coachChat } = require('../../services/coach/coach-agent');
+const { generateWeeklyProgram } = require('../../services/program-generator');
+const { checkAndGenerateUpcomingWeek } = require('../../services/workout-scheduler');
 const { track } = require('../../services/posthog');
 
 /**
@@ -91,6 +90,16 @@ router.get('/', async (req, res) => {
       .lean();
     const sanitized = workouts.map(w => sanitizeWorkout(w));
     res.json({ success: true, count: sanitized.length, data: sanitized });
+
+    // Trigger weekly auto-generation check (runs at most once per user per ISO week).
+    // Fire-and-forget: don't delay the response.
+    setImmediate(async () => {
+      try {
+        await checkAndGenerateUpcomingWeek(req.user._id.toString());
+      } catch (err) {
+        console.error('[Scheduler] Auto-generation check failed:', err.message);
+      }
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -456,202 +465,6 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delay between LLM calls to avoid OpenRouter rate limits (free tier: 20 req/min)
-const GENERATION_DELAY_MS = 0; // Removed - high-volume route has 100k daily limit
-const TAPER_WINDOW_DAYS = 14;
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Build a predicted session summary based on planned workout parameters.
- * This allows parallel generation while maintaining the "informed by previous sessions" feature.
- * The summary format: "Session N: [type], [strokes], [distance]m, gym: [muscle groups]"
- */
-function buildPredictedSessionSummary(workoutType, sessionIndex, sessionType, profile, customization) {
-  const parts = [`Session ${sessionIndex + 1}: ${workoutType}`];
-
-  // Predict strokes based on workout type and profile events
-  const events = profile.goals?.primaryEvents || [];
-  if (events.length > 0) {
-    // If specific stroke requested, use that; otherwise use event strokes
-    if (customization.stroke && customization.stroke !== 'any') {
-      parts.push(customization.stroke);
-    } else {
-      const strokes = events.map(e => e.stroke).filter((v, i, a) => a.indexOf(v) === i);
-      parts.push(strokes.join('+'));
-    }
-  }
-
-  // Predict distance based on workout type and duration
-  const duration = customization.duration || profile.trainingSchedule?.sessionDuration || 60;
-  const baseDistance = workoutType === 'endurance' || workoutType === 'distance' ? 3500
-    : workoutType === 'recovery' || workoutType === 'mobility' ? 2000
-    : 2800; // sprint, speed, technique, lactate, resistance-power
-  const estimatedDistance = Math.round(baseDistance * (duration / 60));
-  parts.push(`${estimatedDistance}m`);
-
-  // Predict gym muscle groups based on session type
-  if (sessionType === 'gym' || sessionType === 'both') {
-    const focusToMuscles = {
-      'resistance-power': 'legs+core',
-      'speed': 'full-body',
-      'endurance': 'core+legs',
-      'technique': 'shoulders+core',
-      'lactate': 'legs+full-body',
-      'sprint': 'legs+core',
-      'mobility': 'full-body',
-      'recovery': 'core'
-    };
-    const muscles = focusToMuscles[workoutType] || 'full-body';
-    parts.push(`gym: ${muscles}`);
-  }
-
-  return parts.join(', ');
-}
-
-/**
- * Check if a workout has meaningful structured content (not just an empty shell).
- * A workout with empty mainSet arrays and no descriptions is treated as a failure.
- */
-function hasWorkoutContent(workout) {
-  const pool = workout.poolWorkout || {};
-  const gym = workout.gymWorkout || {};
-  const hasPoolContent = pool.mainSet?.length > 0 || pool.warmUp?.description || pool.coolDown?.description;
-  const hasGymContent = gym.mainSet?.length > 0 || gym.warmUp?.description || gym.coolDown?.description;
-  return hasPoolContent || hasGymContent;
-}
-
-/**
- * Generate multiple workouts in parallel for a program.
- * All workouts share the same programContext (pre-fetched notes, feedback, observations).
- * Each workout gets its own workoutType and programIndex.
- * Previous session summaries are pre-computed from the plan to enable parallel generation.
- */
-async function generateWorkoutsParallel(profile, sessionCustomizations, programContext, maxRetries = 2) {
-  // Stagger parallel requests to avoid hitting OpenRouter rate limits (15 req/min free tier)
-  // With 5 workouts, stagger by 500ms each = 2.5s total spread, well within limits
-  const STAGGER_DELAY_MS = 500;
-
-  const promises = sessionCustomizations.map((customization, index) => {
-    return (async () => {
-      // Stagger the start of each workout generation
-      if (index > 0) {
-        await sleep(index * STAGGER_DELAY_MS);
-      }
-
-      let workout = null;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          workout = await generateWorkout(profile, customization, { mode: 'direct', programContext });
-          break;
-        } catch (genErr) {
-          const isRateLimited = genErr.message?.includes('429') || genErr.status === 429 || genErr.statusCode === 429;
-          const isRetryable = isRateLimited || genErr.message?.includes('truncated') || genErr.message?.includes('JSON parse') || genErr.message?.includes('No response from OpenRouter');
-          if (isRetryable && attempt < maxRetries) {
-            // Fast retry with minimal backoff (500ms) since we're using high-volume models
-            const backoffMs = 500 * Math.pow(2, attempt);
-            console.warn(`Retry ${attempt + 1}/${maxRetries} for workout ${index + 1} in ${backoffMs}ms: ${genErr.message}`);
-            await sleep(backoffMs);
-            continue;
-          } else {
-            throw genErr;
-          }
-        }
-      }
-      return workout;
-    })();
-  });
-
-  // Execute all in parallel (with stagger)
-  const results = await Promise.allSettled(promises);
-
-  const workouts = [];
-  const errors = [];
-
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value && hasWorkoutContent(result.value)) {
-      workouts.push({ ...result.value, programIndex: index });
-    } else {
-      errors.push({
-        session: index + 1,
-        error: result.reason?.message || result.value ? 'Workout generated but has no structured content' : (result.reason?.message || 'Unknown error')
-      });
-    }
-  });
-
-  return { workouts, errors };
-}
-
-/**
- * Build a compact summary of a generated workout for context in subsequent sessions.
- * Format: "Session N: [type], [strokes], [distance]m, gym: [muscle groups]"
- */
-function buildSessionSummary(workout, sessionIndex) {
-  const parts = [`Session ${sessionIndex + 1}: ${workout.workoutType || 'mixed'}`];
-
-  // Pool strokes
-  const strokes = [];
-  if (workout.poolWorkout?.mainSet) {
-    const seen = new Set();
-    for (const set of workout.poolWorkout.mainSet) {
-      if (set.stroke && !seen.has(set.stroke)) {
-        seen.add(set.stroke);
-        strokes.push(set.stroke);
-      }
-    }
-  }
-  if (strokes.length > 0) parts.push(strokes.join('+'));
-
-  // Total distance
-  if (workout.poolWorkout?.totalDistance) {
-    parts.push(`${workout.poolWorkout.totalDistance}m`);
-  }
-
-  // Gym muscle groups
-  if (workout.gymWorkout?.mainSet?.length > 0) {
-    const muscleGroups = [];
-    const seenMuscles = new Set();
-    for (const ex of workout.gymWorkout.mainSet) {
-      if (ex.muscleGroup && !seenMuscles.has(ex.muscleGroup)) {
-        seenMuscles.add(ex.muscleGroup);
-        muscleGroups.push(ex.muscleGroup);
-      }
-    }
-    if (muscleGroups.length > 0) parts.push(`gym: ${muscleGroups.join('+')}`);
-  }
-
-  return parts.join(', ');
-}
-
-/**
- * Check if a session date falls within the taper window of any competition.
- * Returns { taper: true, competitionLabel, competitionDate } or { taper: false }.
- */
-function checkTaper(sessionDate, competitionDates) {
-  if (!competitionDates || competitionDates.length === 0) return { taper: false };
-
-  const s = new Date(sessionDate);
-  s.setHours(0, 0, 0, 0);
-
-  for (const comp of competitionDates) {
-    const compStart = new Date(comp.start);
-    compStart.setHours(0, 0, 0, 0);
-    const daysUntil = Math.ceil((compStart - s) / (1000 * 60 * 60 * 24));
-
-    if (daysUntil >= 0 && daysUntil <= TAPER_WINDOW_DAYS) {
-      return {
-        taper: true,
-        competitionLabel: comp.label || 'Competition',
-        competitionDate: comp.start,
-        daysUntil,
-      };
-    }
-  }
-  return { taper: false };
-}
-
 // POST /api/workouts/generate/program
 // Body: { programPeriod, workoutType?, duration?, poolLength?, availableEquipment?, intensity?, sessionsPerWeek? }
 router.post('/generate/program', async (req, res) => {
@@ -667,228 +480,27 @@ router.post('/generate/program', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Swimmer profile not found' });
     }
 
-    // ── Determine workout type per session from profile's training foci ──
-    // If the user explicitly chose a workout type, use it for all sessions.
-    // Otherwise shuffle foci within each week for variety across programs.
-    const VALID_FOCUSES = new Set(['sprint', 'distance', 'technique', 'endurance', 'speed', 'maintenance', 'lactate', 'resistance-power', 'mobility', 'recovery']);
-    const baseFoci = (() => {
-      if (customization.workoutType) return [];
-      const tf = profile.goals?.trainingFocus;
-      const foci = Array.isArray(tf) ? tf : (tf ? [tf] : []);
-      const filtered = foci.filter(f => VALID_FOCUSES.has(f));
-      return filtered.length > 0 ? filtered : ['endurance'];
-    })();
+    const result = await generateWeeklyProgram(profile, {
+      ...customization,
+      programPeriod,
+      sessionsPerWeek,
+      weekStartOffset,
+    });
 
-    /**
-     * Shuffle an array deterministically based on a seed string.
-     * Gives us different orderings per program run while remaining testable.
-     */
-    function seededShuffle(arr, seed) {
-      const a = [...arr];
-      let h = 0;
-      for (let i = 0; i < seed.length; i++) {
-        h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
-      }
-      for (let i = a.length - 1; i > 0; i--) {
-        h = ((h << 5) - h) | 0;
-        const j = Math.abs(h) % (i + 1);
-        [a[i], a[j]] = [a[j], a[i]];
-      }
-      return a;
-    }
-
-    // ── Build weekly schedule from profile's pool/gym days ──
-    const DAY_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    // Allow per-generation overrides of pool/gym days (e.g. custom week flow).
-    // An empty array is treated as "no override" so the profile default is used.
-    const customPoolDays = Array.isArray(customization.poolDays) && customization.poolDays.length > 0 ? customization.poolDays : null;
-    const customGymDays  = Array.isArray(customization.gymDays)  && customization.gymDays.length  > 0 ? customization.gymDays  : null;
-    const poolDays = (customPoolDays || profile.trainingSchedule?.poolDays || []).map(d => d.toLowerCase());
-    const gymDays  = (customGymDays  || profile.trainingSchedule?.gymDays  || []).map(d => d.toLowerCase());
-
-    // If no days are configured, fall back to generating all sessions as "both" (legacy behavior)
-    const hasSchedule = poolDays.length > 0 || gymDays.length > 0;
-
-    // Build a sorted weekly pattern: [{ dayOfWeek: 'monday', sessionType: 'pool' }, ...]
-    let weeklyPattern = [];
-    if (hasSchedule) {
-      for (const day of DAY_ORDER) {
-        if (poolDays.includes(day)) weeklyPattern.push({ dayOfWeek: day, sessionType: 'pool' });
-        if (gymDays.includes(day))  weeklyPattern.push({ dayOfWeek: day, sessionType: 'gym' });
-      }
-    }
-
-    // Honor a sessionType override ("pool" or "gym") by filtering the pattern.
-    // "both" (or empty) keeps the full profile schedule.
-    if (customization.sessionType === 'pool' || customization.sessionType === 'gym') {
-      weeklyPattern = weeklyPattern.filter(s => s.sessionType === customization.sessionType);
-    }
-
-    // Determine number of sessions per week
-    const perWeek = sessionsPerWeek
-      || (hasSchedule ? weeklyPattern.length : (profile.trainingSchedule?.weeklyPoolSessions || 3));
-    const totalWeeks = programPeriod === 'monthly' ? 4 : 1;
-    const totalSessions = perWeek * totalWeeks;
-
-    // ── Compute the calendar date for each session ──
-    // dayOfWeek (lowercase) -> JS Date.getDay() (0=Sun, 1=Mon, ...)
-    const DAY_TO_NUM = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
-
-    /**
-     * Given a target day-of-week and a starting date, return the next date
-     * on or after `startDate` that falls on that day-of-week.
-     */
-    function nextDateForDay(dayOfWeek, startDate) {
-      const target = DAY_TO_NUM[dayOfWeek];
-      const d = new Date(startDate);
-      const current = d.getDay();
-      const offset = (target - current + 7) % 7;
-      d.setDate(d.getDate() + offset);
-      // Midnight in the user's local timezone. The frontend reads dates in
-      // local time too, so the stored date string always matches the day
-      // the user sees — no UTC shift.
-      d.setHours(0, 0, 0, 0);
-      return d;
-    }
-
-    // Build the full session plan: [{ date, sessionType }, ...]
-    const sessionPlan = [];
-    if (hasSchedule && weeklyPattern.length > 0) {
-      // Start from the Monday of the target week (current week + offset)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const targetMonday = new Date(today);
-      targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset);
-
-      for (let week = 0; week < totalWeeks; week++) {
-        for (const slot of weeklyPattern) {
-          // Find the date for this day-of-week in this week
-          const weekStart = new Date(targetMonday);
-          weekStart.setDate(weekStart.getDate() + week * 7);
-          const date = nextDateForDay(slot.dayOfWeek, weekStart);
-          sessionPlan.push({ date, sessionType: slot.sessionType });
-        }
-      }
-    }
-    // If no schedule configured, sessionPlan stays empty — we'll use defaults below
-
-    // Generate sequential workouts with shared programId
-    const programId = `prog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    /**
-     * Build the full session type plan for the entire program.
-     * Each week gets a shuffled ordering of the foci, then cycles if sessions > foci.
-     */
-    const sessionTypes = (() => {
-      if (customization.workoutType) return Array(totalSessions).fill(customization.workoutType);
-      const types = [];
-      for (let week = 0; week < totalWeeks; week++) {
-        const shuffled = seededShuffle(baseFoci, `${programId}-week-${week}`);
-        for (let s = 0; s < perWeek; s++) {
-          types.push(shuffled[s % shuffled.length]);
-        }
-      }
-      return types;
-    })();
-
-    // Competition dates for taper detection
-    const competitionDates = profile.trainingSchedule?.competitionDates || [];
-
-    // ── Hoist expensive, session-independent lookups out of the per-session loop ──
-    // Notebook notes, feedback summary, and coaching observations are the same for
-    // every session in a program. Fetching them once (instead of 5×) is the main
-    // reason sessions 4-5 felt slow — each was re-querying the knowledge base.
-    const startTime = Date.now();
-    const feedbackSummary = await getFeedbackSummary(10, req.user._id);
-    const coachingObservations = await getCoachingObservations(profile._id);
-    // Determine training focus once so the notes lookup runs a single time.
-    const baseWorkoutType = customization.workoutType
-      || (Array.isArray(profile.goals?.trainingFocus) ? profile.goals.trainingFocus[0] : profile.goals?.trainingFocus)
-      || 'endurance';
-    const notebookNotes = await getAllNotebookNotes(`${baseWorkoutType} training for swimmers`, customization);
-    console.log(`Program context loaded in ${Date.now() - startTime}ms (notes: ${notebookNotes ? 'hit' : 'miss'})`);
-
-    // ── Build all session customizations with PREDICTED previous summaries ──
-    // This enables parallel generation while maintaining the "informed by previous sessions" feature.
-    const sessionCustomizations = [];
-    const predictedSummaries = [];
-    for (let i = 0; i < totalSessions; i++) {
-      const plan = sessionPlan[i];
-      const sessionDate = plan ? plan.date : new Date();
-      const taperInfo = checkTaper(sessionDate, competitionDates);
-
-      // Build predicted summary for this session based on all previous planned sessions
-      const predictedSummary = buildPredictedSessionSummary(
-        sessionTypes[i],
-        i,
-        plan ? plan.sessionType : (customization.sessionType || 'both'),
-        profile,
-        customization
-      );
-      predictedSummaries.push(predictedSummary);
-
-      // Build customization with all previous PREDICTED summaries
-      const sessionCustomization = {
-        ...customization,
-        workoutType: sessionTypes[i],
-        programIndex: i,
-        totalSessions,
-        programPeriod,
-        programId,
-        useHighVolumeRoute: true,
-        ...(plan ? { date: plan.date } : {}),
-        // sessionType: plan-level pool/gym unless the user overrode it for the whole program
-        ...(plan
-          ? { sessionType: customization.sessionType === 'pool' || customization.sessionType === 'gym'
-              ? customization.sessionType
-              : plan.sessionType }
-          : { sessionType: customization.sessionType || 'both' }),
-        // Pass PREDICTED previous session summaries for variety (enables parallel generation)
-        ...(i > 0
-          ? { previousSessionSummaries: predictedSummaries.slice(0, i) }
-          : {}),
-        // Pass taper context if approaching competition
-        ...(taperInfo.taper
-          ? {
-              taper: true,
-              competitionLabel: taperInfo.competitionLabel,
-              competitionDate: taperInfo.competitionDate,
-            }
-          : {}),
-      };
-      sessionCustomizations.push(sessionCustomization);
-    }
-
-    // ── Generate all workouts IN PARALLEL ──
-    const programContext = { feedbackSummary, coachingObservations, notebookNotes };
-    const { workouts: generatedWorkouts, errors } = await generateWorkoutsParallel(
-      profile,
-      sessionCustomizations,
-      programContext,
-      2 // maxRetries
-    );
-
-    // Sort workouts by programIndex to maintain order
-    generatedWorkouts.sort((a, b) => a.programIndex - b.programIndex);
-
-    console.log(`Program generation complete: ${generatedWorkouts.length}/${totalSessions} workouts, errors: ${errors.length}`);
-
-    if (generatedWorkouts.length === 0) {
-      return res.status(500).json({ success: false, error: 'All workout generations failed. Please try again shortly.', errors });
+    if (result.workouts.length === 0) {
+      return res.status(500).json({ success: false, error: 'All workout generations failed. Please try again shortly.', errors: result.errors });
     }
 
     res.status(201).json({
       success: true,
-      partial: errors.length > 0,
+      partial: result.errors?.length > 0,
       data: {
-        programId,
-        programPeriod,
-        totalSessions,
-        generatedCount: generatedWorkouts.length,
-        workouts: generatedWorkouts,
-        ...(errors.length > 0 && { errors }),
+        programId: result.programId,
+        programPeriod: result.programPeriod,
+        totalSessions: result.totalSessions,
+        generatedCount: result.generatedCount,
+        workouts: result.workouts,
+        ...(result.errors?.length > 0 && { errors: result.errors }),
       },
     });
   } catch (err) {
