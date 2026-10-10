@@ -1356,10 +1356,19 @@ function sendCoachMessage(text,isSystem){
   // Disable input while thinking so the user sees the conversation is mid-flight.
   const inp=document.getElementById('coachInp');if(inp)inp.disabled=true;
 
-  // Ensure we have a conversationId before sending. If loadNewChat hasn't finished
-  // creating one yet (or failed), create one on-demand so messages aren't lost.
-  // Call coach API
+  // Ensure we have a conversationId before sending. If none is available
+  // (creation failed or no ID), abort and surface the error instead of
+  // sending to the backend with conversationId=null.
   ensureConversation().then(convId => {
+    if (!convId) {
+      thinking.remove();
+      if(inp){inp.disabled=false;inp.focus();}
+      const err=document.createElement('div');
+      err.className='coach-msg coach-msg-bot';
+      err.textContent='Could not establish a conversation. Please try again.';
+      msgs.appendChild(err);msgs.scrollTop=msgs.scrollHeight;
+      return;
+    }
   api.coach.chat({message:text,messages:coachMessages.slice(-10),workoutId:currentWorkout?._id,conversationId:convId}).then(res=>{
     thinking.remove();
     if(inp)inp.disabled=false;
@@ -2367,33 +2376,32 @@ function clearAll(){if(!confirm('Clear all data?'))return;localStorage.clear();l
 
 // === COACH ===
 let currentConversationId=null;
-let creatingConversation=false;
+let conversationPromise=null;
 let sidebarVisible=true;
 
 // Create a conversation in the backend if we don't have one yet.
-// Called by both loadNewChat() and sendCoachMessage() as a safety net.
-async function ensureConversation(){
-  if (currentConversationId) return currentConversationId;
-  if (creatingConversation) {
-    // Another call is already in progress — wait for it by polling briefly
-    for (let i = 0; i < 50 && !currentConversationId; i++) {
-      await new Promise(r => setTimeout(r, 50));
-    }
-    return currentConversationId;
+// Uses a Promise gate instead of a global flag + polling loop: concurrent
+// callers receive the same in-flight Promise, so there's a single creation
+// attempt and no risk of one caller picking up a stale/half-set ID.
+function ensureConversation(){
+  if (currentConversationId) return Promise.resolve(currentConversationId);
+  if (!conversationPromise) {
+    conversationPromise = api.conversations.create({ title: 'New conversation' })
+      .then(created => {
+        currentConversationId = created.data._id;
+        renderConversationList();
+        return currentConversationId;
+      })
+      .catch(err => {
+        console.error('Failed to create conversation:', err.message);
+        currentConversationId = null;
+        return null;
+      })
+      .finally(() => {
+        conversationPromise = null;
+      });
   }
-  creatingConversation = true;
-  try {
-    const created = await api.conversations.create({ title: 'New conversation' });
-    currentConversationId = created.data._id;
-    // Refresh the sidebar to show the new conversation
-    renderConversationList();
-  } catch (err) {
-    console.error('Failed to create conversation:', err.message);
-    currentConversationId = null;
-  } finally {
-    creatingConversation = false;
-  }
-  return currentConversationId;
+  return conversationPromise;
 }
 
 let previousScreen='s-today';
@@ -2467,6 +2475,10 @@ async function loadNewChat(){
   await ensureConversation();
 }
 function newConversation(){
+  // Reset conversation state so loadNewChat() creates a fresh thread
+  // instead of reusing the existing conversation ID.
+  currentConversationId=null;
+  conversationPromise=null;
   loadNewChat();
 }
 function renderConversationList(){
