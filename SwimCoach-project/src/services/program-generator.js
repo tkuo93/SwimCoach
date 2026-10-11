@@ -249,6 +249,11 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
     ...rest
   } = customization;
 
+  // Allow callers (e.g. scheduler) to inject a reference date for deterministic
+  // week-start calculations instead of always using new Date().
+  const refDate = opts.refDate ? new Date(opts.refDate) : new Date();
+  refDate.setHours(0, 0, 0, 0);
+
   if (!programPeriod || programPeriod === 'single') {
     throw new Error('programPeriod must be weekly or monthly');
   }
@@ -278,23 +283,38 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
     }
   }
 
+  // If no explicit days are defined, derive a default schedule from
+  // the profile's session counts. Masters swimmers typically do
+  // M/W/F pool + T/R gym, so we use a spread that respects those counts.
+  if (!hasSchedule || weeklyPattern.length === 0) {
+    const poolCount = profile.trainingSchedule?.weeklyPoolSessions || 3;
+    const gymCount = profile.trainingSchedule?.weeklyGymSessions || 2;
+    const defaultPoolDays = ['monday', 'wednesday', 'friday'].slice(0, poolCount || 3);
+    const defaultGymDays = ['tuesday', 'thursday'].slice(0, gymCount || 2);
+    for (const day of DAY_ORDER) {
+      if (defaultPoolDays.includes(day)) weeklyPattern.push({ dayOfWeek: day, sessionType: 'pool' });
+      if (defaultGymDays.includes(day)) weeklyPattern.push({ dayOfWeek: day, sessionType: 'gym' });
+    }
+  }
+
   if (rest.sessionType === 'pool' || rest.sessionType === 'gym') {
     weeklyPattern = weeklyPattern.filter(s => s.sessionType === rest.sessionType);
   }
 
   const perWeek = sessionsPerWeek
-    || (hasSchedule ? weeklyPattern.length : (profile.trainingSchedule?.weeklyPoolSessions || 3));
+    || (weeklyPattern.length > 0 ? weeklyPattern.length : (profile.trainingSchedule?.weeklyPoolSessions || 3));
   const totalWeeks = programPeriod === 'monthly' ? 4 : 1;
   const totalSessions = perWeek * totalWeeks;
 
   // ── Compute the calendar date for each session ──
+  // Accept optional `existingDates` (array of ISO date strings) to skip slots
+  // that already have workouts. This enables partial-week fill-in.
+  const existingDates = (rest.existingDates || []).map(d => new Date(d).setHours(0, 0, 0, 0));
   const sessionPlan = [];
-  if (hasSchedule && weeklyPattern.length > 0) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayDayOfWeek = today.getDay();
-    const mondayOffset = todayDayOfWeek === 0 ? -6 : 1 - todayDayOfWeek;
-    const targetMonday = new Date(today);
+  if (weeklyPattern.length > 0) {
+    const refDayOfWeek = refDate.getDay();
+    const mondayOffset = refDayOfWeek === 0 ? -6 : 1 - refDayOfWeek;
+    const targetMonday = new Date(refDate);
     targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset);
 
     for (let week = 0; week < totalWeeks; week++) {
@@ -302,6 +322,9 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
         const weekStart = new Date(targetMonday);
         weekStart.setDate(weekStart.getDate() + week * 7);
         const date = nextDateForDay(slot.dayOfWeek, weekStart);
+        // Skip slots that already have workouts (partial-week fill-in)
+        const dateMs = date.setHours(0, 0, 0, 0);
+        if (existingDates.includes(dateMs)) continue;
         sessionPlan.push({ date, sessionType: slot.sessionType });
       }
     }
@@ -309,8 +332,11 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
 
   const programId = `prog_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+  // Use sessionPlan length (may be less than totalSessions if skipping existing dates)
+  const actualSessionCount = sessionPlan.length || totalSessions;
+
   const sessionTypes = (() => {
-    if (rest.workoutType) return Array(totalSessions).fill(rest.workoutType);
+    if (rest.workoutType) return Array(actualSessionCount).fill(rest.workoutType);
     const types = [];
     for (let week = 0; week < totalWeeks; week++) {
       const shuffled = seededShuffle(baseFoci, `${programId}-week-${week}`);
@@ -318,7 +344,7 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
         types.push(shuffled[s % shuffled.length]);
       }
     }
-    return types;
+    return types.slice(0, actualSessionCount);
   })();
 
   const competitionDates = profile.trainingSchedule?.competitionDates || [];
@@ -336,9 +362,9 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
   // ── Build all session customizations with PREDICTED previous summaries ──
   const sessionCustomizations = [];
   const predictedSummaries = [];
-  for (let i = 0; i < totalSessions; i++) {
+  for (let i = 0; i < actualSessionCount; i++) {
     const plan = sessionPlan[i];
-    const sessionDate = plan ? plan.date : new Date();
+    const sessionDate = plan ? plan.date : refDate;
     const taperInfo = checkTaper(sessionDate, competitionDates);
 
     const predictedSummary = buildPredictedSessionSummary(
@@ -354,7 +380,7 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
       ...rest,
       workoutType: sessionTypes[i],
       programIndex: i,
-      totalSessions,
+      totalSessions: actualSessionCount,
       programPeriod,
       programId,
       useHighVolumeRoute: true,
@@ -387,12 +413,12 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
 
   generatedWorkouts.sort((a, b) => a.programIndex - b.programIndex);
 
-  console.log(`Program generation complete: ${generatedWorkouts.length}/${totalSessions} workouts, errors: ${errors.length}`);
+  console.log(`Program generation complete: ${generatedWorkouts.length}/${actualSessionCount} workouts, errors: ${errors.length}`);
 
   return {
     programId,
     programPeriod,
-    totalSessions,
+    totalSessions: actualSessionCount,
     generatedCount: generatedWorkouts.length,
     workouts: generatedWorkouts,
     ...(errors.length > 0 && { errors }),

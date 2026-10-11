@@ -2,8 +2,9 @@
  * Weekly auto-generation scheduler.
  *
  * On-demand trigger: when a user loads their workouts, we check if they
- * have any workouts planned for the current week (Monday–Sunday). If not,
- * we generate a default weekly program.
+ * have workouts planned for the current week (Monday–Sunday). If they
+ * have zero workouts, we generate a full week's program. If they have
+ * some, we fill in only the missing schedule days.
  *
  * This runs on free-tier hosts (Render/Fly) where in-process cron can't
  * fire reliably because the container sleeps when idle. By piggybacking
@@ -33,8 +34,8 @@ const lastCheckCache = new Map();
 /**
  * Returns true if today is Sunday (the day before a Monday-start week).
  */
-function isDayBeforeNewWeek(date = new Date()) {
-  const d = new Date(date);
+function isDayBeforeNewWeek(date) {
+  const d = new Date(date || new Date());
   d.setHours(0, 0, 0, 0);
   return d.getDay() === 0; // 0 = Sunday
 }
@@ -47,8 +48,8 @@ function isDayBeforeNewWeek(date = new Date()) {
  * @param {Date} [refDate] - Reference date (defaults to now)
  * @returns {{ start: Date, end: Date }} - Monday 00:00 to Sunday 23:59:59.999
  */
-function getWeekRange(refDate = new Date()) {
-  const today = new Date(refDate);
+function getWeekRange(refDate) {
+  const today = new Date(refDate || new Date());
   today.setHours(0, 0, 0, 0);
   const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
@@ -70,9 +71,8 @@ function getWeekRange(refDate = new Date()) {
  * Get the ISO week key for a date (e.g., "2025-W01").
  * Used as the cache key to prevent duplicate weekly checks.
  */
-function getISOWeekKey(date = new Date()) {
-  const d = new Date(date);
-  // Create a copy and set to nearest Thursday (ISO week definition)
+function getISOWeekKey(date) {
+  const d = new Date(date || new Date());
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
   const week1 = new Date(d.getFullYear(), 0, 4);
@@ -89,7 +89,7 @@ function getISOWeekKey(date = new Date()) {
  * @param {Date} [refDate] - Reference date for computing the week
  * @returns {Promise<number>} - Count of workouts in the week (-1 on error)
  */
-async function countWorkoutsInWeek(swimmerId, refDate = new Date()) {
+async function countWorkoutsInWeek(swimmerId, refDate) {
   const { start, end } = getWeekRange(refDate);
   try {
     return await Workout.countDocuments({
@@ -103,15 +103,42 @@ async function countWorkoutsInWeek(swimmerId, refDate = new Date()) {
 }
 
 /**
+ * Fetch the dates of existing workouts in the given week.
+ *
+ * @param {string} swimmerId - Mongoose ObjectId as string
+ * @param {Date} [refDate] - Reference date for computing the week
+ * @returns {Promise<Date[]>} - Array of workout dates in the week (empty on error)
+ */
+async function getExistingWorkoutDates(swimmerId, refDate) {
+  const { start, end } = getWeekRange(refDate);
+  try {
+    const docs = await Workout.find({
+      swimmerId,
+      date: { $gte: start, $lt: new Date(end.getTime() + 1) },
+    }).select('date -_id').lean();
+    return docs.map(d => new Date(d.date));
+  } catch (err) {
+    console.error(`[Scheduler] Failed to fetch workout dates for swimmer ${swimmerId}:`, err.message);
+    return [];
+  }
+}
+
+/**
  * Main entry point: check whether a swimmer needs an auto-generated weekly program.
  *
  * Called from the authenticated GET /api/workouts route (via setImmediate).
  * Runs at most once per swimmer per ISO week thanks to an in-memory cache.
  *
+ * Logic:
+ *  - On Sunday: target the upcoming week (offset=1). If zero workouts, generate
+ *    full week. If some exist, fill in missing schedule days.
+ *  - On Monday–Saturday: target the current week (offset=0). If zero workouts,
+ *    generate full week. If some exist, fill in missing schedule days.
+ *
  * @param {string} swimmerId - Mongoose ObjectId as string
  * @param {Date} [now] - Override current time (for testing)
  */
-async function checkAndGenerateUpcomingWeek(swimmerId, now = new Date()) {
+async function checkAndGenerateUpcomingWeek(swimmerId, now) {
   // Weekly guard — prevent duplicate runs within the same ISO week
   const weekKey = getISOWeekKey(now);
   if (lastCheckCache.get(swimmerId) === weekKey) {
@@ -134,9 +161,8 @@ async function checkAndGenerateUpcomingWeek(swimmerId, now = new Date()) {
   // Determine weekStartOffset for generateWeeklyProgram
   // weekStartOffset is relative to "today" in the program generator:
   //   0 = current week's Monday, 1 = next week's Monday
-  // On Sunday, the "current week's Monday" already passed (previous Monday),
-  // so we need offset 1 to target next Monday.
-  // On Monday–Saturday, offset 0 targets this week's Monday.
+  // On Sunday, offset 1 targets next Monday (upcoming week).
+  // On Monday–Saturday, offset 0 targets this week's Monday (current week).
   const weekStartOffset = isSunday ? 1 : 0;
 
   // Check for existing workouts in the target week
@@ -144,18 +170,25 @@ async function checkAndGenerateUpcomingWeek(swimmerId, now = new Date()) {
   if (existingCount < 0) {
     return { skipped: true, reason: 'DB query failed' };
   }
+
+  // If workouts exist, fetch their dates so we can fill in only the missing days
+  let existingDates = [];
   if (existingCount > 0) {
-    console.log(`[Scheduler] Swimmer ${swimmerId} already has ${existingCount} workout(s) for ${weekStart.toISOString().split('T')[0]} week — skipping generation`);
-    return { skipped: true, reason: 'Workouts already exist', existingCount };
+    existingDates = await getExistingWorkoutDates(swimmerId, now);
+    console.log(`[Scheduler] Swimmer ${swimmerId} already has ${existingCount} workout(s) for ${weekStart.toISOString().split('T')[0]} week — filling in missing days`);
   }
 
   // Generate a default weekly program for the target week
-  console.log(`[Scheduler] Auto-generating weekly program for swimmer ${swimmerId} (weekStartOffset: ${weekStartOffset})`);
+  console.log(`[Scheduler] Generating ${existingCount === 0 ? 'full week' : 'missing days'} for swimmer ${swimmerId} (weekStartOffset: ${weekStartOffset})`);
   try {
+    // Pass refDate so the generator's Monday calculation matches our week range.
+    // Pass existingDates so the generator skips slots that already have workouts.
     const result = await generateWeeklyProgram(profile, {
       programPeriod: 'weekly',
       weekStartOffset,
-    });
+      existingDates: existingDates.map(d => d.toISOString()),
+    }, { refDate: now });
+
     console.log(`[Scheduler] Generated ${result.generatedCount}/${result.totalSessions} workouts for swimmer ${swimmerId}`);
     return { generated: true, programId: result.programId, count: result.generatedCount, total: result.totalSessions };
   } catch (err) {
@@ -176,6 +209,7 @@ module.exports = {
   isDayBeforeNewWeek,
   getWeekRange,
   countWorkoutsInWeek,
+  getExistingWorkoutDates,
   getISOWeekKey,
   clearCache,
   // Exported for testing

@@ -9,10 +9,12 @@
 
 const mockCountDocuments = jest.fn();
 const mockFindById = jest.fn();
+const mockFind = jest.fn();
 
 jest.mock('../../src/models/Workout', () => {
   const Workout = jest.fn();
   Workout.countDocuments = mockCountDocuments;
+  Workout.find = mockFind;
   return Workout;
 });
 
@@ -36,6 +38,7 @@ const {
   checkAndGenerateUpcomingWeek,
   clearCache,
   lastCheckCache,
+  getExistingWorkoutDates,
 } = require('../../src/services/workout-scheduler');
 
 // ─── Tests ──────────────────────────────────────────────────────────────
@@ -54,6 +57,11 @@ describe('isDayBeforeNewWeek', () => {
   test('returns false on Saturday', () => {
     const saturday = new Date(2025, 0, 4, 9, 0, 0);
     expect(isDayBeforeNewWeek(saturday)).toBe(false);
+  });
+
+  test('defaults to now when no date is passed', () => {
+    // We can't predict the exact day, but it should be a boolean
+    expect(typeof isDayBeforeNewWeek()).toBe('boolean');
   });
 });
 
@@ -103,6 +111,12 @@ describe('getWeekRange', () => {
     expect(end.getMinutes()).toBe(59);
     expect(end.getSeconds()).toBe(59);
   });
+
+  test('defaults to now when no refDate is passed', () => {
+    const { start, end } = getWeekRange();
+    expect(start).toBeInstanceOf(Date);
+    expect(end).toBeInstanceOf(Date);
+  });
 });
 
 describe('getISOWeekKey', () => {
@@ -130,12 +144,13 @@ describe('checkAndGenerateUpcomingWeek', () => {
     clearCache();
   });
 
-  test('on Sunday with no workouts, generates with weekStartOffset=1', async () => {
+  test('on Sunday with no workouts, generates full week with weekStartOffset=1 and refDate', async () => {
     // Sunday Jan 5, 2025
     const sunday = new Date(2025, 0, 5, 14, 0, 0);
     const profile = { _id: 'swimmer123', goals: { trainingFocus: ['endurance'] }, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
     mockGenerate.mockResolvedValue({
       programId: 'prog_test123',
       programPeriod: 'weekly',
@@ -148,11 +163,16 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(result.generated).toBe(true);
     expect(result.programId).toBe('prog_test123');
 
-    // Should use weekStartOffset=1 on Sunday (next week)
-    expect(mockGenerate).toHaveBeenCalledWith(profile, {
-      programPeriod: 'weekly',
-      weekStartOffset: 1,
-    });
+    // Should use weekStartOffset=1 on Sunday (next week) and pass refDate
+    expect(mockGenerate).toHaveBeenCalledWith(
+      profile,
+      expect.objectContaining({
+        programPeriod: 'weekly',
+        weekStartOffset: 1,
+        existingDates: [],
+      }),
+      { refDate: sunday }
+    );
   });
 
   test('on Monday with no workouts, generates with weekStartOffset=0', async () => {
@@ -161,6 +181,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const profile = { _id: 'swimmer123', goals: { trainingFocus: ['endurance'] }, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
     mockGenerate.mockResolvedValue({
       programId: 'prog_test456',
       programPeriod: 'weekly',
@@ -172,11 +193,15 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const result = await checkAndGenerateUpcomingWeek('swimmer123', monday);
     expect(result.generated).toBe(true);
 
-    // Should use weekStartOffset=0 on Monday (current week)
-    expect(mockGenerate).toHaveBeenCalledWith(profile, {
-      programPeriod: 'weekly',
-      weekStartOffset: 0,
-    });
+    expect(mockGenerate).toHaveBeenCalledWith(
+      profile,
+      expect.objectContaining({
+        programPeriod: 'weekly',
+        weekStartOffset: 0,
+        existingDates: [],
+      }),
+      { refDate: monday }
+    );
   });
 
   test('on Tuesday with no workouts, generates with weekStartOffset=0', async () => {
@@ -185,6 +210,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
     mockGenerate.mockResolvedValue({
       programId: 'prog_tue',
       programPeriod: 'weekly',
@@ -195,10 +221,49 @@ describe('checkAndGenerateUpcomingWeek', () => {
 
     const result = await checkAndGenerateUpcomingWeek('swimmer123', tuesday);
     expect(result.generated).toBe(true);
-    expect(mockGenerate).toHaveBeenCalledWith(profile, {
+    expect(mockGenerate).toHaveBeenCalledWith(
+      profile,
+      expect.objectContaining({
+        programPeriod: 'weekly',
+        weekStartOffset: 0,
+      }),
+      { refDate: tuesday }
+    );
+  });
+
+  test('when partial workouts exist, fills in missing days instead of skipping', async () => {
+    // Monday Jan 6, 2025 — current week
+    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
+    mockFindById.mockResolvedValue(profile);
+    mockCountDocuments.mockResolvedValue(2); // 2 workouts already exist
+    // Mock existing workout dates: Jan 6 (Monday) and Jan 10 (Friday)
+    const existingDates = [new Date(2025, 0, 6), new Date(2025, 0, 10)];
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
+      { date: existingDates[0] }, { date: existingDates[1] },
+    ]) }) });
+    mockGenerate.mockResolvedValue({
+      programId: 'prog_fill',
       programPeriod: 'weekly',
-      weekStartOffset: 0,
+      totalSessions: 3,
+      generatedCount: 3,
+      workouts: [{ _id: 'w1' }, { _id: 'w2' }, { _id: 'w3' }],
     });
+
+    const result = await checkAndGenerateUpcomingWeek('swimmer123', monday);
+    expect(result.generated).toBe(true);
+
+    // Should pass the existing dates so the generator skips those slots
+    expect(mockGenerate).toHaveBeenCalledWith(
+      profile,
+      expect.objectContaining({
+        existingDates: expect.arrayContaining([
+          existingDates[0].toISOString(),
+          existingDates[1].toISOString(),
+        ]),
+      }),
+      { refDate: monday }
+    );
   });
 
   test('skips if already checked this week (ISO week guard)', async () => {
@@ -216,19 +281,6 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const second = await checkAndGenerateUpcomingWeek('swimmer123', tuesday);
     expect(second.skipped).toBe(true);
     expect(second.reason).toBe('Already checked this week');
-  });
-
-  test('skips when workouts already exist for the week', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
-    const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
-    mockFindById.mockResolvedValue(profile);
-    mockCountDocuments.mockResolvedValue(3);
-
-    const result = await checkAndGenerateUpcomingWeek('swimmer123', sunday);
-    expect(result.skipped).toBe(true);
-    expect(result.reason).toBe('Workouts already exist');
-    expect(result.existingCount).toBe(3);
-    expect(mockGenerate).not.toHaveBeenCalled();
   });
 
   test('handles profile not found gracefully', async () => {
@@ -256,6 +308,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
     mockGenerate.mockRejectedValue(new Error('OpenRouter rate limited'));
 
     const result = await checkAndGenerateUpcomingWeek('swimmer123', sunday);
@@ -289,6 +342,29 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(r1.skipped).toBe(true);
     expect(r2.skipped).toBe(true);
     expect(mockFindById).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getExistingWorkoutDates', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
+      { date: new Date(2025, 0, 6) },
+      { date: new Date(2025, 0, 8) },
+    ]) }) });
+  });
+
+  test('returns dates of existing workouts in the week', async () => {
+    const dates = await getExistingWorkoutDates('swimmer123', new Date(2025, 0, 8));
+    expect(dates).toHaveLength(2);
+    expect(dates[0]).toBeInstanceOf(Date);
+    expect(dates[1]).toBeInstanceOf(Date);
+  });
+
+  test('returns empty array on DB error', async () => {
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.reject(new Error('DB error')) }) });
+    const dates = await getExistingWorkoutDates('swimmer123', new Date(2025, 0, 8));
+    expect(dates).toEqual([]);
   });
 });
 
