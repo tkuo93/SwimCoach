@@ -309,13 +309,17 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
   // ── Compute the calendar date for each session ──
   // Accept optional `existingDates` (array of ISO date strings) to skip slots
   // that already have workouts. This enables partial-week fill-in.
-  const existingDates = (rest.existingDates || []).map(d => new Date(d).setHours(0, 0, 0, 0));
+  // Compare by local date-only string (YYYY-MM-DD) to avoid timezone mismatches
+  // between UTC ISO strings and local-time date computation.
+  const existingDateKeys = new Set(
+    (rest.existingDates || []).map(d => new Date(d).toLocaleDateString('en-CA'))
+  );
   const sessionPlan = [];
   if (weeklyPattern.length > 0) {
     const refDayOfWeek = refDate.getDay();
     const mondayOffset = refDayOfWeek === 0 ? -6 : 1 - refDayOfWeek;
     const targetMonday = new Date(refDate);
-    targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset);
+    targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset * 7);
 
     for (let week = 0; week < totalWeeks; week++) {
       for (const slot of weeklyPattern) {
@@ -323,8 +327,8 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
         weekStart.setDate(weekStart.getDate() + week * 7);
         const date = nextDateForDay(slot.dayOfWeek, weekStart);
         // Skip slots that already have workouts (partial-week fill-in)
-        const dateMs = date.setHours(0, 0, 0, 0);
-        if (existingDates.includes(dateMs)) continue;
+        const dateKey = date.toLocaleDateString('en-CA');
+        if (existingDateKeys.has(dateKey)) continue;
         sessionPlan.push({ date, sessionType: slot.sessionType });
       }
     }
