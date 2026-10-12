@@ -6,7 +6,6 @@
  */
 
 // ─── Mock dependencies ─────────────────────────────────────────────────
-
 const mockCountDocuments = jest.fn();
 const mockFindById = jest.fn();
 const mockFind = jest.fn();
@@ -32,44 +31,22 @@ jest.mock('../../src/services/program-generator', () => ({
 
 // Import after mocks are set up
 const {
-  isDayBeforeNewWeek,
-  getWeekRange,
+  getUpcomingWeekRange,
   getISOWeekKey,
   checkAndGenerateUpcomingWeek,
   clearCache,
   lastCheckCache,
   getExistingWorkoutDates,
+  countWorkoutsInWeek,
 } = require('../../src/services/workout-scheduler');
 
 // ─── Tests ──────────────────────────────────────────────────────────────
 
-describe('isDayBeforeNewWeek', () => {
-  test('returns true on Sunday', () => {
-    const sunday = new Date(2025, 0, 5, 14, 30, 0);
-    expect(isDayBeforeNewWeek(sunday)).toBe(true);
-  });
-
-  test('returns false on Monday', () => {
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
-    expect(isDayBeforeNewWeek(monday)).toBe(false);
-  });
-
-  test('returns false on Saturday', () => {
-    const saturday = new Date(2025, 0, 4, 9, 0, 0);
-    expect(isDayBeforeNewWeek(saturday)).toBe(false);
-  });
-
-  test('defaults to now when no date is passed', () => {
-    // We can't predict the exact day, but it should be a boolean
-    expect(typeof isDayBeforeNewWeek()).toBe('boolean');
-  });
-});
-
-describe('getWeekRange', () => {
+describe('getUpcomingWeekRange', () => {
   test('on Sunday, returns the upcoming (next) week range', () => {
     // Sunday Jan 5, 2025
     const refDate = new Date(2025, 0, 5, 14, 0, 0);
-    const { start, end } = getWeekRange(refDate);
+    const { start, end } = getUpcomingWeekRange(refDate);
 
     // Next Monday is Jan 6
     expect(start.getDay()).toBe(1); // Monday
@@ -79,31 +56,42 @@ describe('getWeekRange', () => {
     expect(end.toLocaleDateString('en-CA')).toBe('2025-01-12');
   });
 
-  test('on Wednesday, returns the current week range', () => {
-    // Wednesday Jan 8, 2025 — current week started Monday Jan 6
+  test('on Wednesday, returns the upcoming (next) week, NOT the current week', () => {
+    // Wednesday Jan 8, 2025 — current week started Jan 6, next week starts Jan 13
     const refDate = new Date(2025, 0, 8, 10, 0, 0);
-    const { start, end } = getWeekRange(refDate);
+    const { start, end } = getUpcomingWeekRange(refDate);
 
-    // This week's Monday is Jan 6
-    expect(start.getDay()).toBe(1);
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-06');
-    // This week's Sunday is Jan 12
-    expect(end.getDay()).toBe(0);
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-12');
+    // Next Monday is Jan 13 (not Jan 6!)
+    expect(start.getDay()).toBe(1); // Monday
+    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13');
+    // Next Sunday is Jan 19
+    expect(end.getDay()).toBe(0); // Sunday
+    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
   });
 
-  test('on Monday, returns the current week (starting today)', () => {
-    // Monday Jan 6, 2025
+  test('on Monday, returns the upcoming (next) week, not current', () => {
+    // Monday Jan 6, 2025 — current week starts Jan 6, next week starts Jan 13
     const refDate = new Date(2025, 0, 6, 9, 0, 0);
-    const { start, end } = getWeekRange(refDate);
+    const { start, end } = getUpcomingWeekRange(refDate);
 
     expect(start.getDay()).toBe(1);
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-06');
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-12');
+    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13'); // NOT Jan 6
+    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
+  });
+
+  test('on Saturday, returns the upcoming (next) week', () => {
+    // Saturday Jan 11, 2025 — next week starts Jan 13
+    const refDate = new Date(2025, 0, 11, 15, 0, 0);
+    const { start, end } = getUpcomingWeekRange(refDate);
+
+    expect(start.getDay()).toBe(1); // Monday
+    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13');
+    expect(end.getDay()).toBe(0); // Sunday
+    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
   });
 
   test('start is at midnight, end is at end of Sunday', () => {
-    const { start, end } = getWeekRange(new Date(2025, 0, 5, 23, 59, 59));
+    const { start, end } = getUpcomingWeekRange(new Date(2025, 0, 5, 23, 59, 59));
     expect(start.getHours()).toBe(0);
     expect(start.getMinutes()).toBe(0);
     expect(start.getSeconds()).toBe(0);
@@ -113,7 +101,7 @@ describe('getWeekRange', () => {
   });
 
   test('defaults to now when no refDate is passed', () => {
-    const { start, end } = getWeekRange();
+    const { start, end } = getUpcomingWeekRange();
     expect(start).toBeInstanceOf(Date);
     expect(end).toBeInstanceOf(Date);
   });
@@ -163,7 +151,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(result.generated).toBe(true);
     expect(result.programId).toBe('prog_test123');
 
-    // Should use weekStartOffset=1 on Sunday (next week) and pass refDate
+    // Should always use weekStartOffset=1 (next week) and pass refDate
     expect(mockGenerate).toHaveBeenCalledWith(
       profile,
       expect.objectContaining({
@@ -175,7 +163,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     );
   });
 
-  test('on Monday with no workouts, generates with weekStartOffset=0', async () => {
+  test('on Monday with no workouts, generates for NEXT week (not current)', async () => {
     // Monday Jan 6, 2025
     const monday = new Date(2025, 0, 6, 9, 0, 0);
     const profile = { _id: 'swimmer123', goals: { trainingFocus: ['endurance'] }, trainingSchedule: {} };
@@ -193,52 +181,53 @@ describe('checkAndGenerateUpcomingWeek', () => {
     const result = await checkAndGenerateUpcomingWeek('swimmer123', monday);
     expect(result.generated).toBe(true);
 
+    // Should use weekStartOffset=1 on Monday too (always next week)
     expect(mockGenerate).toHaveBeenCalledWith(
       profile,
       expect.objectContaining({
         programPeriod: 'weekly',
-        weekStartOffset: 0,
+        weekStartOffset: 1,
         existingDates: [],
       }),
       { refDate: monday }
     );
   });
 
-  test('on Tuesday with no workouts, generates with weekStartOffset=0', async () => {
-    // Tuesday Jan 7, 2025
-    const tuesday = new Date(2025, 0, 7, 9, 0, 0);
+  test('on Wednesday with no workouts, generates for NEXT week', async () => {
+    // Wednesday Jan 8, 2025
+    const wednesday = new Date(2025, 0, 8, 9, 0, 0);
     const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
     mockGenerate.mockResolvedValue({
-      programId: 'prog_tue',
+      programId: 'prog_wed',
       programPeriod: 'weekly',
       totalSessions: 3,
       generatedCount: 3,
       workouts: [],
     });
 
-    const result = await checkAndGenerateUpcomingWeek('swimmer123', tuesday);
+    const result = await checkAndGenerateUpcomingWeek('swimmer123', wednesday);
     expect(result.generated).toBe(true);
     expect(mockGenerate).toHaveBeenCalledWith(
       profile,
       expect.objectContaining({
         programPeriod: 'weekly',
-        weekStartOffset: 0,
+        weekStartOffset: 1,
       }),
-      { refDate: tuesday }
+      { refDate: wednesday }
     );
   });
 
-  test('when partial workouts exist, fills in missing days instead of skipping', async () => {
-    // Monday Jan 6, 2025 — current week
+  test('when partial workouts exist in upcoming week, fills in missing days', async () => {
+    // Monday Jan 6, 2025 — check upcoming week (Jan 13–19)
     const monday = new Date(2025, 0, 6, 9, 0, 0);
     const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
     mockFindById.mockResolvedValue(profile);
-    mockCountDocuments.mockResolvedValue(2); // 2 workouts already exist
-    // Mock existing workout dates: Jan 6 (Monday) and Jan 10 (Friday)
-    const existingDates = [new Date(2025, 0, 6), new Date(2025, 0, 10)];
+    mockCountDocuments.mockResolvedValue(2); // 2 workouts already exist in upcoming week
+    // Mock existing workout dates: Jan 13 (Monday) and Jan 17 (Friday)
+    const existingDates = [new Date(2025, 0, 13), new Date(2025, 0, 17)];
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
       { date: existingDates[0] }, { date: existingDates[1] },
     ]) }) });
@@ -266,8 +255,8 @@ describe('checkAndGenerateUpcomingWeek', () => {
     );
   });
 
-  test('skips if already checked this week (ISO week guard)', async () => {
-    // Monday Jan 6, 2025 (ISO week 2)
+  test('skips if already checked for this target week (ISO week guard)', async () => {
+    // Monday Jan 6, 2025 — target week is Jan 13–19 (ISO week 3)
     const monday = new Date(2025, 0, 6, 9, 0, 0);
     mockFindById.mockResolvedValue(null);
 
@@ -276,11 +265,27 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(first.skipped).toBe(true);
     expect(first.reason).toBe('Profile not found');
 
-    // Second call same ISO week (Tuesday Jan 7) — should be skipped by guard
+    // Second call same target week (Tuesday Jan 7 — still targets Jan 13–19)
     const tuesday = new Date(2025, 0, 7, 9, 0, 0);
     const second = await checkAndGenerateUpcomingWeek('swimmer123', tuesday);
     expect(second.skipped).toBe(true);
     expect(second.reason).toBe('Already checked this week');
+  });
+
+  test('same swimmer across different target weeks both trigger', async () => {
+    // Monday Jan 6 → targets week of Jan 13
+    // Monday Jan 13 → targets week of Jan 20
+    const monday1 = new Date(2025, 0, 6, 9, 0, 0);
+    const monday2 = new Date(2025, 0, 13, 9, 0, 0);
+    mockFindById.mockResolvedValue(null);
+
+    const r1 = await checkAndGenerateUpcomingWeek('swimmer123', monday1);
+    const r2 = await checkAndGenerateUpcomingWeek('swimmer123', monday2);
+
+    // Both should proceed past the guard (different target ISO weeks)
+    expect(r1.skipped).toBe(true);
+    expect(r2.skipped).toBe(true);
+    expect(mockFindById).toHaveBeenCalledTimes(2);
   });
 
   test('handles profile not found gracefully', async () => {
@@ -330,18 +335,56 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(mockFindById).toHaveBeenCalledTimes(2);
   });
 
-  test('same swimmer on different weeks both trigger (not guarded)', async () => {
-    const sunday1 = new Date(2025, 0, 5, 14, 0, 0); // Jan 5, 2025 — Week 1
-    const sunday2 = new Date(2025, 0, 12, 14, 0, 0); // Jan 12, 2025 — Week 2
-    mockFindById.mockResolvedValue(null);
+  test('checks the upcoming week, not the current week (count query targets next week)', async () => {
+    // Wednesday Jan 8, 2025 — current week is Jan 6-12, target is Jan 13-19
+    const wednesday = new Date(2025, 0, 8, 10, 0, 0);
+    const profile = { _id: 'swimmer123', goals: {}, trainingSchedule: {} };
+    mockFindById.mockResolvedValue(profile);
+    mockCountDocuments.mockResolvedValue(0);
+    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
+    mockGenerate.mockResolvedValue({
+      programId: 'prog_next',
+      programPeriod: 'weekly',
+      totalSessions: 3,
+      generatedCount: 3,
+      workouts: [],
+    });
 
-    const r1 = await checkAndGenerateUpcomingWeek('swimmer123', sunday1);
-    const r2 = await checkAndGenerateUpcomingWeek('swimmer123', sunday2);
+    await checkAndGenerateUpcomingWeek('swimmer123', wednesday);
 
-    // Both should proceed past the guard (different ISO weeks)
-    expect(r1.skipped).toBe(true);
-    expect(r2.skipped).toBe(true);
-    expect(mockFindById).toHaveBeenCalledTimes(2);
+    // countWorkoutsInWeek should have been called with the TARGET week's date range
+    // (Jan 13-19), not the current week (Jan 6-12)
+    // The mock (Workout.countDocuments) receives the query filter — check the $gte date
+    const callArgs = mockCountDocuments.mock.calls[0];
+    const filter = callArgs[0];
+    expect(filter.date.$gte.toLocaleDateString('en-CA')).toBe('2025-01-13'); // Next Monday, not Jan 6
+  });
+});
+
+describe('countWorkoutsInWeek', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('queries Workout.countDocuments with correct date range', async () => {
+    mockCountDocuments.mockResolvedValue(3);
+    const weekStart = new Date(2025, 0, 13);
+    const weekEnd = new Date(2025, 0, 19, 23, 59, 59, 999);
+
+    const count = await countWorkoutsInWeek('swimmer123', weekStart, weekEnd);
+    expect(count).toBe(3);
+    expect(mockCountDocuments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        swimmerId: 'swimmer123',
+        date: expect.any(Object),
+      })
+    );
+  });
+
+  test('returns -1 on DB error', async () => {
+    mockCountDocuments.mockRejectedValue(new Error('DB error'));
+    const count = await countWorkoutsInWeek('swimmer123', new Date(), new Date());
+    expect(count).toBe(-1);
   });
 });
 
@@ -349,13 +392,15 @@ describe('getExistingWorkoutDates', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
-      { date: new Date(2025, 0, 6) },
-      { date: new Date(2025, 0, 8) },
+      { date: new Date(2025, 0, 13) },
+      { date: new Date(2025, 0, 15) },
     ]) }) });
   });
 
   test('returns dates of existing workouts in the week', async () => {
-    const dates = await getExistingWorkoutDates('swimmer123', new Date(2025, 0, 8));
+    const weekStart = new Date(2025, 0, 13);
+    const weekEnd = new Date(2025, 0, 19, 23, 59, 59, 999);
+    const dates = await getExistingWorkoutDates('swimmer123', weekStart, weekEnd);
     expect(dates).toHaveLength(2);
     expect(dates[0]).toBeInstanceOf(Date);
     expect(dates[1]).toBeInstanceOf(Date);
@@ -363,7 +408,7 @@ describe('getExistingWorkoutDates', () => {
 
   test('returns empty array on DB error', async () => {
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.reject(new Error('DB error')) }) });
-    const dates = await getExistingWorkoutDates('swimmer123', new Date(2025, 0, 8));
+    const dates = await getExistingWorkoutDates('swimmer123', new Date(), new Date());
     expect(dates).toEqual([]);
   });
 });
