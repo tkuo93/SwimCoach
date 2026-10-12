@@ -18,6 +18,10 @@ const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // In-memory daily usage tracking (resets on server restart)
 // For production, consider persisting to Redis/database
 const dailyUsage = new Map();
