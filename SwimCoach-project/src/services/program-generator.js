@@ -309,10 +309,12 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
   // ── Compute the calendar date for each session ──
   // Accept optional `existingDates` (array of ISO date strings) to skip slots
   // that already have workouts. This enables partial-week fill-in.
-  // Compare by local date-only string (YYYY-MM-DD) to avoid timezone mismatches
-  // between UTC ISO strings and local-time date computation.
+  // Compare using UTC date strings (YYYY-MM-DD) to avoid timezone mismatches
+  // between UTC ISO strings and date computation. The scheduler passes dates
+  // from MongoDB as ISO strings; we normalize them the same way session dates
+  // are computed (via toISOString().split('T')[0] which is always UTC).
   const existingDateKeys = new Set(
-    (rest.existingDates || []).map(d => new Date(d).toLocaleDateString('en-CA'))
+    (rest.existingDates || []).map(d => new Date(d).toISOString().split('T')[0])
   );
   const sessionPlan = [];
   if (weeklyPattern.length > 0) {
@@ -327,7 +329,9 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
         weekStart.setDate(weekStart.getDate() + week * 7);
         const date = nextDateForDay(slot.dayOfWeek, weekStart);
         // Skip slots that already have workouts (partial-week fill-in)
-        const dateKey = date.toLocaleDateString('en-CA');
+        // Use UTC date string for consistency with existingDateKeys (which are
+        // also UTC ISO strings from toISOString().split('T')[0]).
+        const dateKey = date.toISOString().split('T')[0];
         if (existingDateKeys.has(dateKey)) continue;
         sessionPlan.push({ date, sessionType: slot.sessionType });
       }
