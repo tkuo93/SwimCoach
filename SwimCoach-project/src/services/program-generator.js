@@ -44,14 +44,18 @@ function seededShuffle(arr, seed) {
 /**
  * Given a target day-of-week and a starting date, return the next date
  * on or after `startDate` that falls on that day-of-week.
+ *
+ * Uses UTC throughout to avoid timezone mismatches with dates stored in
+ * MongoDB (which stores dates as UTC timestamps). All comparison helpers
+ * (existingDateKeys, dateKey in sessionPlan) also use UTC ISO date strings.
  */
 function nextDateForDay(dayOfWeek, startDate) {
   const target = DAY_TO_NUM[dayOfWeek];
   const d = new Date(startDate);
-  const current = d.getDay();
+  const current = d.getUTCDay();
   const offset = (target - current + 7) % 7;
-  d.setDate(d.getDate() + offset);
-  d.setHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offset);
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
@@ -251,8 +255,9 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
 
   // Allow callers (e.g. scheduler) to inject a reference date for deterministic
   // week-start calculations instead of always using new Date().
+  // Normalize to UTC midnight to avoid timezone drift in date computations.
   const refDate = opts.refDate ? new Date(opts.refDate) : new Date();
-  refDate.setHours(0, 0, 0, 0);
+  refDate.setUTCHours(0, 0, 0, 0);
 
   if (!programPeriod || programPeriod === 'single') {
     throw new Error('programPeriod must be weekly or monthly');
@@ -318,15 +323,16 @@ async function generateWeeklyProgram(profile, customization = {}, opts = {}) {
   );
   const sessionPlan = [];
   if (weeklyPattern.length > 0) {
-    const refDayOfWeek = refDate.getDay();
+    // Use UTC day-of-week for consistency with MongoDB (UTC) and nextDateForDay.
+    const refDayOfWeek = refDate.getUTCDay();
     const mondayOffset = refDayOfWeek === 0 ? -6 : 1 - refDayOfWeek;
     const targetMonday = new Date(refDate);
-    targetMonday.setDate(targetMonday.getDate() + mondayOffset + weekStartOffset * 7);
+    targetMonday.setUTCDate(targetMonday.getUTCDate() + mondayOffset + weekStartOffset * 7);
 
     for (let week = 0; week < totalWeeks; week++) {
       for (const slot of weeklyPattern) {
         const weekStart = new Date(targetMonday);
-        weekStart.setDate(weekStart.getDate() + week * 7);
+        weekStart.setUTCDate(weekStart.getUTCDate() + week * 7);
         const date = nextDateForDay(slot.dayOfWeek, weekStart);
         // Skip slots that already have workouts (partial-week fill-in)
         // Use UTC date string for consistency with existingDateKeys (which are

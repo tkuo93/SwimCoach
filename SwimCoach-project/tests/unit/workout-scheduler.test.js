@@ -9,7 +9,6 @@
 const mockCountDocuments = jest.fn();
 const mockFindById = jest.fn();
 const mockFind = jest.fn();
-const mockFindByIdAndUpdate = jest.fn();
 const mockProfileSave = jest.fn();
 
 // We need to mock SwimmerProfile so that findById returns a profile with a save()
@@ -55,64 +54,69 @@ const {
   countWorkoutsInWeek,
 } = require('../../src/services/workout-scheduler');
 
+// ─── Helper: create a UTC date at midnight ──────────────────────────────
+function utcDate(year, month, day, hours = 0, minutes = 0) {
+  return new Date(Date.UTC(year, month, day, hours, minutes, 0, 0));
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────
 
 describe('getUpcomingWeekRange', () => {
   test('on Sunday, returns the upcoming (next) week range', () => {
     // Sunday Jan 5, 2025
-    const refDate = new Date(2025, 0, 5, 14, 0, 0);
+    const refDate = utcDate(2025, 0, 5, 14);
     const { start, end } = getUpcomingWeekRange(refDate);
 
     // Next Monday is Jan 6
-    expect(start.getDay()).toBe(1); // Monday
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-06');
+    expect(start.getUTCDay()).toBe(1); // Monday
+    expect(start.toISOString().split('T')[0]).toBe('2025-01-06');
     // Next Sunday is Jan 12
-    expect(end.getDay()).toBe(0); // Sunday
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-12');
+    expect(end.getUTCDay()).toBe(0); // Sunday
+    expect(end.toISOString().split('T')[0]).toBe('2025-01-12');
   });
 
   test('on Wednesday, returns the upcoming (next) week, NOT the current week', () => {
     // Wednesday Jan 8, 2025 — current week started Jan 6, next week starts Jan 13
-    const refDate = new Date(2025, 0, 8, 10, 0, 0);
+    const refDate = utcDate(2025, 0, 8, 10);
     const { start, end } = getUpcomingWeekRange(refDate);
 
     // Next Monday is Jan 13 (not Jan 6!)
-    expect(start.getDay()).toBe(1); // Monday
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13');
+    expect(start.getUTCDay()).toBe(1); // Monday
+    expect(start.toISOString().split('T')[0]).toBe('2025-01-13');
     // Next Sunday is Jan 19
-    expect(end.getDay()).toBe(0); // Sunday
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
+    expect(end.getUTCDay()).toBe(0); // Sunday
+    expect(end.toISOString().split('T')[0]).toBe('2025-01-19');
   });
 
   test('on Monday, returns the upcoming (next) week, not current', () => {
     // Monday Jan 6, 2025 — current week starts Jan 6, next week starts Jan 13
-    const refDate = new Date(2025, 0, 6, 9, 0, 0);
+    const refDate = utcDate(2025, 0, 6, 9);
     const { start, end } = getUpcomingWeekRange(refDate);
 
-    expect(start.getDay()).toBe(1);
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13'); // NOT Jan 6
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
+    expect(start.getUTCDay()).toBe(1);
+    expect(start.toISOString().split('T')[0]).toBe('2025-01-13'); // NOT Jan 6
+    expect(end.toISOString().split('T')[0]).toBe('2025-01-19');
   });
 
   test('on Saturday, returns the upcoming (next) week', () => {
     // Saturday Jan 11, 2025 — next week starts Jan 13
-    const refDate = new Date(2025, 0, 11, 15, 0, 0);
+    const refDate = utcDate(2025, 0, 11, 15);
     const { start, end } = getUpcomingWeekRange(refDate);
 
-    expect(start.getDay()).toBe(1); // Monday
-    expect(start.toLocaleDateString('en-CA')).toBe('2025-01-13');
-    expect(end.getDay()).toBe(0); // Sunday
-    expect(end.toLocaleDateString('en-CA')).toBe('2025-01-19');
+    expect(start.getUTCDay()).toBe(1); // Monday
+    expect(start.toISOString().split('T')[0]).toBe('2025-01-13');
+    expect(end.getUTCDay()).toBe(0); // Sunday
+    expect(end.toISOString().split('T')[0]).toBe('2025-01-19');
   });
 
-  test('start is at midnight, end is at end of Sunday', () => {
-    const { start, end } = getUpcomingWeekRange(new Date(2025, 0, 5, 23, 59, 59));
-    expect(start.getHours()).toBe(0);
-    expect(start.getMinutes()).toBe(0);
-    expect(start.getSeconds()).toBe(0);
-    expect(end.getHours()).toBe(23);
-    expect(end.getMinutes()).toBe(59);
-    expect(end.getSeconds()).toBe(59);
+  test('start is at UTC midnight, end is at end of Sunday', () => {
+    const { start, end } = getUpcomingWeekRange(utcDate(2025, 0, 5, 23, 59));
+    expect(start.getUTCHours()).toBe(0);
+    expect(start.getUTCMinutes()).toBe(0);
+    expect(start.getUTCSeconds()).toBe(0);
+    expect(end.getUTCHours()).toBe(23);
+    expect(end.getUTCMinutes()).toBe(59);
+    expect(end.getUTCSeconds()).toBe(59);
   });
 
   test('defaults to now when no refDate is passed', () => {
@@ -150,7 +154,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
 
   test('on Sunday with no workouts, generates full week with weekStartOffset=1 and refDate', async () => {
     // Sunday Jan 5, 2025
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -175,7 +179,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
         weekStartOffset: 1,
         existingDates: [],
       }),
-      { refDate: sunday }
+      { refDate: expect.any(Date) }
     );
 
     // Should persist the generated week on the profile
@@ -185,7 +189,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
 
   test('on Monday with no workouts, generates for NEXT week (not current)', async () => {
     // Monday Jan 6, 2025
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const monday = utcDate(2025, 0, 6, 9);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -209,13 +213,13 @@ describe('checkAndGenerateUpcomingWeek', () => {
         weekStartOffset: 1,
         existingDates: [],
       }),
-      { refDate: monday }
+      { refDate: expect.any(Date) }
     );
   });
 
   test('on Wednesday with no workouts, generates for NEXT week', async () => {
     // Wednesday Jan 8, 2025
-    const wednesday = new Date(2025, 0, 8, 9, 0, 0);
+    const wednesday = utcDate(2025, 0, 8, 9);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -236,18 +240,18 @@ describe('checkAndGenerateUpcomingWeek', () => {
         programPeriod: 'weekly',
         weekStartOffset: 1,
       }),
-      { refDate: wednesday }
+      { refDate: expect.any(Date) }
     );
   });
 
   test('when partial workouts exist in upcoming week, fills in missing days', async () => {
     // Monday Jan 6, 2025 — check upcoming week (Jan 13–19)
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const monday = utcDate(2025, 0, 6, 9);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(2); // 2 workouts already exist in upcoming week
     // Mock existing workout dates: Jan 13 (Monday) and Jan 17 (Friday)
-    const existingDates = [new Date(2025, 0, 13), new Date(2025, 0, 17)];
+    const existingDates = [new Date(Date.UTC(2025, 0, 13)), new Date(Date.UTC(2025, 0, 17))];
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
       { date: existingDates[0] }, { date: existingDates[1] },
     ]) }) });
@@ -272,13 +276,13 @@ describe('checkAndGenerateUpcomingWeek', () => {
           existingDates[1].toISOString(),
         ]),
       }),
-      { refDate: monday }
+      { refDate: expect.any(Date) }
     );
   });
 
   test('skips if DB-backed guard says already generated this target week', async () => {
     // Monday Jan 6, 2025 — target week is Jan 13–19
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const monday = utcDate(2025, 0, 6, 9);
     const targetWeekKey = getISOWeekKey(getUpcomingWeekRange(monday).start);
     const profile = mockProfile({ lastAutoGeneratedWeek: targetWeekKey });
     mockFindById.mockResolvedValue(profile);
@@ -293,7 +297,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
 
   test('in-memory guard skips within same process (optimization)', async () => {
     // Monday Jan 6, 2025 — target week is Jan 13–19
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const monday = utcDate(2025, 0, 6, 9);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -307,7 +311,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     expect(mockGenerate).toHaveBeenCalledTimes(1);
 
     // Second call same target week — should be skipped by in-memory guard
-    const tuesday = new Date(2025, 0, 7, 9, 0, 0); // still same target week
+    const tuesday = utcDate(2025, 0, 7, 9); // still same target week
     const profile2 = mockProfile({ lastAutoGeneratedWeek: null }); // simulate cache wiped (new process)
     mockFindById.mockResolvedValue(profile2);
     const result = await checkAndGenerateUpcomingWeek('swimmer123', tuesday);
@@ -320,7 +324,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
   test('DB guard catches what in-memory guard misses (container restart)', async () => {
     // Simulate: first process generated, second process (cache wiped) should
     // still be blocked by the DB-backed guard.
-    const monday = new Date(2025, 0, 6, 9, 0, 0);
+    const monday = utcDate(2025, 0, 6, 9);
     const targetWeekKey = getISOWeekKey(getUpcomingWeekRange(monday).start);
 
     // Second process: in-memory cache is empty (fresh process), but DB says already generated
@@ -337,8 +341,8 @@ describe('checkAndGenerateUpcomingWeek', () => {
   test('same swimmer across different target weeks both trigger', async () => {
     // Monday Jan 6 → targets week of Jan 13
     // Monday Jan 13 → targets week of Jan 20
-    const monday1 = new Date(2025, 0, 6, 9, 0, 0);
-    const monday2 = new Date(2025, 0, 13, 9, 0, 0);
+    const monday1 = utcDate(2025, 0, 6, 9);
+    const monday2 = utcDate(2025, 0, 13, 9);
     mockFindById.mockResolvedValue(mockProfile()); // lastAutoGeneratedWeek starts null
     mockCountDocuments.mockResolvedValue(0);
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
@@ -357,7 +361,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
   });
 
   test('handles profile not found gracefully', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
     mockFindById.mockResolvedValue(null);
 
     const result = await checkAndGenerateUpcomingWeek('nonexistent', sunday);
@@ -366,7 +370,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
   });
 
   test('handles DB query error gracefully', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockRejectedValue(new Error('Mongo connection lost'));
@@ -377,7 +381,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
   });
 
   test('handles generation error gracefully (does not persist week key)', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -393,7 +397,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
   });
 
   test('different swimmers are independently guarded', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
 
     // Swimmer A: profile not found
     mockFindById.mockResolvedValueOnce(null);
@@ -412,7 +416,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
 
   test('checks the upcoming week, not the current week (count query targets next week)', async () => {
     // Wednesday Jan 8, 2025 — current week is Jan 6-12, target is Jan 13-19
-    const wednesday = new Date(2025, 0, 8, 10, 0, 0);
+    const wednesday = utcDate(2025, 0, 8, 10);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
     mockCountDocuments.mockResolvedValue(0);
@@ -432,7 +436,7 @@ describe('checkAndGenerateUpcomingWeek', () => {
     // The mock (Workout.countDocuments) receives the query filter — check the $gte date
     const callArgs = mockCountDocuments.mock.calls[0];
     const filter = callArgs[0];
-    expect(filter.date.$gte.toLocaleDateString('en-CA')).toBe('2025-01-13'); // Next Monday, not Jan 6
+    expect(filter.date.$gte.toISOString().split('T')[0]).toBe('2025-01-13'); // Next Monday, not Jan 6
   });
 });
 
@@ -443,8 +447,8 @@ describe('countWorkoutsInWeek', () => {
 
   test('queries Workout.countDocuments with correct date range', async () => {
     mockCountDocuments.mockResolvedValue(3);
-    const weekStart = new Date(2025, 0, 13);
-    const weekEnd = new Date(2025, 0, 19, 23, 59, 59, 999);
+    const weekStart = utcDate(2025, 0, 13);
+    const weekEnd = new Date(Date.UTC(2025, 0, 19, 23, 59, 59, 999));
 
     const count = await countWorkoutsInWeek('swimmer123', weekStart, weekEnd);
     expect(count).toBe(3);
@@ -470,11 +474,11 @@ describe('getExistingWorkoutDates', () => {
 
   test('returns dates of existing workouts in the week', async () => {
     mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
-      { date: new Date(2025, 0, 13) },
-      { date: new Date(2025, 0, 15) },
+      { date: new Date(Date.UTC(2025, 0, 13)) },
+      { date: new Date(Date.UTC(2025, 0, 15)) },
     ]) }) });
-    const weekStart = new Date(2025, 0, 13);
-    const weekEnd = new Date(2025, 0, 19, 23, 59, 59, 999);
+    const weekStart = utcDate(2025, 0, 13);
+    const weekEnd = new Date(Date.UTC(2025, 0, 19, 23, 59, 59, 999));
     const dates = await getExistingWorkoutDates('swimmer123', weekStart, weekEnd);
     expect(dates).toHaveLength(2);
     expect(dates[0]).toBeInstanceOf(Date);
@@ -490,7 +494,7 @@ describe('getExistingWorkoutDates', () => {
 
 describe('clearCache', () => {
   test('clears the in-memory cache', async () => {
-    const sunday = new Date(2025, 0, 5, 14, 0, 0);
+    const sunday = utcDate(2025, 0, 5, 14);
     mockFindById.mockResolvedValue(null);
 
     await checkAndGenerateUpcomingWeek('swimmerA', sunday);

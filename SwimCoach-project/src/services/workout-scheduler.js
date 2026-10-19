@@ -41,19 +41,19 @@ const lastCheckCache = new Map();
  */
 function getUpcomingWeekRange(refDate) {
   const today = new Date(refDate || new Date());
-  today.setHours(0, 0, 0, 0);
-  const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  today.setUTCHours(0, 0, 0, 0);
+  const dayOfWeek = today.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
   // Days from today until next Monday (always > 0, so we always go forward).
   // On Monday, (8 - 1) % 7 = 0, so we need || 7 to push to next Monday.
   const daysUntilMonday = (8 - dayOfWeek) % 7 || 7;
   const monday = new Date(today);
-  monday.setDate(today.getDate() + daysUntilMonday);
-  monday.setHours(0, 0, 0, 0);
+  monday.setUTCDate(today.getUTCDate() + daysUntilMonday);
+  monday.setUTCHours(0, 0, 0, 0);
 
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  sunday.setUTCHours(23, 59, 59, 999);
 
   return { start: monday, end: sunday };
 }
@@ -131,6 +131,9 @@ async function getExistingWorkoutDates(swimmerId, weekStart, weekEnd) {
  */
 async function checkAndGenerateUpcomingWeek(swimmerId, now) {
   const refDate = new Date(now || new Date());
+  // Normalize to UTC midnight so the generator and scheduler compute the same
+  // week range regardless of the server's local timezone.
+  refDate.setUTCHours(0, 0, 0, 0);
 
   // Compute the target week (always next Monday–Sunday)
   const { start: weekStart, end: weekEnd } = getUpcomingWeekRange(refDate);

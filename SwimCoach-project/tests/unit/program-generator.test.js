@@ -60,42 +60,42 @@ describe('seededShuffle', () => {
 
 describe('nextDateForDay', () => {
   test('returns the same day if startDate is already on that day', () => {
-    const monday = new Date(2025, 0, 6); // Jan 6, 2025 = Monday
+    const monday = new Date(Date.UTC(2025, 0, 6)); // Jan 6, 2025 = Monday
     const result = nextDateForDay('monday', monday);
     expect(result.toISOString().split('T')[0]).toBe('2025-01-06');
   });
 
   test('advances to next Monday from Sunday', () => {
-    const sunday = new Date(2025, 0, 5); // Jan 5, 2025 = Sunday
+    const sunday = new Date(Date.UTC(2025, 0, 5)); // Jan 5, 2025 = Sunday
     const result = nextDateForDay('monday', sunday);
-    expect(result.getDay()).toBe(1); // Monday
+    expect(result.getUTCDay()).toBe(1); // Monday
     expect(result.toISOString().split('T')[0]).toBe('2025-01-06');
   });
 
   test('advances to next Monday from Wednesday', () => {
-    const wednesday = new Date(2025, 0, 8); // Jan 8, 2025 = Wednesday
+    const wednesday = new Date(Date.UTC(2025, 0, 8)); // Jan 8, 2025 = Wednesday
     const result = nextDateForDay('monday', wednesday);
-    expect(result.getDay()).toBe(1);
+    expect(result.getUTCDay()).toBe(1);
     expect(result.toISOString().split('T')[0]).toBe('2025-01-13');
   });
 
   test('wraps around within the week (Saturday -> Monday)', () => {
-    const saturday = new Date(2025, 0, 11); // Jan 11, 2025 = Saturday
+    const saturday = new Date(Date.UTC(2025, 0, 11)); // Jan 11, 2025 = Saturday
     const result = nextDateForDay('monday', saturday);
-    expect(result.getDay()).toBe(1);
+    expect(result.getUTCDay()).toBe(1);
     expect(result.toISOString().split('T')[0]).toBe('2025-01-13');
   });
 
-  test('sets to midnight', () => {
-    const date = new Date(2025, 0, 6, 14, 30, 45);
+  test('sets to UTC midnight', () => {
+    const date = new Date(Date.UTC(2025, 0, 6, 14, 30, 45));
     const result = nextDateForDay('monday', date);
-    expect(result.getHours()).toBe(0);
-    expect(result.getMinutes()).toBe(0);
-    expect(result.getSeconds()).toBe(0);
+    expect(result.getUTCHours()).toBe(0);
+    expect(result.getUTCMinutes()).toBe(0);
+    expect(result.getUTCSeconds()).toBe(0);
   });
 
   test('handles all days of the week', () => {
-    const weekStart = new Date(2025, 0, 5); // Sunday Jan 5
+    const weekStart = new Date(Date.UTC(2025, 0, 5)); // Sunday Jan 5
     const expected = {
       sunday: '2025-01-05',
       monday: '2025-01-06',
