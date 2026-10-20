@@ -11,18 +11,14 @@
  *   - 'workout'  — workout-scoped, includes current workout + extra tools
  */
 
-const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const CoachingMemory = require('../../models/CoachingMemory');
 const { getToolDefinitions, executeTool } = require('./coach-tools');
-const { sanitizeModel, normalizeModelForApi } = require('../workout-ai');
+const { sanitizeModel } = require('../workout-ai');
 const { sanitizeUserMessage, sanitizeConversationHistory, buildSafeSystemPrompt } = require('../prompt-sanitizer');
-const { rateLimitedAxiosCall } = require('../openrouter-rate-limiter');
+const { callByRoute } = require('../model-router');
 
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
 const MAX_AGENT_ITERATIONS = 5;
 const MAX_HISTORY_TOKENS = 1500;
 
@@ -78,7 +74,7 @@ async function chat({ profile, workout, messages, userMessage, mode = 'general',
   const actions = [];
 
   for (let i = 0; i < MAX_AGENT_ITERATIONS; i++) {
-    const response = await callLLM(model, agentMessages, tools);
+    const response = await callLLM(model, agentMessages, tools, mode);
     const choice = response.choices?.[0];
     if (!choice) throw new Error('No response from LLM');
 
@@ -383,87 +379,51 @@ async function extractConversationLearnings(profile, userMessage, coachReply, wo
 // ─── LLM Call ───────────────────────────────────────────────────────
 
 /**
- * Sleep utility for retry delays
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Call LLM with exponential backoff retry for 429 rate limit errors
- * @param {string} model - Model to use
+ * Call the LLM via the model router's callByRoute, which provides automatic
+ * fallback to secondary models and the ultimate openrouter/free fallback.
+ *
+ * Tool-calling is supported: if tools are provided, they are forwarded to
+ * the OpenRouter API. The agent loop (in chat()) handles iterative
+ * tool-call → tool-result → next-message cycles.
+ *
+ * @param {string} modelOverride - Optional sanitized model override from the user
  * @param {Array} messages - Conversation messages
- * @param {Array} tools - Tool definitions
- * @param {number} attempt - Current attempt number (for recursion)
- * @returns {Promise<Object>} API response data
+ * @param {Array} tools - Tool definitions (optional)
+ * @param {string} mode - 'general' or 'workout' — selects the route
+ * @returns {Promise<Object>} API response data (response.data shape with .choices)
  */
-async function callLLM(model, messages, tools, attempt = 1) {
-  // Normalize model ID for the API: strip internal 'openrouter/' prefix
-  const apiModel = normalizeModelForApi(model);
+async function callLLM(modelOverride, messages, tools, mode = 'general') {
+  // Select the route based on mode — workout mode may need richer context
+  const routeKey = mode === 'workout' ? 'coach:agent:workout' : 'coach:agent';
 
-  const body = {
-    model: apiModel,
-    messages,
+  // When a model override is provided (e.g. debug mode), route through the
+  // fallback:code route which still has openrouter/free as ultimate fallback.
+  // sanitizeModel already validated the override.
+  const effectiveRoute = modelOverride ? 'fallback:code' : routeKey;
+
+  const options = {
+    maxTokens: 4096,
+    timeout: 60000,
     temperature: 0.7,
-    max_tokens: 2048,
+    tools: tools?.length > 0 ? tools : undefined,
   };
 
-  // Only include tools if we have them (avoids API errors on models without tool support)
-  if (tools?.length > 0) {
-    body.tools = tools;
-    body.tool_choice = 'auto';
-  }
+  const result = await callByRoute(effectiveRoute, messages, options);
 
-  const maxRetries = 3;
-  const baseDelay = 2000; // 2 seconds base delay
-
-  try {
-    // Use rate limiter to prevent hitting free tier limits
-    const response = await rateLimitedAxiosCall(() => axios.post(
-      `${OPENROUTER_BASE}/chat/completions`,
-      body,
+  // callByRoute returns { content, model, finishReason, toolCalls, usage, route, fallbackUsed, ... }
+  // but the agent loop expects the OpenRouter response shape: { choices: [{ message: { content, tool_calls } }] }
+  // Normalize so the rest of the agent loop works unchanged.
+  return {
+    choices: [
       {
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://swimcoach.app',
-          'X-Title': 'SwimCoach',
+        message: {
+          content: result.content || '',
+          tool_calls: result.toolCalls,
         },
-        timeout: 60_000,
       },
-    ));
-
-    return response.data;
-  } catch (error) {
-    // Check if it's a 429 rate limit error
-    const isRateLimited = error.response?.status === 429;
-    const isRetryableError = isRateLimited || (error.response?.status >= 500 && error.response?.status < 600);
-
-    // Extract the actual OpenRouter error message (nested in error.response.data.error)
-    const openRouterError = error.response?.data?.error;
-    const errorMessage = typeof openRouterError === 'object' && openRouterError !== null
-      ? (openRouterError.message || openRouterError.code || JSON.stringify(openRouterError))
-      : (openRouterError || error.message);
-
-    if (isRetryableError && attempt < maxRetries) {
-      // Calculate delay with exponential backoff + jitter
-      const delay = baseDelay * Math.pow(2, attempt - 1) + Math.random() * 1000;
-      console.warn(`[RETRY ${attempt}/${maxRetries}] OpenRouter ${error.response?.status}: ${errorMessage}. Waiting ${Math.round(delay)}ms...`);
-      await sleep(delay);
-      return callLLM(model, messages, tools, attempt + 1);
-    }
-
-    console.error(`[FAILED] OpenRouter call failed after ${attempt} attempts: ${errorMessage}`);
-    throw error;
-  }
-}
-
-// Helper to safely stringify error response data
-function errorJSON(data) {
-  try {
-    return JSON.stringify(data);
-  } catch {
-    return String(data);
-  }
+    ],
+    model: result.model,
+  };
 }
 
 module.exports = {

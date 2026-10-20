@@ -40,6 +40,8 @@ const MODELS = {
       'workout:modify',
       'workout:quick-edit',
       'coach:chat',
+      'coach:agent',
+      'coach:agent:workout',
       'coach:technique',
       'analysis:season',
       'analysis:progress',
@@ -157,6 +159,30 @@ const ROUTES = {
     ],
     maxTokens: 2048,
     timeout: 30000,
+    temperature: 0.7
+  },
+
+  'coach:agent': {
+    description: 'Agentic coach with tool-calling (general mode)',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    fallbacks: [
+      'openrouter/poolside/laguna-xs-2.1:free',
+      ULTIMATE_FALLBACK
+    ],
+    maxTokens: 4096,
+    timeout: 60000,
+    temperature: 0.7
+  },
+
+  'coach:agent:workout': {
+    description: 'Agentic coach with tool-calling (workout context mode)',
+    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    fallbacks: [
+      'openrouter/poolside/laguna-xs-2.1:free',
+      ULTIMATE_FALLBACK
+    ],
+    maxTokens: 4096,
+    timeout: 60000,
     temperature: 0.7
   },
 

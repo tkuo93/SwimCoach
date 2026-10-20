@@ -179,22 +179,31 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
   const {
     maxTokens = 4096,
     temperature = 0.7,
-    timeout = 60000
+    timeout = 60000,
+    tools
   } = options;
 
   // Normalize model ID for the API: strip internal 'openrouter/' prefix
   const apiModel = normalizeModelForApi(model);
 
+  const requestBody = {
+    model: apiModel,
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+    provider: { order: ['openai'], sort: 'throughput' },
+  };
+
+  // Only include tools if provided (avoids API errors on models without tool support)
+  if (tools?.length > 0) {
+    requestBody.tools = tools;
+    requestBody.tool_choice = 'auto';
+  }
+
   try {
     const response = await rateLimitedAxiosCall(() => axios.post(
       `${OPENROUTER_BASE}/chat/completions`,
-      {
-        model: apiModel,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-        provider: { order: ['openai'], sort: 'throughput' },
-      },
+      requestBody,
       {
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
@@ -209,6 +218,7 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
     return {
       content: choice?.message?.content,
       finishReason: choice?.finish_reason,
+      toolCalls: choice?.message?.tool_calls,
       usage: response.data?.usage,
       model: response.data?.model
     };
@@ -300,6 +310,7 @@ async function callByRoute(routeKey, messages, options = {}) {
         timeout: options.timeout || route.timeout,
         retryDelay: retryDelay,
         maxRetries: maxRetries,
+        tools: options.tools,
       });
 
       // Track usage
