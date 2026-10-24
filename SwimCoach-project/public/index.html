@@ -2409,8 +2409,28 @@ const FREE_MODELS = [
   'deepseek/deepseek-chat-v3-0324:free',
 ];
 
+// Get custom models saved in localStorage (user-typed models)
+function getCustomModels() {
+  try {
+    return JSON.parse(localStorage.getItem('sc_custom_models') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+// Save a custom model to localStorage so it persists for dropdown options
+function saveCustomModel(modelId) {
+  const customModels = getCustomModels();
+  const bareSlug = modelId.replace(/^openrouter\//, '');
+  if (!customModels.includes(bareSlug) && bareSlug) {
+    customModels.push(bareSlug);
+    localStorage.setItem('sc_custom_models', JSON.stringify(customModels));
+  }
+}
+
 function buildModelOptions(selected) {
-  const opts = ['auto', ...FREE_MODELS].map(m =>
+  const customModels = getCustomModels();
+  const opts = ['auto', ...FREE_MODELS, ...customModels].map(m =>
     `<option value="${m}" ${m === selected ? 'selected' : ''}>${m === 'auto' ? 'Auto (default)' : m}</option>`
   ).join('');
   return opts;
@@ -2465,9 +2485,11 @@ async function loadModelPreferences() {
 
 // Render the current preference values into the inputs
 function renderModelPreferenceInputs(prefs) {
-  const primary = prefs.primary || 'auto';
-  const secondary = prefs.secondary || 'auto';
-  const fallback = prefs.fallback || 'auto';
+  // DB stores prefixed IDs (openrouter/...), dropdowns use bare slugs
+  const stripPrefix = (val) => val ? val.replace(/^openrouter\//, '') : 'auto';
+  const primary = stripPrefix(prefs.primary);
+  const secondary = stripPrefix(prefs.secondary);
+  const fallback = stripPrefix(prefs.fallback);
 
   document.getElementById('model-primary').value = primary;
   document.getElementById('model-secondary').value = secondary;
@@ -2494,13 +2516,15 @@ async function saveModelPreferences() {
   let effectivePrimary = primary;
   if (custom) {
     effectivePrimary = custom.startsWith('openrouter/') ? custom : `openrouter/${custom}`;
+    // Persist custom model to localStorage so it appears in dropdowns next time
+    saveCustomModel(effectivePrimary);
   }
 
   try {
     const res = await api.profiles.updateModelPreferences(profile._id, {
-      primary: effectivePrimary === 'auto' ? null : effectivePrimary,
-      secondary: secondary === 'auto' ? null : `openrouter/${secondary}`,
-      fallback: fallback === 'auto' ? null : `openrouter/${fallback}`,
+      primary: effectivePrimary === 'auto' || !effectivePrimary ? null : effectivePrimary,
+      secondary: !secondary || secondary === 'auto' ? null : `openrouter/${secondary}`,
+      fallback: !fallback || fallback === 'auto' ? null : `openrouter/${fallback}`,
     });
 
     if (res.success) {
