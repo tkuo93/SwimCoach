@@ -9,20 +9,21 @@
  * Model IDs use the existing openrouter/... format used by this project.
  */
 
-// Accepts model IDs in either internal prefixed format ("openrouter/poolside/...")
-// or bare OpenRouter format ("poolside/..."). Bare IDs are normalized to prefixed form.
+// Accepts model IDs in either internal prefixed format ("openrouter/stealth/...")
+// or bare OpenRouter format ("stealth/..."). Bare IDs are normalized to prefixed form.
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
 
-const DEFAULT_MODEL = 'openrouter/poolside/laguna-s-2.1:free';
+const DEFAULT_MODEL = 'openrouter/stealth/space-bunny-alpha';
+const SECONDARY_MODEL = 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free';
 const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
 const MODELS = {
-  'openrouter/poolside/laguna-s-2.1:free': {
-    name: 'Poolside Laguna S 2.1',
+  'openrouter/stealth/space-bunny-alpha': {
+    name: 'Stealth Space Bunny Alpha',
     params: null,
-    context: 1048576,
+    context: null,
     latencyMs: null,
     throughput: null,
     weeklyTokens: null,
@@ -32,7 +33,8 @@ const MODELS = {
       'workout generation',
       'coach chat',
       'structured output',
-      'long-context tasks'
+      'long-context tasks',
+      'tool calling'
     ],
     bestFor: [
       'workout:generate',
@@ -58,25 +60,23 @@ const MODELS = {
     ]
   },
 
-  'openrouter/poolside/laguna-xs-2.1:free': {
-    name: 'Poolside Laguna XS 2.1',
+  'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': {
+    name: 'NVIDIA Nemotron 3 Ultra 550B A55B',
     params: null,
-    context: 262144,
+    context: null,
     latencyMs: null,
     throughput: null,
     weeklyTokens: null,
     dailyLimit: 1000,
     strengths: [
-      'fast fallback',
       'general reasoning',
-      'compact responses',
-      'tool calling',
-      'structured output'
+      'long-context tasks',
+      'secondary model',
+      'fallback'
     ],
     bestFor: [
       'secondary model',
-      'fallback',
-      'fast response'
+      'fallback'
     ]
   },
 
@@ -104,9 +104,9 @@ const MODELS = {
 const ROUTES = {
   'workout:generate': {
     description: 'Generate a new structured workout',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -116,9 +116,9 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 16384,
@@ -128,9 +128,9 @@ const ROUTES = {
 
   'workout:modify': {
     description: 'Modify an existing workout',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -140,9 +140,9 @@ const ROUTES = {
 
   'workout:quick-edit': {
     description: 'Make a small targeted workout edit',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -152,9 +152,9 @@ const ROUTES = {
 
   'coach:chat': {
     description: 'Conversational chat with the AI coach',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -164,9 +164,9 @@ const ROUTES = {
 
   'coach:agent': {
     description: 'Agentic coach with tool-calling (general mode)',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -176,9 +176,9 @@ const ROUTES = {
 
   'coach:agent:workout': {
     description: 'Agentic coach with tool-calling (workout context mode)',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -188,9 +188,9 @@ const ROUTES = {
 
   'coach:technique': {
     description: 'Technique-specific questions and explanations',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -200,9 +200,9 @@ const ROUTES = {
 
   'analysis:season': {
     description: 'Full season analysis',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -213,9 +213,9 @@ const ROUTES = {
 
   'analysis:progress': {
     description: 'Progress insights over recent workouts',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -225,9 +225,9 @@ const ROUTES = {
 
   'analysis:taper': {
     description: 'Competition taper planning and guidance',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -237,9 +237,9 @@ const ROUTES = {
 
   'ui:autocomplete': {
     description: 'Typeahead suggestions for the workout builder',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
@@ -249,9 +249,9 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 512,
@@ -261,9 +261,9 @@ const ROUTES = {
 
   'ui:suggest': {
     description: 'Quick workout suggestions',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -273,9 +273,9 @@ const ROUTES = {
 
   'util:classify': {
     description: 'Classify workout tags, intervals, and stroke types',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -285,9 +285,9 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 1024,
@@ -297,9 +297,9 @@ const ROUTES = {
 
   'fallback:general': {
     description: 'General-purpose fallback',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 4096,
@@ -309,9 +309,9 @@ const ROUTES = {
 
   'fallback:code': {
     description: 'Code and structured-output fallback',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 8192,
@@ -321,9 +321,9 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fast available model fallback',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -333,9 +333,9 @@ const ROUTES = {
 
   'fallback:chat': {
     description: 'Chat and conversation fallback',
-    primary: 'openrouter/poolside/laguna-s-2.1:free',
+    primary: 'openrouter/stealth/space-bunny-alpha',
     fallbacks: [
-      'openrouter/poolside/laguna-xs-2.1:free',
+      SECONDARY_MODEL,
       ULTIMATE_FALLBACK
     ],
     maxTokens: 2048,
@@ -347,8 +347,8 @@ const ROUTES = {
 // ─── Daily Rate Limits ─────────────────────────────────────────────────
 
 const DAILY_LIMITS = {
-  'openrouter/poolside/laguna-s-2.1:free': 1000,
-  'openrouter/poolside/laguna-xs-2.1:free': 1000,
+  'openrouter/stealth/space-bunny-alpha': 1000,
+  'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': 1000,
   'openrouter/free': 1000
 };
 
@@ -415,7 +415,7 @@ function sanitizeModel(model) {
   return normalizedModel;
 }
 
-// ─── Rate Limiting ──────────────────────────────────────────────────────
+// ─── Rate Limiting ────────────────────────────────────────────────────
 
 const clientRateLimit = new Map();
 const DEFAULT_RATE_LIMIT_THRESHOLD = 50;
@@ -435,8 +435,8 @@ function getRateLimitThreshold() {
 
 /**
  * Strip the 'openrouter/' prefix from a model ID for use with the OpenRouter API.
- * OpenRouter expects bare provider IDs like 'poolside/laguna-s-2.1:free',
- * not the prefixed 'openrouter/poolside/laguna-s-2.1:free' used internally.
+ * OpenRouter expects bare provider IDs like 'stealth/space-bunny-alpha',
+ * not the prefixed 'openrouter/stealth/space-bunny-alpha' used internally.
  * The special 'openrouter/free' dynamic router is left as-is.
  *
  * @param {string} modelId - Internal model ID (may have openrouter/ prefix)
