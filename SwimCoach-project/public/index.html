@@ -1770,7 +1770,7 @@ function closeGenerateModal(){document.getElementById('generateModal').style.dis
 function confirmGenerateWeek(){
   closeGenerateModal();
   const getChecked=name=>Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(i=>i.value);
-  const weekStartOffset=weekOffset*7;
+  const weekStartOffset=weekOffset;
   // If the custom form is open, collect overrides; otherwise use profile defaults.
   const customOpen=document.getElementById('genCustomForm')?.style.display!=='none';
   const body={swimmerId:profile._id,programPeriod:'weekly',weekStartOffset};
