@@ -48,6 +48,9 @@ const api = {
     update: (id, data) => request(`/profiles/${id}`, { method: 'PUT', body: data }),
     delete: (id) => request(`/profiles/${id}`, { method: 'DELETE' }),
     migrate: (profileId) => request('/profiles/migrate', { method: 'POST', body: { profileId } }),
+    // Update only the LLM model preference tiers (primary, secondary, fallback)
+    updateModelPreferences: (id, prefs) =>
+      request(`/profiles/${id}/model-preferences`, { method: 'PUT', body: prefs }),
   },
 
   // ─── Workouts ───

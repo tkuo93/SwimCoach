@@ -302,7 +302,16 @@ const swimmerProfileSchema = new mongoose.Schema({
   },
   telegramLinkCodeExpires: {
     type: Date
-  }
+  },
+
+  // User-configured LLM model preferences for the three-tier routing chain.
+  // When set, these override the global defaults in model-routes.js config.
+  // Leave null/undefined to use server defaults.
+  modelPreferences: {
+    primary: { type: String, trim: true },
+    secondary: { type: String, trim: true },
+    fallback: { type: String, trim: true },
+  },
 });
 
 // Update the updatedAt timestamp before saving

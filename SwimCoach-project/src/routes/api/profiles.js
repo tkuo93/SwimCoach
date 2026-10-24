@@ -149,4 +149,54 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/profiles/:id/model-preferences - Update only LLM model preferences
+// Body: { primary?: string, secondary?: string, fallback?: string }
+// Setting any tier to null or empty string reverts that tier to the server default.
+router.put('/:id/model-preferences', async (req, res) => {
+  const { primary, secondary, fallback } = req.body;
+
+  try {
+    const profile = await SwimmerProfile.findOne({
+      _id: req.params.id,
+      googleId: req.user.googleId
+    });
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'Profile not found' });
+    }
+
+    // Validate: sanitizeUserModel accepts any openrouter/ prefixed slug and
+    // returns null for invalid input (unlike sanitizeModel which falls back
+    // to DEFAULT_MODEL). We reject invalid models rather than silently
+    // substituting, so the UI can show the user what went wrong.
+    const { sanitizeUserModel } = require('../../config/model-routes');
+    const prefs = {};
+    if (primary) {
+      const sanitized = sanitizeUserModel(primary);
+      if (!sanitized) return res.status(400).json({ success: false, error: `Invalid primary model: ${primary}` });
+      prefs.primary = sanitized;
+    }
+    if (secondary) {
+      const sanitized = sanitizeUserModel(secondary);
+      if (!sanitized) return res.status(400).json({ success: false, error: `Invalid secondary model: ${secondary}` });
+      prefs.secondary = sanitized;
+    }
+    if (fallback) {
+      const sanitized = sanitizeUserModel(fallback);
+      if (!sanitized) return res.status(400).json({ success: false, error: `Invalid fallback model: ${fallback}` });
+      prefs.fallback = sanitized;
+    }
+
+    profile.modelPreferences = prefs;
+    await profile.save();
+
+    res.json({ success: true, data: profile });
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ success: false, errors: messages });
+    }
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

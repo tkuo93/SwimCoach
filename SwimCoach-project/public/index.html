@@ -381,6 +381,7 @@ body{font-family:var(--font-b);background:var(--cream);min-height:100vh;color:va
 .settings-label{font-size:14px}
 .settings-value{font-family:var(--font-m);font-size:12px;color:var(--text-sec)}
 .settings-select{padding:8px 12px;border:1px solid var(--border);border-radius:var(--rs);font-family:var(--font-b);font-size:13px;background:var(--surface);color:var(--text);outline:none;cursor:pointer}
+.settings-input{padding:8px 12px;border:1px solid var(--border);border-radius:var(--rs);font-family:var(--font-b);font-size:13px;background:var(--surface);color:var(--text);outline:none}
 
 /* Empty State */
 .empty-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 32px;text-align:center}
@@ -2408,15 +2409,24 @@ const FREE_MODELS = [
   'deepseek/deepseek-chat-v3-0324:free',
 ];
 
-function renderSettings(){
-  const options = ['auto', ...FREE_MODELS].map(m =>
-    `<option value="${m}">${m === 'auto' ? 'Auto (default)' : m}</option>`
+function buildModelOptions(selected) {
+  const opts = ['auto', ...FREE_MODELS].map(m =>
+    `<option value="${m}" ${m === selected ? 'selected' : ''}>${m === 'auto' ? 'Auto (default)' : m}</option>`
   ).join('');
+  return opts;
+}
+
+async function renderSettings(){
   document.getElementById('settingsSection').innerHTML=`
     <div class="settings-section">
-      <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="llmSelect" onchange="saveSetting('llm',this.value)">${options}</select></div>
-      <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentLlm">Auto</span></div>
-      <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetSettings()">Reset to Default</button></div>
+      <div class="settings-row" style="padding:0 24px 8px"><span class="settings-label" style="font-weight:600">LLM Model Tiers</span><span class="settings-value" style="font-size:12px;color:var(--text-mut)">Primary → Secondary → Fallback</span></div>
+      <div class="settings-row"><span class="settings-label">Primary Model</span><select class="settings-select" id="model-primary">${buildModelOptions()}</select></div>
+      <div class="settings-row"><span class="settings-label">Secondary Model</span><select class="settings-select" id="model-secondary">${buildModelOptions()}</select></div>
+      <div class="settings-row"><span class="settings-label">Fallback Model</span><select class="settings-select" id="model-fallback">${buildModelOptions()}</select></div>
+      <div class="settings-row"><span class="settings-label">Custom Model (advanced)</span><input type="text" id="model-custom" class="settings-input" placeholder="e.g. openai/gpt-4.1" style="flex:1" /></div>
+      <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="saveModelPreferences()">Save Model Preferences</button></div>
+      <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentModelPrefs">Loading…</span></div>
+      <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetModelPreferences()">Reset to Defaults</button></div>
     </div>
     <div class="settings-section">
       <div class="settings-row"><span class="settings-label">Telegram Bot</span><span class="settings-value" id="telegramStatus">Checking…</span></div>
@@ -2430,10 +2440,103 @@ function renderSettings(){
       <div class="settings-row"><span class="settings-label"></span><a href="/cookie-policy.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Cookie Policy</a></div>
     </div>
     <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="logout()">Log Out</button></div>`;
-  const llm=localStorage.getItem('sc_llm')||'auto';
-  document.getElementById('llmSelect').value=llm;
-  document.getElementById('currentLlm').textContent=llm;
+  await loadModelPreferences();
   checkTelegramStatus();
+}
+
+// Load saved model preferences from the profile and render them
+async function loadModelPreferences() {
+  if (!profile || !profile._id) {
+    document.getElementById('currentModelPrefs').textContent = 'No profile loaded';
+    return;
+  }
+
+  try {
+    const res = await api.profiles.get(profile._id);
+    if (res.success && res.data) {
+      const prefs = res.data.modelPreferences || {};
+      renderModelPreferenceInputs(prefs);
+    }
+  } catch (err) {
+    document.getElementById('currentModelPrefs').textContent = 'Failed to load';
+    console.error('Failed to load model preferences:', err);
+  }
+}
+
+// Render the current preference values into the inputs
+function renderModelPreferenceInputs(prefs) {
+  const primary = prefs.primary || 'auto';
+  const secondary = prefs.secondary || 'auto';
+  const fallback = prefs.fallback || 'auto';
+
+  document.getElementById('model-primary').value = primary;
+  document.getElementById('model-secondary').value = secondary;
+  document.getElementById('model-fallback').value = fallback;
+
+  const currentText = `${tierLabel(primary)} → ${tierLabel(secondary)} → ${tierLabel(fallback)}`;
+  document.getElementById('currentModelPrefs').textContent = currentText;
+}
+
+function tierLabel(val) {
+  return val === 'auto' ? 'Auto (default)' : val;
+}
+
+// Save model preferences via the API
+async function saveModelPreferences() {
+  const primary = document.getElementById('model-primary').value;
+  const secondary = document.getElementById('model-secondary').value;
+  const fallback = document.getElementById('model-fallback').value;
+  const custom = document.getElementById('model-custom').value.trim();
+
+  // If a custom model is provided, use it for the primary tier.
+  // Users can type a bare OpenRouter slug like 'stealth/space-bunny-alpha' or
+  // a full prefixed ID like 'openrouter/stealth/space-bunny-alpha'.
+  let effectivePrimary = primary;
+  if (custom) {
+    effectivePrimary = custom.startsWith('openrouter/') ? custom : `openrouter/${custom}`;
+  }
+
+  try {
+    const res = await api.profiles.updateModelPreferences(profile._id, {
+      primary: effectivePrimary === 'auto' ? null : effectivePrimary,
+      secondary: secondary === 'auto' ? null : `openrouter/${secondary}`,
+      fallback: fallback === 'auto' ? null : `openrouter/${fallback}`,
+    });
+
+    if (res.success) {
+      profile = res.data;
+      localStorage.setItem('sc_profile', JSON.stringify(profile));
+      renderModelPreferenceInputs(profile.modelPreferences || {});
+      alert('Model preferences saved!');
+    } else {
+      alert('Failed to save: ' + (res.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Failed to save: ' + err.message);
+  }
+}
+
+async function resetModelPreferences() {
+  if (!confirm('Reset all model tiers to server defaults?')) return;
+
+  try {
+    const res = await api.profiles.updateModelPreferences(profile._id, {
+      primary: null,
+      secondary: null,
+      fallback: null,
+    });
+
+    if (res.success) {
+      profile = res.data;
+      localStorage.setItem('sc_profile', JSON.stringify(profile));
+      renderModelPreferenceInputs({});
+      alert('Reset to server defaults.');
+    } else {
+      alert('Failed to reset: ' + (res.error || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Failed to reset: ' + err.message);
+  }
 }
 async function logout(){
   if(!confirm('Log out of SwimCoach?'))return;
@@ -2483,10 +2586,15 @@ function renderDebug(){
   const options = ['auto', ...FREE_MODELS].map(m =>
     `<option value="${m}">${m === 'auto' ? 'Auto (default)' : m}</option>`
   ).join('');
+  const prefs = profile?.modelPreferences || {};
+  const prefsText = prefs.primary || prefs.secondary || prefs.fallback
+    ? `${prefs.primary ? prefs.primary : 'Auto'} → ${prefs.secondary ? prefs.secondary : 'Auto'} → ${prefs.fallback ? prefs.fallback : 'Auto'}`
+    : 'Server defaults';
   document.getElementById('debugSection').innerHTML=`
     <div class="settings-row"><span class="settings-label">Profile</span><span class="settings-value">${profile?profile.name||'—':'None'}</span></div>
     <div class="settings-row"><span class="settings-label">Workouts</span><span class="settings-value">${workouts.length}</span></div>
     <div class="settings-row"><span class="settings-label">LLM Model</span><select class="settings-select" id="debugLlm" onchange="localStorage.setItem('sc_llm',this.value)">${options}</select></div>
+    <div class="settings-row"><span class="settings-label">Model Tiers</span><span class="settings-value">${prefsText}</span></div>
     <div class="settings-row"><span class="settings-label">Test Generation</span><button class="history-action-btn" onclick="testGen()">Generate Test</button></div>
     <div class="settings-row"><span class="settings-label">View Prompts</span><button class="history-action-btn" onclick="viewPrompts()">View</button></div>
     <div class="settings-row"><span class="settings-label">Clear All Data</span><button class="history-action-btn del" onclick="clearAll()">Clear</button></div>`;
