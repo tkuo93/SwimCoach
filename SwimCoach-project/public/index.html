@@ -2428,6 +2428,36 @@ function saveCustomModel(modelId) {
   }
 }
 
+// Add a model from the custom input field to localStorage + dropdown options
+function addCustomModel() {
+  const input = document.getElementById('model-custom');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) {
+    alert('Please enter a model slug first.');
+    return;
+  }
+  // Normalize to prefixed form
+  const normalized = raw.startsWith('openrouter/') ? raw : `openrouter/${raw}`;
+  saveCustomModel(normalized);
+  // Rebuild all dropdowns with the new model included
+  renderSettingsTiers();
+  input.value = '';
+  alert(`Added ${normalized} to model list!`);
+}
+
+// Rebuild the tier dropdowns with current saved values + custom models
+function renderSettingsTiers() {
+  // Preserve current selections
+  const primary = document.getElementById('model-primary')?.value;
+  const secondary = document.getElementById('model-secondary')?.value;
+  const fallback = document.getElementById('model-fallback')?.value;
+
+  document.getElementById('model-primary').innerHTML = buildModelOptions(primary);
+  document.getElementById('model-secondary').innerHTML = buildModelOptions(secondary);
+  document.getElementById('model-fallback').innerHTML = buildModelOptions(fallback);
+}
+
 function buildModelOptions(selected) {
   const customModels = getCustomModels();
   const opts = ['auto', ...FREE_MODELS, ...customModels].map(m =>
@@ -2443,7 +2473,7 @@ async function renderSettings(){
       <div class="settings-row"><span class="settings-label">Primary Model</span><select class="settings-select" id="model-primary">${buildModelOptions()}</select></div>
       <div class="settings-row"><span class="settings-label">Secondary Model</span><select class="settings-select" id="model-secondary">${buildModelOptions()}</select></div>
       <div class="settings-row"><span class="settings-label">Fallback Model</span><select class="settings-select" id="model-fallback">${buildModelOptions()}</select></div>
-      <div class="settings-row"><span class="settings-label">Custom Model (advanced)</span><input type="text" id="model-custom" class="settings-input" placeholder="e.g. openai/gpt-4.1" style="flex:1" /></div>
+      <div class="settings-row"><span class="settings-label">Custom Model (advanced)</span><div style="display:flex;gap:8px;flex:1"><input type="text" id="model-custom" class="settings-input" placeholder="e.g. openai/gpt-4.1" style="flex:1" /><button class="history-action-btn" onclick="addCustomModel()">Add Model</button></div></div>
       <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="saveModelPreferences()">Save Model Preferences</button></div>
       <div class="settings-row"><span class="settings-label">Current</span><span class="settings-value" id="currentModelPrefs">Loading…</span></div>
       <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="resetModelPreferences()">Reset to Defaults</button></div>
@@ -2516,8 +2546,6 @@ async function saveModelPreferences() {
   let effectivePrimary = primary;
   if (custom) {
     effectivePrimary = custom.startsWith('openrouter/') ? custom : `openrouter/${custom}`;
-    // Persist custom model to localStorage so it appears in dropdowns next time
-    saveCustomModel(effectivePrimary);
   }
 
   try {
