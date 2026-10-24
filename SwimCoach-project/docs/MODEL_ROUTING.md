@@ -6,14 +6,14 @@ SwimCoach uses a **model routing system** that assigns different free OpenRouter
 
 | Feature | Primary Model | Why |
 |---------|--------------|-----|
-| **Generate Workout** | `stealth/space-bunny-alpha` | Best reasoning and structured output for workout schemas |
-| **Modify Workout** | `stealth/space-bunny-alpha` | Best reasoning and structured output for edits |
-| **Chat with Coach** | `stealth/space-bunny-alpha` | Strong reasoning/speed balance for conversation |
-| **Technique Advice** | `stealth/space-bunny-alpha` | Good reasoning for explanations |
-| **Season Analysis** | `stealth/space-bunny-alpha` | Strong reasoning for full-season analysis |
-| **Progress Analysis** | `stealth/space-bunny-alpha` | Good reasoning for progress insights |
-| **Autocomplete/Validate** | `stealth/space-bunny-alpha` | Good structured output for quick tasks |
-| **Quick Suggestions** | `stealth/space-bunny-alpha` | Fast reasoning for suggestions |
+| **Generate Workout** | `nvidia/nemotron-3.5-lightning:free` | Fast reasoning, 1M context for structured workout schemas |
+| **Modify Workout** | `nvidia/nemotron-3.5-lightning:free` | Fast reasoning and structured output for edits |
+| **Chat with Coach** | `nvidia/nemotron-3.5-lightning:free` | Good reasoning/speed balance for conversation |
+| **Technique Advice** | `nvidia/nemotron-3.5-lightning:free` | Good reasoning for explanations |
+| **Season Analysis** | `nvidia/nemotron-3.5-lightning:free` | Strong reasoning for full-season analysis |
+| **Progress Analysis** | `nvidia/nemotron-3.5-lightning:free` | Good reasoning for progress insights |
+| **Autocomplete/Validate** | `nvidia/nemotron-3.5-lightning:free` | Fast structured output for quick tasks |
+| **Quick Suggestions** | `nvidia/nemotron-3.5-lightning:free` | Fast reasoning for suggestions |
 
 ## Configuration Files
 
@@ -56,7 +56,7 @@ node src/scripts/model-routes.js info workout:generate
 ```javascript
 // In ROUTES.coach:chat
 'coach:chat': {
-  primary: 'openrouter/stealth/space-bunny-alpha',
+  primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
   fallbacks: ['openrouter/nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'],
   ...
 }
@@ -67,7 +67,7 @@ node src/scripts/model-routes.js info workout:generate
 // In ROUTES
 'analysis:injury': {
   description: 'Injury-specific training adjustments',
-  primary: 'openrouter/stealth/space-bunny-alpha',
+  primary: 'openrouter/nvidia/nemotron-3.5-lightning:free',
   fallbacks: ['openrouter/nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'],
   maxTokens: 4096,
   timeout: 60000,
@@ -162,11 +162,11 @@ Check usage anytime:
 ```javascript
 const { getUsageStats } = require('./services/model-router');
 console.log(getUsageStats());
-// { 'openrouter/stealth/space-bunny-alpha': { used: 150, limit: 1000, remaining: 850, percentUsed: 15 }, ... }
+// { 'openrouter/nvidia/nemotron-3.5-lightning:free': { used: 150, limit: 1000, remaining: 850, percentUsed: 15 }, ... }
 ```
 
 Reset for testing:
 ```javascript
 const { resetModelUsage } = require('./services/model-router');
-resetModelUsage('openrouter/stealth/space-bunny-alpha');
+resetModelUsage('openrouter/nvidia/nemotron-3.5-lightning:free');
 ```

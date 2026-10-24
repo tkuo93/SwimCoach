@@ -2391,22 +2391,22 @@ function saveProfile(){
 }
 
 // === SETTINGS ===
-// List of known free models on OpenRouter
+// Top free models on OpenRouter (as of Oct 2026), selected for:
+// - Quality: model size and capabilities
+// - Speed: faster providers/models near top
+// - Availability: confirmed live on OpenRouter
+// Ordered roughly by preference for swim coaching tasks.
 const FREE_MODELS = [
-  'stealth/space-bunny-alpha',
-  'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'meta-llama/llama-3.1-405b-instruct:free',
-  'meta-llama/llama-3.1-70b-instruct:free',
-  'meta-llama/llama-3.1-8b-instruct:free',
-  'google/gemma-2-9b-it:free',
-  'google/gemma-2-27b-it:free',
-  'mistralai/mistral-nemo:free',
-  'mistralai/mistral-7b-instruct:free',
-  'microsoft/phi-3-mini-128k-instruct:free',
-  'microsoft/phi-3-medium-128k-instruct:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'qwen/qwen-2.5-32b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',     // 1M ctx, strong reasoning
+  'nvidia/nemotron-3.5-lightning:free',          // 1M ctx, fast reasoning
+  'nvidia/nemotron-3.5-super-vl:free',           // 1M ctx, strong multimodal
+  'thinkingmachines/inkling:free',               // 1M ctx, new high-quality
+  'thinkingmachines/inkling-small:free',         // 1M ctx, fast
+  'recursive/flint-v1.0:free',                   // 256K ctx, reasoning
+  'xingchen-agi/xing4.0-29b-a4b:free',          // 256K ctx, bilingual
+  'google/gemma-4-31b-it:free',                  // 256K ctx, Google
+  'google/gemma-4-26b-a4b-it:free',              // 256K ctx, efficient
+  'nvidia/nemotron-3-super-120b-a12b:free',     // 256K ctx, 120B
 ];
 
 // Get custom models saved in localStorage (user-typed models)
@@ -2541,8 +2541,8 @@ async function saveModelPreferences() {
   const custom = document.getElementById('model-custom').value.trim();
 
   // If a custom model is provided, use it for the primary tier.
-  // Users can type a bare OpenRouter slug like 'stealth/space-bunny-alpha' or
-  // a full prefixed ID like 'openrouter/stealth/space-bunny-alpha'.
+  // Users can type a bare OpenRouter slug like 'nvidia/nemotron-3.5-lightning' or
+  // a full prefixed ID like 'openrouter/nvidia/nemotron-3.5-lightning'.
   let effectivePrimary = primary;
   if (custom) {
     effectivePrimary = custom.startsWith('openrouter/') ? custom : `openrouter/${custom}`;

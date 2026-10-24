@@ -2519,12 +2519,14 @@ async function loadProgramPage(programId) {
 
 const PRESET_MODELS = [
   'auto',
-  'stealth/space-bunny-alpha',
+  'nvidia/nemotron-3.5-lightning:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'meta-llama/llama-3.1-405b-instruct:free',
-  'meta-llama/llama-3.1-70b-instruct:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free',
+  'nvidia/nemotron-3.5-super-vl:free',
+  'thinkingmachines/inkling:free',
+  'recursive/flint-v1.0:free',
+  'xingchen-agi/xing4.0-29b-a4b:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
 function buildPresetOptions(selected, id) {

@@ -13,17 +13,17 @@
 // or bare OpenRouter format ("stealth/..."). Bare IDs are normalized to prefixed form.
 const MODEL_PATTERN = /^openrouter\/[\w\-./:@]+$/;
 
-const DEFAULT_MODEL = 'openrouter/stealth/space-bunny-alpha';
+const DEFAULT_MODEL = 'openrouter/nvidia/nemotron-3.5-lightning:free';
 const SECONDARY_MODEL = 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free';
 const ULTIMATE_FALLBACK = 'openrouter/free';
 
 // ─── Model Definitions ─────────────────────────────────────────────────
 
 const MODELS = {
-  'openrouter/stealth/space-bunny-alpha': {
-    name: 'Stealth Space Bunny Alpha',
+  'openrouter/nvidia/nemotron-3.5-lightning:free': {
+    name: 'NVIDIA Nemotron 3.5 Lightning',
     params: null,
-    context: null,
+    context: 1000000,
     latencyMs: null,
     throughput: null,
     weeklyTokens: null,
@@ -34,7 +34,8 @@ const MODELS = {
       'coach chat',
       'structured output',
       'long-context tasks',
-      'tool calling'
+      'tool calling',
+      'fast inference'
     ],
     bestFor: [
       'workout:generate',
@@ -63,7 +64,7 @@ const MODELS = {
   'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': {
     name: 'NVIDIA Nemotron 3 Ultra 550B A55B',
     params: null,
-    context: null,
+    context: 1000000,
     latencyMs: null,
     throughput: null,
     weeklyTokens: null,
@@ -104,7 +105,7 @@ const MODELS = {
 const ROUTES = {
   'workout:generate': {
     description: 'Generate a new structured workout',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -116,7 +117,7 @@ const ROUTES = {
 
   'workout:generate:high-volume': {
     description: 'High-volume workout generation',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -128,7 +129,7 @@ const ROUTES = {
 
   'workout:modify': {
     description: 'Modify an existing workout',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -140,7 +141,7 @@ const ROUTES = {
 
   'workout:quick-edit': {
     description: 'Make a small targeted workout edit',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -152,7 +153,7 @@ const ROUTES = {
 
   'coach:chat': {
     description: 'Conversational chat with the AI coach',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -164,7 +165,7 @@ const ROUTES = {
 
   'coach:agent': {
     description: 'Agentic coach with tool-calling (general mode)',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -176,7 +177,7 @@ const ROUTES = {
 
   'coach:agent:workout': {
     description: 'Agentic coach with tool-calling (workout context mode)',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -188,7 +189,7 @@ const ROUTES = {
 
   'coach:technique': {
     description: 'Technique-specific questions and explanations',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -200,7 +201,7 @@ const ROUTES = {
 
   'analysis:season': {
     description: 'Full season analysis',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -213,7 +214,7 @@ const ROUTES = {
 
   'analysis:progress': {
     description: 'Progress insights over recent workouts',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -225,7 +226,7 @@ const ROUTES = {
 
   'analysis:taper': {
     description: 'Competition taper planning and guidance',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -237,7 +238,7 @@ const ROUTES = {
 
   'ui:autocomplete': {
     description: 'Typeahead suggestions for the workout builder',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -249,7 +250,7 @@ const ROUTES = {
 
   'ui:validate': {
     description: 'Real-time form validation feedback',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -261,7 +262,7 @@ const ROUTES = {
 
   'ui:suggest': {
     description: 'Quick workout suggestions',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -273,7 +274,7 @@ const ROUTES = {
 
   'util:classify': {
     description: 'Classify workout tags, intervals, and stroke types',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -285,7 +286,7 @@ const ROUTES = {
 
   'util:extract': {
     description: 'Extract structured data from unstructured text',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -297,7 +298,7 @@ const ROUTES = {
 
   'fallback:general': {
     description: 'General-purpose fallback',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -309,7 +310,7 @@ const ROUTES = {
 
   'fallback:code': {
     description: 'Code and structured-output fallback',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -321,7 +322,7 @@ const ROUTES = {
 
   'fallback:fast': {
     description: 'Fast available model fallback',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -333,7 +334,7 @@ const ROUTES = {
 
   'fallback:chat': {
     description: 'Chat and conversation fallback',
-    primary: 'openrouter/stealth/space-bunny-alpha',
+    primary: DEFAULT_MODEL,
     fallbacks: [
       SECONDARY_MODEL,
       ULTIMATE_FALLBACK
@@ -347,7 +348,7 @@ const ROUTES = {
 // ─── Daily Rate Limits ─────────────────────────────────────────────────
 
 const DAILY_LIMITS = {
-  'openrouter/stealth/space-bunny-alpha': 1000,
+  'openrouter/nvidia/nemotron-3.5-lightning:free': 1000,
   'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free': 1000,
   'openrouter/free': 1000
 };
@@ -505,8 +506,8 @@ function getRateLimitThreshold() {
 
 /**
  * Strip the 'openrouter/' prefix from a model ID for use with the OpenRouter API.
- * OpenRouter expects bare provider IDs like 'stealth/space-bunny-alpha',
- * not the prefixed 'openrouter/stealth/space-bunny-alpha' used internally.
+ * OpenRouter expects bare provider IDs like 'nvidia/nemotron-3.5-lightning:free',
+ * not the prefixed 'openrouter/nvidia/nemotron-3.5-lightning:free' used internally.
  * The special 'openrouter/free' dynamic router is left as-is.
  *
  * @param {string} modelId - Internal model ID (may have openrouter/ prefix)
