@@ -192,7 +192,7 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
     messages,
     temperature,
     max_tokens: maxTokens,
-    provider: { order: ['openai'], sort: 'throughput' },
+    provider: { sort: 'throughput' },
   };
 
   // Only include tools if provided (avoids API errors on models without tool support)
