@@ -11,7 +11,8 @@ const {
   getModel,
   DAILY_LIMITS,
   validateRoutes,
-  normalizeModelForApi
+  normalizeModelForApi,
+  buildModelChain
 } = require('../config/model-routes');
 const { rateLimitedAxiosCall } = require('./openrouter-rate-limiter');
 
@@ -255,6 +256,8 @@ async function callOpenRouter(model, messages, options = {}, attempt = 1) {
  * @param {string} routeKey - Route identifier (e.g., 'workout:generate', 'coach:chat')
  * @param {Array} messages - Chat messages [{role, content}]
  * @param {Object} options - Override route defaults (maxTokens, temperature, timeout, retryDelay)
+ *   Also accepts `options.modelPreferences` — { primary, secondary, fallback } from
+ *   the user's SwimmerProfile, which overrides the route's default tiered models.
  * @returns {Promise<Object>} { content, model, finishReason, usage, route, fallbackUsed }
  */
 async function callByRoute(routeKey, messages, options = {}) {
@@ -276,26 +279,28 @@ async function callByRoute(routeKey, messages, options = {}) {
   const retryDelay = options.retryDelay ?? 2000;
   const maxRetries = options.maxRetries ?? 3;
 
+  // Build model chain — applies user preferences if provided, otherwise uses route defaults
+  const chainResult = buildModelChain(routeKey, options.modelPreferences);
+  const modelChain = chainResult.modelChain;
+  const routeModelChain = [route.primary, ...route.fallbacks];
+  let lastError;
+
   // Universal last-resort fallbacks (used only if ALL route-specific fallbacks fail)
   const UNIVERSAL_FALLBACKS = [
     'openrouter/free'
   ];
 
-  // Build model chain: primary + route fallbacks + universal fallbacks
-  const routeModelChain = [route.primary, ...route.fallbacks];
-  const modelChain = [...routeModelChain, ...UNIVERSAL_FALLBACKS.filter(m => !routeModelChain.includes(m))];
-  let lastError;
-
-  // All route-specific models exhausted, try universal fallbacks
-  const routeExhausted = modelChain.length > routeModelChain.length;
+  // Append universal fallbacks if not already in the chain
+  const effectiveChain = [...modelChain, ...UNIVERSAL_FALLBACKS.filter(m => !modelChain.includes(m))];
+  const routeExhausted = effectiveChain.length > modelChain.length;
   if (routeExhausted) {
     console.warn(`[ModelRouter] Route ${routeKey}: all route-specific fallbacks exhausted, trying universal fallbacks...`);
   }
 
-  for (let i = 0; i < modelChain.length; i++) {
-    const model = modelChain[i];
+  for (let i = 0; i < effectiveChain.length; i++) {
+    const model = effectiveChain[i];
     const isFallback = i > 0;
-    const isUniversalFallback = i >= routeModelChain.length;
+    const isUniversalFallback = i >= modelChain.length;
 
     // Skip if rate limited
     if (isRateLimited(model)) {

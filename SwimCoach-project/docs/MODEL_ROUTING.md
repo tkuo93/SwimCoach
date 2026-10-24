@@ -116,6 +116,46 @@ const result = await callByRoute('workout:modify', messages, {
 // { content, model, finishReason, usage, route, fallbackUsed, primaryModel }
 ```
 
+## User Model Preferences
+
+Users can override the default model tiers from the **Settings** page in the app. Each user can set:
+
+- **Primary Model** — the first model tried for every request
+- **Secondary Model** — used if the primary fails or is rate-limited
+- **Fallback Model** — used if both primary and secondary fail
+
+Preferences are stored on the `SwimmerProfile.modelPreferences` sub-document and applied automatically by `callByRoute()` via the `options.modelPreferences` parameter. Setting a tier to "Auto (default)" reverts that tier to the server default.
+
+You can also type a custom OpenRouter model slug (e.g. `openai/gpt-4.1`) in the "Custom Model" field — this overrides the primary tier.
+
+### How It Works
+
+```javascript
+// buildModelChain merges user preferences with route defaults
+const { buildModelChain } = require('../config/model-routes');
+
+// Returns the effective model chain with user preferences applied
+const { modelChain, primaryOverride } = buildModelChain('workout:generate', {
+  primary: 'openrouter/openai/gpt-4.1',
+  secondary: 'openrouter/anthropic/claude-3.5-sonnet',
+  // fallback left unset → uses server default (openrouter/free)
+});
+
+// callByRoute accepts preferences via options:
+await callByRoute('workout:generate', messages, {
+  modelPreferences: profile.modelPreferences
+});
+```
+
+### API
+
+```
+PUT /api/profiles/:id/model-preferences
+Body: { primary?: string, secondary?: string, fallback?: string }
+```
+
+Pass `null` or an empty string for any tier to revert it to the server default.
+
 ## Monitoring
 
 Check usage anytime:

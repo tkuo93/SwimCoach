@@ -399,6 +399,11 @@ async function generateWorkout(profile, customization, opts = {}) {
   // Allow override via customization (for debug mode) but sanitize first
   const model = sanitizeModel(customization.llmModel);
 
+  // User model preferences from the swimmer profile override the default tiered chain.
+  // When an explicit llmModel override is provided, it bypasses preferences and uses
+  // the fallback:code route (existing behavior for debug/test mode).
+  const userPreferences = customization.llmModel ? null : profile.modelPreferences;
+
   const sessionType = customization.sessionType || 'both';
   const includePool = sessionType === 'both' || sessionType === 'pool';
   const includeGym = sessionType === 'both' || sessionType === 'gym';
@@ -424,7 +429,8 @@ async function generateWorkout(profile, customization, opts = {}) {
     maxTokens: 12288,
     timeout: 60000,
     retryDelay: useHighVolume ? 500 : 2000,  // Faster retries for high-volume
-    maxRetries: useHighVolume ? 2 : 3       // Fewer retries for high-volume
+    maxRetries: useHighVolume ? 2 : 3,       // Fewer retries for high-volume
+    modelPreferences: userPreferences
   });
   if (!result.content) throw new Error('No response from OpenRouter');
 
@@ -440,7 +446,8 @@ async function generateWorkout(profile, customization, opts = {}) {
       maxTokens: 16384,
       timeout: 60000,
       retryDelay: useHighVolume ? 500 : 2000,
-      maxRetries: useHighVolume ? 2 : 3
+      maxRetries: useHighVolume ? 2 : 3,
+      modelPreferences: userPreferences
     });
     if (result.content) parsed = parseWorkoutJSON(result.content);
   }

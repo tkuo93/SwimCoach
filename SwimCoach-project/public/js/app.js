@@ -2517,39 +2517,63 @@ async function loadProgramPage(programId) {
 
 // ─── Settings Page ───
 
+const PRESET_MODELS = [
+  'auto',
+  'stealth/space-bunny-alpha',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'meta-llama/llama-3.1-405b-instruct:free',
+  'meta-llama/llama-3.1-70b-instruct:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+];
+
+function buildPresetOptions(selected, id) {
+  return PRESET_MODELS.map(m =>
+    `<option value="${m}" ${m === selected ? 'selected' : ''}>${m === 'auto' ? 'Auto (default)' : m}</option>`
+  ).join('');
+}
+
 function initSettingsPage() {
-  // Preset change — show/hide custom input
+  // Tier preset change — show/hide custom input
   document.getElementById('settings-llm-preset')?.addEventListener('change', (e) => {
     const customGroup = document.getElementById('settings-llm-custom-group');
     if (customGroup) customGroup.style.display = e.target.value === 'custom' ? '' : 'none';
   });
 
   // Save button
-  document.getElementById('btn-settings-save-llm')?.addEventListener('click', () => {
+  document.getElementById('btn-settings-save-llm')?.addEventListener('click', async () => {
     const preset = document.getElementById('settings-llm-preset').value;
     const custom = document.getElementById('settings-llm-custom').value.trim();
-    const model = preset === 'custom' ? custom : preset;
-    if (!model) {
+    const primary = preset === 'custom' ? custom : preset;
+    if (!primary) {
       showToast('Please select or enter a model.', 'error');
       return;
     }
-    state.globalLlm = model;
-    localStorage.setItem('swimcoach_global_llm', model);
-    updateSettingsCurrentHint(model);
-    showToast(`Default model set to ${escapeHtml(model)}`, 'success');
+    const prefs = {
+      primary: primary === 'auto' ? null : primary.startsWith('openrouter/') ? primary : `openrouter/${primary}`,
+      secondary: (document.getElementById('settings-llm-secondary')?.value || '').trim() || null,
+      fallback: (document.getElementById('settings-llm-fallback')?.value || '').trim() || null,
+    };
+    try {
+      state.globalLlm = prefs.primary;
+      localStorage.setItem('swimcoach_global_llm', prefs.primary);
+      updateSettingsCurrentHint(prefs.primary);
+      showToast(`Default model set to ${escapeHtml(prefs.primary)}`, 'success');
+    } catch (err) {
+      showToast(`Error: ${err.message}`, 'error');
+    }
   });
 
   // Reset button
   document.getElementById('btn-settings-clear-llm')?.addEventListener('click', () => {
     state.globalLlm = null;
     localStorage.removeItem('swimcoach_global_llm');
-    document.getElementById('settings-llm-preset').value = '';
+    document.getElementById('settings-llm-preset').value = 'auto';
     document.getElementById('settings-llm-custom').value = '';
     document.getElementById('settings-llm-custom-group').style.display = 'none';
     updateSettingsCurrentHint(null);
     showToast('Reset to server default.', 'success');
   });
-}
 
 function loadSettingsPage() {
   const saved = localStorage.getItem('swimcoach_global_llm');

@@ -358,6 +358,46 @@ function getRoute(routeKey) {
   return ROUTES[routeKey] || null;
 }
 
+/**
+ * Apply user model preferences to a route, returning an effective model chain.
+ *
+ * Each tier (primary, secondary, fallback) is sanitized individually. If a
+ * user-provided model is invalid or empty, the route's default is used instead
+ * (falling back to the global defaults). This lets a user override any subset
+ * of the tiers without needing to specify all three.
+ *
+ * @param {string} routeKey - Route identifier (e.g., 'workout:generate')
+ * @param {Object} [preferences] - { primary, secondary, fallback } from SwimmerProfile.modelPreferences
+ * @returns {{modelChain: string[], route: Object, primaryOverride: boolean, fallbackUsed: number}}
+ */
+function buildModelChain(routeKey, preferences = {}) {
+  const route = getRoute(routeKey);
+  if (!route) {
+    throw new Error(`Unknown route: ${routeKey}`);
+  }
+
+  const routeModelChain = [route.primary, ...route.fallbacks];
+
+  // Sanitize each user tier; fall back to route defaults when invalid or absent.
+  // Use sanitizeUserModel (not sanitizeModel) so users can type any OpenRouter
+  // model slug — not just the 3 predefined ones in the MODELS registry.
+  const userPrimary = preferences.primary ? (sanitizeUserModel(preferences.primary) || route.primary) : route.primary;
+  const userSecondary = preferences.secondary ? (sanitizeUserModel(preferences.secondary) || route.fallbacks[0]) : route.fallbacks[0];
+  const userFallback = preferences.fallback ? (sanitizeUserModel(preferences.fallback) || route.fallbacks[1]) : route.fallbacks[1];
+
+  const effectiveChain = [userPrimary, userSecondary, userFallback];
+  const primaryOverride = Boolean(preferences.primary) && userPrimary !== route.primary;
+  const fallbackOverride =
+    Boolean(preferences.secondary) || Boolean(preferences.fallback);
+
+  return {
+    modelChain: effectiveChain,
+    route,
+    primaryOverride,
+    fallbackUsed: 0,
+  };
+}
+
 function getModel(modelId) {
   return MODELS[modelId] || null;
 }
@@ -410,6 +450,36 @@ function sanitizeModel(model) {
     !Object.prototype.hasOwnProperty.call(MODELS, normalizedModel)
   ) {
     return DEFAULT_MODEL;
+  }
+
+  return normalizedModel;
+}
+
+/**
+ * Sanitize a user-provided model ID from the settings page.
+ * Unlike sanitizeModel (which only accepts models in the MODELS registry),
+ * this function accepts ANY model that matches the openrouter/ prefix pattern,
+ * so users can type arbitrary OpenRouter model slugs.
+ *
+ * @param {string} model - Raw model slug from user input
+ * @returns {string|null} Sanitized model ID (prefixed), or null if invalid/empty
+ */
+function sanitizeUserModel(model) {
+  if (!model || typeof model !== 'string') return null;
+
+  const trimmed = model.trim();
+  if (!trimmed) return null;
+
+  // Accept bare OpenRouter model IDs (without the 'openrouter/' prefix)
+  // by normalizing to the internal prefixed form
+  let normalizedModel = trimmed;
+  if (!normalizedModel.startsWith('openrouter/') && normalizedModel.includes('/')) {
+    normalizedModel = `openrouter/${normalizedModel}`;
+  }
+
+  // Require the openrouter/ prefix and validate the character set
+  if (!MODEL_PATTERN.test(normalizedModel)) {
+    return null;
   }
 
   return normalizedModel;
@@ -571,6 +641,7 @@ module.exports = {
   ROUTES,
   DAILY_LIMITS,
   DEFAULT_MODEL,
+  SECONDARY_MODEL,
   ULTIMATE_FALLBACK,
   getRoute,
   getAllRoutes,
@@ -578,8 +649,10 @@ module.exports = {
   getAllModels,
   validateRoutes,
   sanitizeModel,
+  sanitizeUserModel,
   normalizeModelForApi,
   sanitizeModelWithRateLimit,
   resetClientRateLimit,
-  getRateLimitStats
+  getRateLimitStats,
+  buildModelChain
 };

@@ -63,6 +63,7 @@ async function chat({ profile, workout, messages, userMessage, mode = 'general',
   const safeConversationHistory = sanitizeConversationHistory(conversationHistory, { context: mode });
   const tools = getToolDefinitions(mode);
   const model = sanitizeModel(modelOverride);
+  const userPreferences = profile?.modelPreferences || null;
 
   // 2. Agent loop
   const agentMessages = [
@@ -74,7 +75,7 @@ async function chat({ profile, workout, messages, userMessage, mode = 'general',
   const actions = [];
 
   for (let i = 0; i < MAX_AGENT_ITERATIONS; i++) {
-    const response = await callLLM(model, agentMessages, tools, mode);
+    const response = await callLLM(model, agentMessages, tools, mode, userPreferences);
     const choice = response.choices?.[0];
     if (!choice) throw new Error('No response from LLM');
 
@@ -390,9 +391,10 @@ async function extractConversationLearnings(profile, userMessage, coachReply, wo
  * @param {Array} messages - Conversation messages
  * @param {Array} tools - Tool definitions (optional)
  * @param {string} mode - 'general' or 'workout' — selects the route
+ * @param {Object} [modelPreferences] - User's { primary, secondary, fallback } from profile
  * @returns {Promise<Object>} API response data (response.data shape with .choices)
  */
-async function callLLM(modelOverride, messages, tools, mode = 'general') {
+async function callLLM(modelOverride, messages, tools, mode = 'general', modelPreferences) {
   // Select the route based on mode — workout mode may need richer context
   const routeKey = mode === 'workout' ? 'coach:agent:workout' : 'coach:agent';
 
@@ -401,11 +403,15 @@ async function callLLM(modelOverride, messages, tools, mode = 'general') {
   // sanitizeModel already validated the override.
   const effectiveRoute = modelOverride ? 'fallback:code' : routeKey;
 
+  // User preferences only apply when there's no explicit model override.
+  const preferences = modelOverride ? null : modelPreferences;
+
   const options = {
     maxTokens: 4096,
     timeout: 60000,
     temperature: 0.7,
     tools: tools?.length > 0 ? tools : undefined,
+    modelPreferences: preferences,
   };
 
   const result = await callByRoute(effectiveRoute, messages, options);
