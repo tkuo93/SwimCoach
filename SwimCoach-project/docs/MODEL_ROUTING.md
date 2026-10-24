@@ -6,14 +6,14 @@ SwimCoach uses a **model routing system** that assigns different free OpenRouter
 
 | Feature | Primary Model | Why |
 |---------|--------------|-----|
-| **Generate Workout** | `poolside/laguna-s-2.1:free` | Best code/JSON quality for structured workout schemas |
-| **Modify Workout** | `poolside/laguna-xs-2.1:free` | Fast structured edits, good code quality |
-| **Chat with Coach** | `inclusionai/ling-3.0-flash:free` | Best reasoning/speed balance for conversation |
-| **Technique Advice** | `inclusionai/ling-3.0-flash:free` | Strong reasoning for explanations |
-| **Season Analysis** | `nvidia/nemotron-3-ultra:free` | Only model with 1M context for full history |
-| **Progress Analysis** | `nvidia/nemotron-3-super:free` | Balanced reasoning, 262K context |
-| **Autocomplete/Validate** | `nvidia/nemotron-3-nano-omni:free` | Sub-second latency, effectively unlimited |
-| **Quick Suggestions** | `nvidia/nemotron-3-nano-30b-a3b:free` | Fast, high rate limit |
+| **Generate Workout** | `stealth/space-bunny-alpha` | Best reasoning and structured output for workout schemas |
+| **Modify Workout** | `stealth/space-bunny-alpha` | Best reasoning and structured output for edits |
+| **Chat with Coach** | `stealth/space-bunny-alpha` | Strong reasoning/speed balance for conversation |
+| **Technique Advice** | `stealth/space-bunny-alpha` | Good reasoning for explanations |
+| **Season Analysis** | `stealth/space-bunny-alpha` | Strong reasoning for full-season analysis |
+| **Progress Analysis** | `stealth/space-bunny-alpha` | Good reasoning for progress insights |
+| **Autocomplete/Validate** | `stealth/space-bunny-alpha` | Good structured output for quick tasks |
+| **Quick Suggestions** | `stealth/space-bunny-alpha` | Fast reasoning for suggestions |
 
 ## Configuration Files
 
@@ -56,8 +56,8 @@ node src/scripts/model-routes.js info workout:generate
 ```javascript
 // In ROUTES.coach:chat
 'coach:chat': {
-  primary: 'google/gemma-4-31b:free',  // Changed from ling-3.0-flash
-  fallbacks: ['inclusionai/ling-3.0-flash:free', 'nvidia/nemotron-3-super:free'],
+  primary: 'openrouter/stealth/space-bunny-alpha',
+  fallbacks: ['openrouter/nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'],
   ...
 }
 ```
@@ -67,8 +67,8 @@ node src/scripts/model-routes.js info workout:generate
 // In ROUTES
 'analysis:injury': {
   description: 'Injury-specific training adjustments',
-  primary: 'inclusionai/ling-3.0-flash:free',
-  fallbacks: ['nvidia/nemotron-3-super:free'],
+  primary: 'openrouter/stealth/space-bunny-alpha',
+  fallbacks: ['openrouter/nvidia/nemotron-3-ultra-550b-a55b:free', 'openrouter/free'],
   maxTokens: 4096,
   timeout: 60000,
   temperature: 0.5
@@ -85,21 +85,15 @@ node src/scripts/model-routes.js info workout:generate
 ## Fallback Behavior
 
 - **Automatic**: If primary fails (error, timeout, rate limit), tries fallbacks in order
-- **Route-specific first**: Each route has 2-4 tailored fallbacks
-- **Universal last-resort**: If ALL route-specific fallbacks fail, tries 4 universal backups:
-  1. `nvidia/nemotron-3-super:free` — Best all-rounder (balanced reasoning/speed)
-  2. `nvidia/nemotron-3-nano-omni:free` — Fastest, high rate limit
-  3. `google/gemma-4-31b:free` — Good for conversation
-  4. `cohere/north-mini-code:free` — Good for structured output
+- **Route-specific first**: Each route has 2 tailored fallbacks
+- **Universal last-resort**: If ALL route-specific fallbacks fail, tries `openrouter/free` (dynamic provider selection)
 - **Rate limit aware**: Tracks daily usage per model, skips rate-limited models
 - **Logged**: Console warns when fallbacks are used (shows "route fallback" or "universal fallback")
 
 ## Rate Limits
 
 Daily limits are conservative estimates based on weekly token allocations ÷ 7, assuming ~5K tokens/request:
-- **High limits (100K+)**: Nano models — effectively unlimited
-- **Medium limits (4K-20K)**: Laguna XS, Ling, Gemma, Super
-- **Low limits (50-1K)**: Laguna S, Ultra — use sparingly
+- **High limits (1K)**: All models — use with rate limiting
 
 ## Using in Code
 
@@ -128,11 +122,11 @@ Check usage anytime:
 ```javascript
 const { getUsageStats } = require('./services/model-router');
 console.log(getUsageStats());
-// { 'poolside/laguna-s-2.1:free': { used: 150, limit: 1000, remaining: 850, percentUsed: 15 }, ... }
+// { 'openrouter/stealth/space-bunny-alpha': { used: 150, limit: 1000, remaining: 850, percentUsed: 15 }, ... }
 ```
 
 Reset for testing:
 ```javascript
 const { resetModelUsage } = require('./services/model-router');
-resetModelUsage('poolside/laguna-s-2.1:free');
+resetModelUsage('openrouter/stealth/space-bunny-alpha');
 ```
