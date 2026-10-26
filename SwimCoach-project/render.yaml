@@ -11,6 +11,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --use-openssl-ca
       - key: GOOGLE_CALLBACK_URL
         value: https://swimcoachai.onrender.com/api/auth/google/callback
       - key: SESSION_SECRET
