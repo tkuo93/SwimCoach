@@ -404,7 +404,9 @@ async function callLLM(modelOverride, messages, tools, mode = 'general', modelPr
   const effectiveRoute = modelOverride ? 'fallback:code' : routeKey;
 
   // User preferences only apply when there's no explicit model override.
-  const preferences = modelOverride ? null : modelPreferences;
+  // Use undefined (not null) so buildModelChain's default parameter works.
+  // Also coerce null modelPreferences to undefined.
+  const preferences = modelOverride ? undefined : (modelPreferences ?? undefined);
 
   const options = {
     maxTokens: 4096,

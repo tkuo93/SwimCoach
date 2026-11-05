@@ -402,7 +402,9 @@ async function generateWorkout(profile, customization, opts = {}) {
   // User model preferences from the swimmer profile override the default tiered chain.
   // When an explicit llmModel override is provided, it bypasses preferences and uses
   // the fallback:code route (existing behavior for debug/test mode).
-  const userPreferences = customization.llmModel ? null : profile.modelPreferences;
+  // Use undefined (not null) so buildModelChain's default parameter works.
+  // Also coerce null profile.modelPreferences to undefined.
+  const userPreferences = customization.llmModel ? undefined : (profile.modelPreferences ?? undefined);
 
   const sessionType = customization.sessionType || 'both';
   const includePool = sessionType === 'both' || sessionType === 'pool';
