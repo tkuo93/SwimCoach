@@ -713,6 +713,9 @@ let weekOffset = 0;
 let selectedSwimmerId = null;
 let isAuthenticated = false;
 
+// Initialize theme immediately on load
+initTheme();
+
 // Theme state
 let currentTheme = localStorage.getItem('swimcoach_theme') || 'system';
 
