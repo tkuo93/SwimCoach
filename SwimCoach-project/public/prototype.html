@@ -21,13 +21,101 @@
   --radius: 12px;
   --radius-sm: 8px;
   --space: 16px;
+
+  /* Theme colors (light mode defaults) */
+  --bg-primary: #f0f0f5;
+  --bg-secondary: var(--white);
+  --bg-tertiary: var(--gray-100);
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --border-color: var(--gray-300);
+  --card-bg: var(--white);
+  --card-border: var(--gray-300);
+  --hover-bg: var(--gray-100);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --teal: #4FD1D5;
+    --teal-dark: #80E8EC;
+    --teal-light: #0D3D3E;
+    --coral: #FF9B6B;
+    --coral-light: #3D1E0D;
+
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #25253e;
+    --bg-tertiary: #3a3a55;
+    --text-primary: #f0f0f5;
+    --text-secondary: #c0c0cc;
+    --text-muted: #75758a;
+    --border-color: #3a3a55;
+    --card-bg: #25253e;
+    --card-border: #3a3a55;
+    --hover-bg: #3a3a55;
+    --overlay-bg: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Explicit light mode */
+:root[data-theme="light"] {
+  --teal: #0D7377;
+  --teal-dark: #095456;
+  --teal-light: #E6F4F4;
+  --coral: #FF6B35;
+  --coral-light: #FFF0E8;
+
+  --bg-primary: #f0f0f5;
+  --bg-secondary: var(--white);
+  --bg-tertiary: var(--gray-100);
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --text-muted: var(--gray-500);
+  --border-color: var(--gray-300);
+  --card-bg: var(--white);
+  --card-border: var(--gray-300);
+  --hover-bg: var(--gray-100);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* Explicit dark mode */
+:root[data-theme="dark"] {
+  --teal: #4FD1D5;
+  --teal-dark: #80E8EC;
+  --teal-light: #0D3D3E;
+  --coral: #FF9B6B;
+  --coral-light: #3D1E0D;
+
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #25253e;
+  --bg-tertiary: #3a3a55;
+  --text-primary: #f0f0f5;
+  --text-secondary: #c0c0cc;
+  --text-muted: #75758a;
+  --border-color: #3a3a55;
+  --card-bg: #25253e;
+  --card-border: #3a3a55;
+  --hover-bg: #3a3a55;
+  --overlay-bg: rgba(0, 0, 0, 0.8);
+}
+
+/* Theme transition */
+*,
+*::before,
+*::after {
+  transition: background-color 250ms ease,
+              border-color 250ms ease,
+              color 250ms ease,
+              box-shadow 250ms ease;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: var(--font);
-  background: #1a1a2e;
+  background: var(--bg-primary);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -37,7 +125,7 @@ body {
 
 .phone {
   width: 375px;
-  background: var(--white);
+  background: var(--bg-secondary);
   border-radius: 40px;
   overflow: hidden;
   box-shadow: 0 25px 80px rgba(0,0,0,0.5);
@@ -154,7 +242,7 @@ body {
 
 .note-box p {
   font-size: 14px;
-  color: var(--gray-900);
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
@@ -167,7 +255,7 @@ body {
 
 /* Why this workout (collapsible) */
 .collapsible {
-  border: 2px solid var(--gray-300);
+  border: 2px solid var(--border-color);
   border-radius: var(--radius);
   margin-bottom: 16px;
   cursor: pointer;
@@ -179,10 +267,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--gray-100);
+  background: var(--bg-tertiary);
   font-size: 14px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--text-secondary);
 }
 
 .collapsible-header .arrow { transition: transform 0.2s; }
@@ -191,9 +279,9 @@ body {
 .collapsible-body {
   display: none;
   padding: 14px;
-  border-top: 1px solid var(--gray-300);
+  border-top: 1px solid var(--border-color);
   font-size: 14px;
-  color: var(--gray-700);
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -201,10 +289,11 @@ body {
 
 /* Set card */
 .set-card {
-  border: 2px solid var(--gray-300);
+  border: 2px solid var(--border-color);
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
+  background: var(--card-bg);
 }
 
 .set-card-header {
@@ -225,12 +314,12 @@ body {
 .set-card-header .distance {
   font-size: 13px;
   font-weight: 600;
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .set-card .description {
   font-size: 14px;
-  color: var(--gray-900);
+  color: var(--text-primary);
   line-height: 1.5;
   margin-bottom: 10px;
 }
@@ -240,7 +329,7 @@ body {
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 13px;
-  color: var(--gray-900);
+  color: var(--text-primary);
   line-height: 1.4;
 }
 
@@ -252,10 +341,10 @@ body {
 .set-card .total {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--gray-300);
+  border-top: 1px solid var(--border-color);
   font-size: 12px;
   font-weight: 600;
-  color: var(--gray-500);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -264,11 +353,11 @@ body {
 .grand-total {
   text-align: center;
   padding: 16px;
-  border-top: 2px solid var(--gray-900);
+  border-top: 2px solid var(--text-primary);
   margin: 16px 0;
   font-size: 16px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--text-primary);
 }
 
 /* Buttons */

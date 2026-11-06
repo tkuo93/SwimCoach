@@ -81,6 +81,137 @@
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow: 400ms ease;
+
+  /* Theme colors (light mode defaults) */
+  --bg-primary: var(--gray-50);
+  --bg-secondary: var(--white);
+  --bg-tertiary: var(--gray-100);
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --text-muted: var(--gray-400);
+  --border-color: var(--gray-200);
+  --border-light: var(--gray-100);
+  --input-bg: var(--gray-50);
+  --input-border: var(--gray-200);
+  --input-focus-bg: var(--white);
+  --card-bg: var(--white);
+  --card-border: var(--gray-200);
+  --hover-bg: var(--gray-100);
+  --overlay-bg: rgba(10, 22, 40, 0.85);
+  --sidebar-bg: var(--white);
+  --sidebar-border: var(--gray-200);
+  --divider-color: var(--gray-200);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Semantic - keep primary/accent same for brand consistency */
+    --primary: var(--orange-400);
+    --primary-hover: var(--orange-300);
+    --primary-light: var(--orange-900);
+    --accent: var(--blue-400);
+    --accent-light: var(--blue-900);
+    --success: #22c55e;
+    --warning: #facc15;
+    --error: #ef4444;
+
+    /* Theme colors (dark mode) */
+    --bg-primary: var(--gray-900);
+    --bg-secondary: var(--gray-800);
+    --bg-tertiary: var(--gray-700);
+    --text-primary: var(--gray-50);
+    --text-secondary: var(--gray-300);
+    --text-muted: var(--gray-500);
+    --border-color: var(--gray-700);
+    --border-light: var(--gray-800);
+    --input-bg: var(--gray-800);
+    --input-border: var(--gray-700);
+    --input-focus-bg: var(--gray-800);
+    --card-bg: var(--gray-800);
+    --card-border: var(--gray-700);
+    --hover-bg: var(--gray-700);
+    --overlay-bg: rgba(0, 0, 0, 0.9);
+    --sidebar-bg: var(--gray-800);
+    --sidebar-border: var(--gray-700);
+    --divider-color: var(--gray-700);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Explicit light mode (when user chooses light in dark system preference) */
+:root[data-theme="light"] {
+  --primary: var(--orange-500);
+  --primary-hover: var(--orange-600);
+  --primary-light: var(--orange-50);
+  --accent: var(--blue-500);
+  --accent-light: var(--blue-50);
+  --success: #16a34a;
+  --warning: #eab308;
+  --error: #dc2626;
+
+  --bg-primary: var(--gray-50);
+  --bg-secondary: var(--white);
+  --bg-tertiary: var(--gray-100);
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --text-muted: var(--gray-400);
+  --border-color: var(--gray-200);
+  --border-light: var(--gray-100);
+  --input-bg: var(--gray-50);
+  --input-border: var(--gray-200);
+  --input-focus-bg: var(--white);
+  --card-bg: var(--white);
+  --card-border: var(--gray-200);
+  --hover-bg: var(--gray-100);
+  --overlay-bg: rgba(10, 22, 40, 0.85);
+  --sidebar-bg: var(--white);
+  --sidebar-border: var(--gray-200);
+  --divider-color: var(--gray-200);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Explicit dark mode (when user chooses dark in light system preference) */
+:root[data-theme="dark"] {
+  --primary: var(--orange-400);
+  --primary-hover: var(--orange-300);
+  --primary-light: var(--orange-900);
+  --accent: var(--blue-400);
+  --accent-light: var(--blue-900);
+  --success: #22c55e;
+  --warning: #facc15;
+  --error: #ef4444;
+
+  --bg-primary: var(--gray-900);
+  --bg-secondary: var(--gray-800);
+  --bg-tertiary: var(--gray-700);
+  --text-primary: var(--gray-50);
+  --text-secondary: var(--gray-300);
+  --text-muted: var(--gray-500);
+  --border-color: var(--gray-700);
+  --border-light: var(--gray-800);
+  --input-bg: var(--gray-800);
+  --input-border: var(--gray-700);
+  --input-focus-bg: var(--gray-800);
+  --card-bg: var(--gray-800);
+  --card-border: var(--gray-700);
+  --hover-bg: var(--gray-700);
+  --overlay-bg: rgba(0, 0, 0, 0.9);
+  --sidebar-bg: var(--gray-800);
+  --sidebar-border: var(--gray-700);
+  --divider-color: var(--gray-700);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Theme transition for smooth switching */
+*,
+*::before,
+*::after {
+  transition: background-color var(--transition-normal),
+              border-color var(--transition-normal),
+              color var(--transition-normal),
+              box-shadow var(--transition-normal);
 }
 
 /* ─── Reset & Base ─── */
@@ -99,8 +230,8 @@ html {
 body {
   font-family: var(--font-sans);
   font-weight: var(--font-weight-normal);
-  color: var(--gray-900);
-  background: var(--gray-50);
+  color: var(--text-primary);
+  background: var(--bg-primary);
   line-height: 1.6;
   min-height: 100vh;
 }
@@ -274,13 +405,13 @@ body {
 .page-header h1 {
   font-size: 2rem;
   font-weight: var(--font-weight-bold);
-  color: var(--blue-800);
+  color: var(--text-primary);
   margin-bottom: var(--space-xs);
   letter-spacing: -0.03em;
 }
 
 .subtitle {
-  color: var(--gray-500);
+  color: var(--text-secondary);
   font-size: 1.05rem;
 }
 
@@ -371,17 +502,17 @@ body {
 }
 
 .form-section {
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
 }
 
 .section-title {
   font-size: 1.1rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--blue-700);
+  color: var(--text-primary);
   margin-bottom: var(--space-lg);
   letter-spacing: -0.01em;
 }
@@ -402,7 +533,7 @@ body {
 .form-group label {
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
-  color: var(--gray-700);
+  color: var(--text-secondary);
 }
 
 .form-group input,
@@ -411,9 +542,9 @@ body {
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  color: var(--gray-900);
-  background: var(--gray-50);
-  border: 2px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   outline: none;
@@ -423,12 +554,12 @@ body {
 .form-group select:focus,
 .form-group textarea:focus {
   border-color: var(--blue-400);
-  background: var(--white);
+  background: var(--input-focus-bg);
   box-shadow: 0 0 0 3px var(--blue-100);
 }
 
 .form-group input::placeholder {
-  color: var(--gray-400);
+  color: var(--text-muted);
 }
 
 /* ─── Expandable Section ─── */
@@ -484,7 +615,7 @@ body {
 .checkbox-group h3 {
   font-size: 0.9rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin-bottom: var(--space-sm);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -501,12 +632,12 @@ body {
   align-items: center;
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
-  background: var(--gray-100);
-  border: 2px solid var(--gray-200);
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
   border-radius: var(--radius-full);
   font-size: 0.9rem;
   font-weight: var(--font-weight-medium);
-  color: var(--gray-700);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
   user-select: none;
@@ -514,7 +645,7 @@ body {
 
 .checkbox-label:hover {
   border-color: var(--blue-300);
-  background: var(--blue-50);
+  background: var(--accent-light);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -523,7 +654,7 @@ body {
 
 .field-hint {
   font-size: 0.85rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
   margin-bottom: var(--space-sm);
 }
 
@@ -532,9 +663,10 @@ body {
   padding: var(--space-xs) var(--space-sm);
   font-family: var(--font-sans);
   font-size: 0.9rem;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  background: var(--white);
+  background: var(--card-bg);
+  color: var(--text-primary);
 }
 
 .weight-inventory-row select:focus,
@@ -544,10 +676,21 @@ body {
 }
 
 .checkbox-label:has(input:checked) {
-  background: var(--blue-50);
+  background: var(--accent-light);
   border-color: var(--blue-500);
   color: var(--blue-700);
   box-shadow: 0 0 0 2px var(--blue-200);
+}
+
+/* Dark mode checkbox checked state */
+:root[data-theme="dark"] .checkbox-label:has(input:checked),
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .checkbox-label:has(input:checked) {
+    background: var(--blue-900);
+    border-color: var(--blue-400);
+    color: var(--blue-200);
+    box-shadow: 0 0 0 2px var(--blue-800);
+  }
 }
 
 /* ─── Form Actions ─── */
@@ -563,7 +706,7 @@ body {
   align-items: center;
   gap: var(--space-md);
   margin: var(--space-xl) 0;
-  color: var(--gray-400);
+  color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
   text-transform: uppercase;
@@ -575,23 +718,23 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--gray-200);
+  background: var(--divider-color);
 }
 
 /* ─── Quick Generate ─── */
 .quick-generate {
   text-align: center;
   padding: var(--space-2xl);
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
 }
 
 .quick-generate-label {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--text-secondary);
   margin-bottom: var(--space-lg);
 }
 
@@ -608,16 +751,16 @@ body {
 
 .quick-generate .hint {
   margin-top: var(--space-lg);
-  color: var(--gray-500);
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 /* ─── Workout Card ─── */
 .workout-card {
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
   overflow: hidden;
   margin-bottom: var(--space-xl);
 }
@@ -676,7 +819,7 @@ body {
 /* ─── Workout Sections ─── */
 .workout-section {
   padding: var(--space-xl);
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .workout-section:last-child {
@@ -686,7 +829,7 @@ body {
 .workout-section h3 {
   font-size: 1.1rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--blue-700);
+  color: var(--text-primary);
   margin-bottom: var(--space-md);
   display: flex;
   align-items: center;
@@ -711,15 +854,15 @@ body {
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--gray-500);
-  background: var(--gray-50);
-  border-bottom: 2px solid var(--gray-200);
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border-bottom: 2px solid var(--border-color);
 }
 
 .interval-table td {
   padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--gray-100);
-  color: var(--gray-800);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
 }
 
 .interval-table tr:last-child td {
@@ -727,7 +870,7 @@ body {
 }
 
 .interval-table tr:hover td {
-  background: var(--blue-50);
+  background: var(--hover-bg);
 }
 
 .interval-table .reps {
@@ -748,17 +891,34 @@ body {
   align-items: center;
   margin-top: var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: var(--blue-50);
+  background: var(--accent-light);
   border-radius: var(--radius-md);
   font-size: 0.9rem;
   font-weight: var(--font-weight-medium);
   color: var(--blue-700);
 }
 
+/* Dark mode section summary */
+:root[data-theme="dark"] .section-summary,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .section-summary {
+    background: var(--blue-900);
+    color: var(--blue-200);
+  }
+}
+
 .total-distance {
   font-size: 1.1rem;
   font-weight: var(--font-weight-bold);
   color: var(--blue-800);
+}
+
+/* Dark mode total distance */
+:root[data-theme="dark"] .total-distance,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .total-distance {
+    color: var(--blue-200);
+  }
 }
 
 /* ─── Training Notes ─── */
@@ -845,8 +1005,8 @@ body {
   display: flex;
   gap: var(--space-sm);
   padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid var(--gray-200);
-  background: var(--gray-50);
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
 }
 
 .chat-input-form input {
@@ -854,10 +1014,12 @@ body {
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-sans);
   font-size: 0.9rem;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-full);
   outline: none;
   transition: border-color var(--transition-fast);
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .chat-input-form input:focus {
@@ -874,10 +1036,10 @@ body {
 .coach-sidebar {
   width: 240px;
   flex-shrink: 0;
-  background: var(--white);
+  background: var(--sidebar-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--sidebar-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -885,8 +1047,8 @@ body {
 
 .coach-sidebar-header {
   padding: var(--space-md);
-  border-bottom: 1px solid var(--gray-200);
-  background: var(--gray-50);
+  border-bottom: 1px solid var(--sidebar-border);
+  background: var(--bg-tertiary);
 }
 
 .coach-conversation-list {
@@ -904,18 +1066,18 @@ body {
 }
 
 .coach-conversation-item:hover {
-  background: var(--gray-100);
+  background: var(--hover-bg);
 }
 
 .coach-conversation-item.active {
-  background: var(--blue-50);
+  background: var(--accent-light);
   border: 1px solid var(--blue-200);
 }
 
 .coach-conversation-title {
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
-  color: var(--gray-800);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -923,16 +1085,16 @@ body {
 
 .coach-conversation-time {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
 .coach-main {
   flex: 1;
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -955,13 +1117,22 @@ body {
 
 /* ─── Action Proposals ─── */
 .action-proposal {
-  background: var(--blue-50);
+  background: var(--accent-light);
   border: 1px solid var(--blue-200);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   margin-top: var(--space-sm);
   max-width: 85%;
   align-self: flex-start;
+}
+
+/* Dark mode action proposal */
+:root[data-theme="dark"] .action-proposal,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .action-proposal {
+    background: var(--blue-900);
+    border-color: var(--blue-700);
+  }
 }
 
 .proposal-description {
@@ -971,14 +1142,22 @@ body {
   margin: 0;
 }
 
+/* Dark mode proposal description */
+:root[data-theme="dark"] .proposal-description,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .proposal-description {
+    color: var(--blue-200);
+  }
+}
+
 .proposal-detail {
   font-size: 0.8rem;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin: var(--space-xs) 0 0 0;
 }
 
 .proposal-detail code {
-  background: var(--gray-200);
+  background: var(--bg-tertiary);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.75rem;
@@ -1008,10 +1187,10 @@ body {
 
 /* ─── Feedback Form ─── */
 .feedback-panel {
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
   padding: var(--space-xl);
   margin-bottom: var(--space-xl);
 }
@@ -1019,7 +1198,7 @@ body {
 .feedback-panel h3 {
   font-size: 1.1rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--blue-700);
+  color: var(--text-primary);
   margin-bottom: var(--space-lg);
 }
 
@@ -1039,7 +1218,7 @@ body {
 .star-rating .star {
   font-size: 1.5rem;
   cursor: pointer;
-  color: var(--gray-300);
+  color: var(--text-muted);
   transition: all var(--transition-fast);
 }
 
@@ -1052,17 +1231,34 @@ body {
 /* Adaptive Response */
 .adaptive-response {
   padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(135deg, var(--blue-50) 0%, var(--orange-50) 100%);
+  background: linear-gradient(135deg, var(--accent-light) 0%, var(--primary-light) 100%);
   border: 2px solid var(--blue-200);
   border-radius: var(--radius-md);
   margin-top: var(--space-lg);
   text-align: center;
 }
 
+/* Dark mode adaptive response */
+:root[data-theme="dark"] .adaptive-response,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .adaptive-response {
+    background: linear-gradient(135deg, var(--blue-900) 0%, var(--orange-900) 100%);
+    border-color: var(--blue-700);
+  }
+}
+
 .adaptive-response p {
   font-size: 0.95rem;
   color: var(--blue-700);
   font-weight: var(--font-weight-medium);
+}
+
+/* Dark mode adaptive response text */
+:root[data-theme="dark"] .adaptive-response p,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .adaptive-response p {
+    color: var(--blue-200);
+  }
 }
 
 .adaptive-response .emoji {
@@ -1081,7 +1277,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-  background: rgba(10, 22, 40, 0.85);
+  background: var(--overlay-bg);
   backdrop-filter: blur(4px);
 }
 
@@ -1143,7 +1339,7 @@ body {
 .empty-state {
   text-align: center;
   padding: var(--space-3xl) var(--space-xl);
-  color: var(--gray-500);
+  color: var(--text-muted);
 }
 
 .empty-state .emoji {
@@ -1155,7 +1351,7 @@ body {
 .empty-state h3 {
   font-size: 1.2rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--gray-700);
+  color: var(--text-primary);
   margin-bottom: var(--space-sm);
 }
 
@@ -1170,12 +1366,22 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
-  background: var(--orange-50);
+  background: var(--primary-light);
   border: 2px solid var(--orange-200);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-lg);
   font-weight: var(--font-weight-medium);
   color: var(--orange-600);
+}
+
+/* Dark mode edit mode banner */
+:root[data-theme="dark"] .edit-mode-banner,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .edit-mode-banner {
+    background: var(--orange-900);
+    border-color: var(--orange-700);
+    color: var(--orange-200);
+  }
 }
 
 /* ─── Events Multi-Select ─── */
@@ -1196,9 +1402,9 @@ body {
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  color: var(--gray-900);
-  background: var(--gray-50);
-  border: 2px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   outline: none;
   transition: all var(--transition-fast);
@@ -1206,7 +1412,7 @@ body {
 
 .event-row select:focus {
   border-color: var(--blue-400);
-  background: var(--white);
+  background: var(--input-focus-bg);
   box-shadow: 0 0 0 3px var(--blue-100);
 }
 
@@ -1227,9 +1433,9 @@ body {
   font-family: var(--font-sans);
   font-size: 0.85rem;
   font-weight: var(--font-weight-medium);
-  color: var(--gray-600);
-  background: var(--gray-100);
-  border: 2px solid var(--gray-200);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1238,7 +1444,7 @@ body {
 
 .day-toggle:hover {
   border-color: var(--blue-300);
-  background: var(--blue-50);
+  background: var(--accent-light);
 }
 
 .day-toggle.active {
@@ -1266,9 +1472,9 @@ body {
   padding: var(--space-sm);
   font-family: var(--font-sans);
   font-size: 0.85rem;
-  color: var(--gray-900);
-  background: var(--gray-50);
-  border: 2px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   outline: none;
   transition: all var(--transition-fast);
@@ -1277,7 +1483,7 @@ body {
 .best-time-row select:focus,
 .best-time-row input:focus {
   border-color: var(--blue-400);
-  background: var(--white);
+  background: var(--input-focus-bg);
   box-shadow: 0 0 0 3px var(--blue-100);
 }
 
@@ -1310,9 +1516,9 @@ body {
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  color: var(--gray-900);
-  background: var(--white);
-  border: 2px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   outline: none;
   transition: border-color var(--transition-fast);
@@ -1335,8 +1541,8 @@ body {
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
-  background: var(--gray-50);
-  border: 1px solid var(--gray-200);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
 }
 
@@ -1344,14 +1550,14 @@ body {
   padding: var(--space-xs) var(--space-sm);
   font-family: var(--font-sans);
   font-size: 0.9rem;
-  color: var(--gray-900);
-  background: var(--white);
-  border: 1px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
 }
 
 .competition-date-range .range-sep {
-  color: var(--gray-500);
+  color: var(--text-muted);
   font-size: 0.85rem;
   white-space: nowrap;
 }
@@ -1385,9 +1591,9 @@ body {
   padding: var(--space-sm) var(--space-md);
   font-family: var(--font-sans);
   font-size: 0.9rem;
-  color: var(--gray-900);
-  background: var(--white);
-  border: 2px solid var(--gray-200);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 2px solid var(--input-border);
   border-radius: var(--radius-md);
   outline: none;
   cursor: pointer;
@@ -1406,10 +1612,10 @@ body {
 }
 
 .history-card {
-  background: var(--white);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--card-border);
   padding: var(--space-lg);
   transition: all var(--transition-fast);
 }
@@ -1428,7 +1634,7 @@ body {
 
 .history-card-name {
   font-weight: var(--font-weight-bold);
-  color: var(--gray-900);
+  color: var(--text-primary);
   font-size: 1rem;
   display: block;
   margin-bottom: 2px;
@@ -1436,13 +1642,13 @@ body {
 
 .history-card-type {
   font-weight: var(--font-weight-semibold);
-  color: var(--blue-700);
+  color: var(--accent);
   font-size: 0.85rem;
   text-transform: capitalize;
 }
 
 .history-card-date {
-  color: var(--gray-500);
+  color: var(--text-muted);
   font-size: 0.85rem;
   margin-left: var(--space-md);
 }
@@ -1456,7 +1662,7 @@ body {
 .history-card-body {
   display: flex;
   gap: var(--space-lg);
-  color: var(--gray-600);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   margin-bottom: var(--space-md);
 }
@@ -1476,7 +1682,7 @@ body {
 .debug-prompt-section h4 {
   font-size: 0.9rem;
   font-weight: var(--font-weight-semibold);
-  color: var(--blue-700);
+  color: var(--text-primary);
   margin-bottom: var(--space-sm);
 }
 
