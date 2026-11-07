@@ -2354,7 +2354,7 @@ let profileEditMode=false;
 function renderProfileSwitcher(){
   const c=document.getElementById('profileSwitcher');if(!c)return;
   if(allProfiles.length<=1){
-    c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;color:var(--text-muted);padding:8px 0;">${esc(profile.firstName)} ${esc(profile.lastName)}</div><button class="history-action-btn del" onclick="deleteCurrentProfile()">Delete Profile</button></div>`;
+    c.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;color:var(--text-primary);padding:8px 0;">${esc(profile.firstName)} ${esc(profile.lastName)}</div><button class="history-action-btn del" onclick="deleteCurrentProfile()">Delete Profile</button></div>`;
     return;
   }
   const opts=allProfiles.map(p=>`<option value="${esc(p._id)}" ${p._id===profile._id?'selected':''}>${esc(p.firstName)} ${esc(p.lastName)}</option>`).join('');
@@ -2710,7 +2710,7 @@ async function renderSettings(){
       <div class="settings-row"><span class="settings-label"></span><a href="/terms-of-use.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Terms of Use</a></div>
       <div class="settings-row"><span class="settings-label"></span><a href="/cookie-policy.html" target="_blank" class="history-action-btn" style="text-decoration:none;color:var(--sage);width:auto;padding:6px 12px;display:inline-block">Cookie Policy</a></div>
     </div>
-    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="logout()">Log Out</button></div>`;
+    <div class="settings-row"><span class="settings-label"></span><button class="history-action-btn" onclick="logout()" style="color:var(--coral);border-color:var(--coral-light);font-weight:600">Log Out</button></div>`;
   await loadModelPreferences();
   checkTelegramStatus();
   initThemeSelector();
