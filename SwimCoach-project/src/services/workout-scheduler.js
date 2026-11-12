@@ -28,6 +28,15 @@ const { generateWeeklyProgram } = require('./program-generator');
 // this cache is just an optimization.
 const lastCheckCache = new Map();
 
+// ─── Configuration ─────────────────────────────────────────────────────────
+// Minimum completion rate of current week's scheduled sessions before generating next week
+// Can be overridden via env var AUTO_GEN_MIN_COMPLETION_RATE
+const MIN_COMPLETION_RATE = parseFloat(process.env.AUTO_GEN_MIN_COMPLETION_RATE) || 0.8;
+
+// Day order for finding the last scheduled day of the week
+const DAY_ORDER = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const DAY_TO_NUM = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+
 /**
  * Compute the Monday-Sunday date range for the *upcoming* week
  * (next Monday–Sunday), regardless of what day it is today.
@@ -115,6 +124,120 @@ async function getExistingWorkoutDates(swimmerId, weekStart, weekEnd) {
 }
 
 /**
+ * Get the current week's date range (this Monday–Sunday).
+ * Unlike getUpcomingWeekRange, this returns the week containing the refDate.
+ *
+ * @param {Date} refDate - Reference date
+ * @returns {{ start: Date, end: Date }} - Monday 00:00 to Sunday 23:59:59.999
+ */
+function getCurrentWeekRange(refDate) {
+  const today = new Date(refDate);
+  today.setUTCHours(0, 0, 0, 0);
+  const dayOfWeek = today.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+  // Days from today back to this Monday
+  const daysSinceMonday = (dayOfWeek + 6) % 7; // Monday=0, Sunday=6
+  const monday = new Date(today);
+  monday.setUTCDate(today.getUTCDate() - daysSinceMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  sunday.setUTCHours(23, 59, 59, 999);
+
+  return { start: monday, end: sunday };
+}
+
+/**
+ * Determine the scheduled days for the current week based on the profile.
+ * Returns an array of day names (lowercase) that have pool or gym sessions.
+ */
+function getScheduledDays(profile) {
+  const poolDays = (profile.trainingSchedule?.poolDays || []).map(d => d.toLowerCase());
+  const gymDays = (profile.trainingSchedule?.gymDays || []).map(d => d.toLowerCase());
+
+  // If no explicit days set, use defaults from session counts
+  if (poolDays.length === 0 && gymDays.length === 0) {
+    const poolCount = profile.trainingSchedule?.weeklyPoolSessions || 0;
+    const gymCount = profile.trainingSchedule?.weeklyGymSessions || 0;
+    // Only add default days if sessions > 0
+    const defaultPoolDays = poolCount > 0 ? ['monday', 'wednesday', 'friday'].slice(0, poolCount) : [];
+    const defaultGymDays = gymCount > 0 ? ['tuesday', 'thursday'].slice(0, gymCount) : [];
+    return [...defaultPoolDays, ...defaultGymDays];
+  }
+
+  return [...new Set([...poolDays, ...gymDays])];
+}
+
+/**
+ * Check if the current week's scheduled sessions are sufficiently complete.
+ * A session is considered "complete" if there's a workout with userFeedback.completedAt.
+ *
+ * @param {string} swimmerId - Mongoose ObjectId as string
+ * @param {Object} profile - SwimmerProfile document
+ * @param {Date} refDate - Reference date (defaults to now)
+ * @returns {Promise<{ shouldGenerate: boolean, reason: string, completionRate: number }>}
+ */
+async function isCurrentWeekSufficientlyComplete(swimmerId, profile, refDate) {
+  const { start: currentWeekStart, end: currentWeekEnd } = getCurrentWeekRange(refDate);
+
+  // Get scheduled days for this week
+  const scheduledDays = getScheduledDays(profile);
+  if (scheduledDays.length === 0) {
+    return { shouldGenerate: true, reason: 'No scheduled days configured', completionRate: 1 };
+  }
+
+  // Count scheduled sessions in the current week
+  const totalScheduled = scheduledDays.length;
+
+  // Find workouts in the current week that have userFeedback.completedAt set
+  try {
+    const completedWorkouts = await Workout.find({
+      swimmerId,
+      date: { $gte: currentWeekStart, $lt: new Date(currentWeekEnd.getTime() + 1) },
+      'userFeedback.completedAt': { $exists: true, $ne: null }
+    }).select('date -_id').lean();
+
+    const completedCount = completedWorkouts.length;
+    const completionRate = totalScheduled > 0 ? completedCount / totalScheduled : 1;
+
+    // Also check if we're past the last scheduled day of the week
+    const today = new Date(refDate);
+    today.setUTCHours(0, 0, 0, 0);
+
+    // Find the last scheduled day of the week (as a date)
+    let lastScheduledDayNum = -1;
+    for (const day of scheduledDays) {
+      const dayNum = DAY_TO_NUM[day];
+      if (dayNum > lastScheduledDayNum) lastScheduledDayNum = dayNum;
+    }
+
+    // Convert Sunday (0) to 7 for proper day-of-week comparison within Mon-Sun week
+    const currentDayForComparison = today.getUTCDay() === 0 ? 7 : today.getUTCDay();
+    const lastScheduledDayForComparison = lastScheduledDayNum === 0 ? 7 : lastScheduledDayNum;
+    const isPastLastScheduledDay = currentDayForComparison > lastScheduledDayForComparison;
+
+    // Generate if: past last scheduled day OR completion rate meets threshold
+    const shouldGenerate = isPastLastScheduledDay || completionRate >= MIN_COMPLETION_RATE;
+
+    let reason;
+    if (isPastLastScheduledDay) {
+      reason = `Past last scheduled day (completed ${completedCount}/${totalScheduled})`;
+    } else if (completionRate >= MIN_COMPLETION_RATE) {
+      reason = `Completion rate ${Math.round(completionRate * 100)}% meets threshold ${Math.round(MIN_COMPLETION_RATE * 100)}%`;
+    } else {
+      reason = `Completion rate ${Math.round(completionRate * 100)}% below threshold ${Math.round(MIN_COMPLETION_RATE * 100)}% and not past last scheduled day`;
+    }
+
+    return { shouldGenerate, reason, completionRate };
+  } catch (err) {
+    console.error(`[Scheduler] Failed to check current week completion for ${swimmerId}:`, err.message);
+    // On error, allow generation (fail open) but log the issue
+    return { shouldGenerate: true, reason: 'Error checking completion, allowing generation', completionRate: 0 };
+  }
+}
+
+/**
  * Main entry point: check whether a swimmer needs an auto-generated weekly program.
  *
  * Called from the authenticated GET /api/workouts route (via setImmediate).
@@ -160,6 +283,14 @@ async function checkAndGenerateUpcomingWeek(swimmerId, now) {
     return { skipped: true, reason: 'Already checked this week' };
   }
   lastCheckCache.set(swimmerId, weekKey);
+
+  // Check if current week is sufficiently complete before generating next week
+  const completionCheck = await isCurrentWeekSufficientlyComplete(swimmerId, profile, refDate);
+  if (!completionCheck.shouldGenerate) {
+    console.log(`[Scheduler] Skipping generation for ${swimmerId}: ${completionCheck.reason}`);
+    return { skipped: true, reason: completionCheck.reason, completionRate: completionCheck.completionRate };
+  }
+  console.log(`[Scheduler] Current week check passed for ${swimmerId}: ${completionCheck.reason}`);
 
   // Check for existing workouts in the target (upcoming) week
   const existingCount = await countWorkoutsInWeek(swimmerId, weekStart, weekEnd);
@@ -210,6 +341,9 @@ function clearCache() {
 module.exports = {
   checkAndGenerateUpcomingWeek,
   getUpcomingWeekRange,
+  getCurrentWeekRange,
+  getScheduledDays,
+  isCurrentWeekSufficientlyComplete,
   countWorkoutsInWeek,
   getExistingWorkoutDates,
   getISOWeekKey,
