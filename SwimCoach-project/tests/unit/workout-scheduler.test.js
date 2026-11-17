@@ -158,6 +158,8 @@ describe('checkAndGenerateUpcomingWeek', () => {
     jest.clearAllMocks();
     clearCache();
     mockProfileSave.mockResolvedValue(undefined);
+    // Reset mockFind to avoid cross-test pollution from mockImplementationOnce
+    mockFind.mockReset();
   });
 
   test('on Sunday with no workouts, generates full week with weekStartOffset=1 and refDate', async () => {
@@ -273,26 +275,23 @@ describe('checkAndGenerateUpcomingWeek', () => {
   });
 
   test('when partial workouts exist in upcoming week, fills in missing days', async () => {
-    // Saturday Jan 11, 2025 — past last scheduled day (Friday), so completion check passes
+    // Saturday Jan 11, 2025 — past last scheduled day (Friday), so completion check passes at Rule 1
     const saturday = utcDate(2025, 0, 11, 9);
     const profile = mockProfile();
     mockFindById.mockResolvedValue(profile);
-    // Mock completion check - completed all 5 sessions
-    mockFind.mockReturnValueOnce({
-      select: () => ({ lean: () => Promise.resolve([
-        { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } },
-        { date: utcDate(2025, 0, 7), userFeedback: { completedAt: new Date() } },
-        { date: utcDate(2025, 0, 8), userFeedback: { completedAt: new Date() } },
-        { date: utcDate(2025, 0, 9), userFeedback: { completedAt: new Date() } },
-        { date: utcDate(2025, 0, 10), userFeedback: { completedAt: new Date() } },
-      ]) }),
-    });
+
+    // Rule 1 passes (Saturday >= Friday), so no countDocuments for current week
+    // Only ONE countDocuments call for target week (upcoming week)
     mockCountDocuments.mockResolvedValue(2); // 2 workouts already exist in upcoming week
-    // Mock existing workout dates: Jan 13 (Monday) and Jan 17 (Friday)
+
+    // Mock getExistingWorkoutDates to return target week dates (Jan 13 and Jan 17)
     const existingDates = [new Date(Date.UTC(2025, 0, 13)), new Date(Date.UTC(2025, 0, 17))];
-    mockFind.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
-      { date: existingDates[0] }, { date: existingDates[1] },
-    ]) }) });
+    mockFind.mockImplementationOnce(() => ({
+      select: () => ({ lean: () => Promise.resolve([
+        { date: existingDates[0] }, { date: existingDates[1] },
+      ]) })
+    }));
+
     mockGenerate.mockResolvedValue({
       programId: 'prog_fill',
       programPeriod: 'weekly',
@@ -559,6 +558,8 @@ describe('countWorkoutsInWeek', () => {
 describe('getExistingWorkoutDates', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset mockFind to default
+    mockFind.mockReset();
   });
 
   test('returns dates of existing workouts in the week', async () => {
@@ -657,8 +658,8 @@ describe('getScheduledDays', () => {
 describe('isCurrentWeekSufficientlyComplete', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset the Workout.find mock to not return anything by default
     mockFind.mockReset();
+    mockCountDocuments.mockReset();
   });
 
   test('allows generation when no scheduled days configured', async () => {
@@ -674,6 +675,24 @@ describe('isCurrentWeekSufficientlyComplete', () => {
     expect(result.reason).toBe('No scheduled days configured');
   });
 
+  test('allows generation when on last scheduled day', async () => {
+    // Friday Jan 10, 2025 — ON last scheduled day (Friday)
+    const friday = utcDate(2025, 0, 10, 9);
+    const profile = mockProfile({
+      trainingSchedule: {
+        poolDays: ['monday', 'wednesday', 'friday'],
+        gymDays: ['tuesday', 'thursday'],
+      },
+    });
+    // Mock countDocuments for Rule 2 (current week workouts) - returns 5
+    mockCountDocuments.mockResolvedValue(5);
+
+    const result = await isCurrentWeekSufficientlyComplete('swimmer123', profile, friday);
+    expect(result.shouldGenerate).toBe(true);
+    expect(result.reason).toContain('On/past last scheduled day');
+    expect(result.reason).toContain('friday');
+  });
+
   test('allows generation when past last scheduled day', async () => {
     // Saturday Jan 11, 2025 — past last scheduled day (Friday)
     const saturday = utcDate(2025, 0, 11, 9);
@@ -683,23 +702,16 @@ describe('isCurrentWeekSufficientlyComplete', () => {
         gymDays: ['tuesday', 'thursday'],
       },
     });
-    mockFind.mockReturnValue({
-      select: () => ({ lean: () => Promise.resolve([
-        { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } }, // Monday
-        { date: utcDate(2025, 0, 8), userFeedback: { completedAt: new Date() } }, // Wednesday
-        { date: utcDate(2025, 0, 10), userFeedback: { completedAt: new Date() } }, // Friday
-      ]) }),
-    });
+    // Mock countDocuments for Rule 2 (current week workouts) - returns 5
+    mockCountDocuments.mockResolvedValue(5);
 
     const result = await isCurrentWeekSufficientlyComplete('swimmer123', profile, saturday);
     expect(result.shouldGenerate).toBe(true);
-    expect(result.reason).toContain('Past last scheduled day');
+    expect(result.reason).toContain('On/past last scheduled day');
   });
 
-  test('allows generation when completion rate meets threshold', async () => {
-    // Wednesday Jan 8, 2025 — last scheduled day is Friday (not yet past)
-    // Only include workouts up to Wednesday (3 of 5 = 60% - below threshold)
-    // We need 4 of 5 (80%) to meet threshold
+  test('allows generation when no workouts exist for current week (first week)', async () => {
+    // Wednesday Jan 8, 2025 — before last scheduled day, but 0 workouts exist
     const wednesday = utcDate(2025, 0, 8, 9);
     const profile = mockProfile({
       trainingSchedule: {
@@ -707,20 +719,38 @@ describe('isCurrentWeekSufficientlyComplete', () => {
         gymDays: ['tuesday', 'thursday'],
       },
     });
+    // Mock countDocuments for Rule 2 - returns 0 (no workouts)
+    mockCountDocuments.mockResolvedValue(0);
+
+    const result = await isCurrentWeekSufficientlyComplete('swimmer123', profile, wednesday);
+    expect(result.shouldGenerate).toBe(true);
+    expect(result.reason).toBe('No workouts scheduled for current week');
+  });
+
+  test('allows generation when completion rate meets threshold (mid-week)', async () => {
+    // Wednesday Jan 8, 2025 — before last scheduled day (Friday)
+    // 4 of 5 workouts completed (80%) - meets threshold
+    const wednesday = utcDate(2025, 0, 8, 9);
+    const profile = mockProfile({
+      trainingSchedule: {
+        poolDays: ['monday', 'wednesday', 'friday'],
+        gymDays: ['tuesday', 'thursday'],
+      },
+    });
+    // Mock countDocuments for Rule 2 - returns 5 workouts exist
+    mockCountDocuments.mockResolvedValue(5);
+    // Mock find for completion check (Rule 3)
     mockFind.mockReturnValue({
       select: () => ({ lean: () => Promise.resolve([
         { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } }, // Monday
         { date: utcDate(2025, 0, 7), userFeedback: { completedAt: new Date() } }, // Tuesday
         { date: utcDate(2025, 0, 8), userFeedback: { completedAt: new Date() } }, // Wednesday
-        { date: utcDate(2025, 0, 9), userFeedback: { completedAt: new Date() } }, // Thursday (completed in advance?)
+        { date: utcDate(2025, 0, 9), userFeedback: { completedAt: new Date() } }, // Thursday
       ]) }),
     });
 
     const result = await isCurrentWeekSufficientlyComplete('swimmer123', profile, wednesday);
-    // 4 completed / 5 scheduled = 80% which meets default threshold
     expect(result.shouldGenerate).toBe(true);
-    // Note: the test includes Thursday which is in the future - in reality this wouldn't happen
-    // but the query doesn't know "now", it just finds all workouts in the week
     expect(result.reason).toContain('Completion rate');
     expect(result.completionRate).toBe(0.8);
   });
@@ -734,6 +764,9 @@ describe('isCurrentWeekSufficientlyComplete', () => {
         gymDays: ['tuesday', 'thursday'],
       },
     });
+    // Mock countDocuments for Rule 2 - returns 5 workouts exist
+    mockCountDocuments.mockResolvedValue(5);
+    // Mock find for completion check (Rule 3)
     mockFind.mockReturnValue({
       select: () => ({ lean: () => Promise.resolve([
         { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } }, // Monday
@@ -750,13 +783,11 @@ describe('isCurrentWeekSufficientlyComplete', () => {
   test('allows generation on error (fail open)', async () => {
     const wednesday = utcDate(2025, 0, 8, 9);
     const profile = mockProfile();
-    mockFind.mockReturnValue({
-      select: () => ({ lean: () => Promise.reject(new Error('DB error')) }),
-    });
+    mockCountDocuments.mockRejectedValue(new Error('DB error'));
 
     const result = await isCurrentWeekSufficientlyComplete('swimmer123', profile, wednesday);
     expect(result.shouldGenerate).toBe(true);
-    expect(result.reason).toContain('Error checking completion');
+    expect(result.reason).toContain('Error checking current week');
   });
 });
 
@@ -777,7 +808,9 @@ describe('checkAndGenerateUpcomingWeek - completion check integration', () => {
       },
     });
     mockFindById.mockResolvedValue(profile);
-    // Mock isCurrentWeekSufficientlyComplete check
+    // Mock isCurrentWeekSufficientlyComplete check - Rule 2: 5 workouts exist
+    mockCountDocuments.mockResolvedValueOnce(5);
+    // Rule 3: only 2 completed
     mockFind.mockReturnValue({
       select: () => ({ lean: () => Promise.resolve([
         { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } },
@@ -801,7 +834,9 @@ describe('checkAndGenerateUpcomingWeek - completion check integration', () => {
       },
     });
     mockFindById.mockResolvedValue(profile);
-    // Mock isCurrentWeekSufficientlyComplete check - 5 completed
+    // Mock isCurrentWeekSufficientlyComplete check - Rule 2: 5 workouts exist
+    mockCountDocuments.mockResolvedValueOnce(5);
+    // Rule 3: 5 completed (not needed since Rule 1 passes)
     mockFind.mockReturnValueOnce({
       select: () => ({ lean: () => Promise.resolve([
         { date: utcDate(2025, 0, 6), userFeedback: { completedAt: new Date() } },

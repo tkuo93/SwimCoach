@@ -29,7 +29,7 @@ const { generateWeeklyProgram } = require('./program-generator');
 const lastCheckCache = new Map();
 
 // ─── Configuration ─────────────────────────────────────────────────────────
-// Minimum completion rate of current week's scheduled sessions before generating next week
+// Fallback completion threshold for mid-week generation (when before last scheduled day)
 // Can be overridden via env var AUTO_GEN_MIN_COMPLETION_RATE
 const MIN_COMPLETION_RATE = parseFloat(process.env.AUTO_GEN_MIN_COMPLETION_RATE) || 0.8;
 
@@ -170,8 +170,11 @@ function getScheduledDays(profile) {
 }
 
 /**
- * Check if the current week's scheduled sessions are sufficiently complete.
- * A session is considered "complete" if there's a workout with userFeedback.completedAt.
+ * Check if we should generate next week's workouts.
+ * Generates if:
+ *  1. We're on or past the last scheduled day of the current week, OR
+ *  2. No workouts exist for the current week (first week or missed generation)
+ *  3. (Fallback) Completion rate meets threshold for mid-week generation
  *
  * @param {string} swimmerId - Mongoose ObjectId as string
  * @param {Object} profile - SwimmerProfile document
@@ -187,10 +190,50 @@ async function isCurrentWeekSufficientlyComplete(swimmerId, profile, refDate) {
     return { shouldGenerate: true, reason: 'No scheduled days configured', completionRate: 1 };
   }
 
-  // Count scheduled sessions in the current week
-  const totalScheduled = scheduledDays.length;
+  // Find the last scheduled day of the week (0=Sunday ... 6=Saturday)
+  let lastScheduledDayNum = -1;
+  for (const day of scheduledDays) {
+    const dayNum = DAY_TO_NUM[day];
+    if (dayNum > lastScheduledDayNum) lastScheduledDayNum = dayNum;
+  }
 
-  // Find workouts in the current week that have userFeedback.completedAt set
+  // Convert Sunday (0) to 7 for proper day-of-week comparison within Mon-Sun week
+  const today = new Date(refDate);
+  today.setUTCHours(0, 0, 0, 0);
+  const currentDayForComparison = today.getUTCDay() === 0 ? 7 : today.getUTCDay();
+  const lastScheduledDayForComparison = lastScheduledDayNum === 0 ? 7 : lastScheduledDayNum;
+
+  // Rule 1: On or past the last scheduled day → generate
+  if (currentDayForComparison >= lastScheduledDayForComparison) {
+    return {
+      shouldGenerate: true,
+      reason: `On/past last scheduled day (${Object.keys(DAY_TO_NUM).find(k => DAY_TO_NUM[k] === lastScheduledDayNum)})`,
+      completionRate: 1
+    };
+  }
+
+  // Rule 2: No workouts exist for current week → generate (first week or recovery)
+  try {
+    const currentWeekWorkouts = await Workout.countDocuments({
+      swimmerId,
+      date: { $gte: currentWeekStart, $lt: new Date(currentWeekEnd.getTime() + 1) }
+    });
+
+    if (currentWeekWorkouts === 0) {
+      return {
+        shouldGenerate: true,
+        reason: 'No workouts scheduled for current week',
+        completionRate: 0
+      };
+    }
+  } catch (err) {
+    console.error(`[Scheduler] Failed to count current week workouts for ${swimmerId}:`, err.message);
+    // Fail open
+    return { shouldGenerate: true, reason: 'Error checking current week, allowing generation', completionRate: 0 };
+  }
+
+  // Rule 3: Mid-week fallback - check completion threshold (for users who want early generation)
+  // Only applies if workouts exist but we're before last scheduled day
   try {
     const completedWorkouts = await Workout.find({
       swimmerId,
@@ -199,40 +242,25 @@ async function isCurrentWeekSufficientlyComplete(swimmerId, profile, refDate) {
     }).select('date -_id').lean();
 
     const completedCount = completedWorkouts.length;
+    const totalScheduled = scheduledDays.length;
     const completionRate = totalScheduled > 0 ? completedCount / totalScheduled : 1;
 
-    // Also check if we're past the last scheduled day of the week
-    const today = new Date(refDate);
-    today.setUTCHours(0, 0, 0, 0);
-
-    // Find the last scheduled day of the week (as a date)
-    let lastScheduledDayNum = -1;
-    for (const day of scheduledDays) {
-      const dayNum = DAY_TO_NUM[day];
-      if (dayNum > lastScheduledDayNum) lastScheduledDayNum = dayNum;
+    if (completionRate >= MIN_COMPLETION_RATE) {
+      return {
+        shouldGenerate: true,
+        reason: `Completion rate ${Math.round(completionRate * 100)}% meets threshold ${Math.round(MIN_COMPLETION_RATE * 100)}%`,
+        completionRate
+      };
     }
 
-    // Convert Sunday (0) to 7 for proper day-of-week comparison within Mon-Sun week
-    const currentDayForComparison = today.getUTCDay() === 0 ? 7 : today.getUTCDay();
-    const lastScheduledDayForComparison = lastScheduledDayNum === 0 ? 7 : lastScheduledDayNum;
-    const isPastLastScheduledDay = currentDayForComparison > lastScheduledDayForComparison;
-
-    // Generate if: past last scheduled day OR completion rate meets threshold
-    const shouldGenerate = isPastLastScheduledDay || completionRate >= MIN_COMPLETION_RATE;
-
-    let reason;
-    if (isPastLastScheduledDay) {
-      reason = `Past last scheduled day (completed ${completedCount}/${totalScheduled})`;
-    } else if (completionRate >= MIN_COMPLETION_RATE) {
-      reason = `Completion rate ${Math.round(completionRate * 100)}% meets threshold ${Math.round(MIN_COMPLETION_RATE * 100)}%`;
-    } else {
-      reason = `Completion rate ${Math.round(completionRate * 100)}% below threshold ${Math.round(MIN_COMPLETION_RATE * 100)}% and not past last scheduled day`;
-    }
-
-    return { shouldGenerate, reason, completionRate };
+    return {
+      shouldGenerate: false,
+      reason: `Before last scheduled day, completion rate ${Math.round(completionRate * 100)}% below threshold ${Math.round(MIN_COMPLETION_RATE * 100)}%`,
+      completionRate
+    };
   } catch (err) {
-    console.error(`[Scheduler] Failed to check current week completion for ${swimmerId}:`, err.message);
-    // On error, allow generation (fail open) but log the issue
+    console.error(`[Scheduler] Failed to check completion rate for ${swimmerId}:`, err.message);
+    // Fail open
     return { shouldGenerate: true, reason: 'Error checking completion, allowing generation', completionRate: 0 };
   }
 }
